@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && cp -R node_modules/cesium/Build/Cesium public/cesium",
     "start": "next start",
     "lint": "eslint",
     "postinstall": "symlink-dir node_modules/cesium/Build/Cesium public/cesium"
