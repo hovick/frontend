@@ -1405,7 +1405,7 @@ const handleDownloadLogs = async () => {
         {/* --------------------------- */}
 
         {/* --- ACCOUNT / LOGIN PANEL (Floating Box) --- */}
-        <div style={{ position: "absolute", top: "50px", right: "20px", width: "300px", backgroundColor: "rgba(255, 255, 255, 0.95)", padding: "15px", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", border: "1px solid #ddd", zIndex: 10 }}>
+        <div style={{ position: "absolute", bottom: "100px", right: "20px", width: "300px", backgroundColor: "rgba(255, 255, 255, 0.95)", padding: "15px", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", border: "1px solid #ddd", zIndex: 10 }}>
           {!user ? (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
