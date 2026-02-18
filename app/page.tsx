@@ -32,7 +32,7 @@ export default function Home() {
   // Public Surface Search State
   const [pubSurfQuery, setPubSurfQuery] = useState("");
   const [pubSurfResults, setPubSurfResults] = useState<any[]>([]);
-
+  const [airportName, setAirportName] = useState("London Heathrow (EGLL)");
   // Open Source Data Search State
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -63,7 +63,8 @@ export default function Home() {
 
   // Analyze State
   const [savedSurfaces, setSavedSurfaces] = useState<any[]>([]);
-  const [selectedSurfaceId, setSelectedSurfaceId] = useState("");
+  const [selectedAnalysisAirport, setSelectedAnalysisAirport] = useState("");
+  const [selectedAnalysisOwner, setSelectedAnalysisOwner] = useState<number>(0);
   const [obsPos, setObsPos] = useState({ lat: 51.475, lon: -0.44, alt: 50 });
   const [customPoints, setCustomPoints] = useState(""); // Stores "lat,lon,alt" string
 
@@ -86,7 +87,7 @@ export default function Home() {
         const res = await fetch(`${API_BASE}/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: loginInput, password: passwordInput, is_premium: registerAsPro })
+          body: JSON.stringify({ username: loginInput, password: passwordInput, is_premium: false })
         });
         
         const data = await res.json();
@@ -268,7 +269,7 @@ export default function Home() {
 
   // --- BATCH ANALYSIS LOGIC ---
   const handleBatchAnalyze = async () => {
-    if (!selectedSurfaceId) return alert("Please select a target surface first!");
+    if (!selectedAnalysisAirport) return alert("Please select a target airport first!");
     
     // Parse the input text
     const lines = batchInput.split("\n");
@@ -285,7 +286,7 @@ export default function Home() {
     const res = await fetch("${API_BASE}/analyze-batch", {
       method: "POST",
       headers: getAuthHeaders(),
-      body: JSON.stringify({ surface_id: selectedSurfaceId, obstacles: obsList }),
+      body: JSON.stringify({ surface_id: selectedAnalysisAirport, obstacles: obsList }),
     });
     
     const data = await res.json();
@@ -425,7 +426,7 @@ export default function Home() {
     
     // Remove from UI state
     setSavedSurfaces(prev => prev.filter(s => s.id !== surfaceId));
-    if (selectedSurfaceId === surfaceId) setSelectedSurfaceId("");
+    if (selectedAnalysisAirport === surfaceId) setSelectedAnalysisAirport("");
   };
 
   const handleDrawSurface = (surface: any) => {
@@ -471,7 +472,7 @@ export default function Home() {
   };
 
   const handleExport = async (format: 'kml' | 'dxf') => {
-    const res = await fetch(`${API_BASE}/export/${format}/${selectedSurfaceId}`, {
+    const res = await fetch(`${API_BASE}/export/${format}/${selectedAnalysisAirport}`, {
       headers: getAuthHeaders() // Inject our Premium JWT Token!
     });
     
@@ -591,6 +592,7 @@ export default function Home() {
 
  const handleDefine = async () => {
     let bodyData: any = {
+        airport_name: airportName,
         name: surfName,
         surface_family: family,
         runway_type: runwayType,
@@ -673,7 +675,7 @@ export default function Home() {
     if (!user) {
         // Guests only get 1 surface. Overwrite the array.
         setSavedSurfaces([data]);
-        setSelectedSurfaceId(data.id); // Auto-select it for them
+        setSelectedAnalysisAirport(data.id); // Auto-select it for them
     } else {
         // Pros get up to 10. Append it.
         setSavedSurfaces(prev => [...prev, data]);
@@ -737,13 +739,6 @@ export default function Home() {
             
             <input style={{...inputStyle, padding: "6px"}} value={loginInput} onChange={e => setLoginInput(e.target.value)} placeholder="Username" />
             <input type="password" style={{...inputStyle, padding: "6px"}} value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="Password" />
-            
-            {isRegistering && (
-              <label style={{ fontSize: "11px", display: "flex", gap: "5px", alignItems: "center" }}>
-                <input type="checkbox" checked={registerAsPro} onChange={e => setRegisterAsPro(e.target.checked)} />
-                Register as Premium (Test Mode)
-              </label>
-            )}
 
             <button style={{...activeTabBtn, padding: "8px", backgroundColor: isRegistering ? "#28a745" : "#007bff"}} onClick={handleAuth}>
               {isRegistering ? "Sign Up" : "Log In"}
@@ -879,6 +874,9 @@ export default function Home() {
               )}
             </div>
             {/* --------------------------------- */}
+
+            <label style={labelStyle}>Airport / Group Name</label>
+            <input style={inputStyle} value={airportName} onChange={e => setAirportName(e.target.value)} placeholder="e.g. Heathrow (EGLL)" />
 
             <label style={labelStyle}>Surface Name</label>
             <input style={inputStyle} value={surfName} onChange={e => setSurfName(e.target.value)} placeholder="Name (e.g., RWY 09/27)" />
@@ -1038,30 +1036,29 @@ export default function Home() {
               {/* SEARCH RESULTS AUTOCOMPLETE */}
               {pubSurfResults.length > 0 && (
                 <div style={{ position: "absolute", top: "100%", left: 0, right: 0, backgroundColor: "white", border: "1px solid #ccc", zIndex: 100, maxHeight: "200px", overflowY: "auto", boxShadow: "0 4px 8px rgba(0,0,0,0.1)" }}>
-                  {pubSurfResults.map(s => (
+                  {pubSurfResults.map((s: any, idx) => (
                     <div 
-                      key={s.id} 
-                      // --- THIS IS THE UPDATED ONCLICK HANDLER ---
+                      key={idx} 
                       onClick={async () => {
-                        setSelectedSurfaceId(s.id);
-                        setPubSurfQuery(`${s.name} (${s.family})`); // Fill the box with the selection
-                        setPubSurfResults([]); // Close the dropdown
+                        setSelectedAnalysisAirport(s.airport_name);
+                        setSelectedAnalysisOwner(s.owner_id);
+                        setPubSurfQuery(s.airport_name); 
+                        setPubSurfResults([]); 
                         
-                        // --- NEW: FETCH AND DRAW THE SURFACE INSTANTLY ---
+                        // Fetch ALL surfaces for this airport to auto-draw them!
                         try {
-                          const res = await fetch(`${API_BASE}/surfaces/${s.id}`);
+                          const res = await fetch(`${API_BASE}/airports/${s.owner_id}/${encodeURIComponent(s.airport_name)}`);
                           if (res.ok) {
-                            const fullSurface = await res.json();
-                            handleDrawSurface(fullSurface);
+                            const airportSurfaces = await res.json();
+                            airportSurfaces.forEach((surf: any) => handleDrawSurface(surf));
                           }
                         } catch (err) {
-                          alert("Network error: Could not load surface geometry.");
+                          console.error("Could not load airport geometry.");
                         }
                       }}
-                      // -------------------------------------------
                       style={{ padding: "8px", borderBottom: "1px solid #eee", cursor: "pointer", fontSize: "12px" }}
                     >
-                      <strong>{s.name}</strong> <span style={{color: "gray"}}>({s.family})</span>
+                      <strong>{s.airport_name}</strong>
                     </div>
                   ))}
                 </div>
@@ -1069,18 +1066,20 @@ export default function Home() {
             </div>
 
             {/* 2. MY SURFACES DROPDOWN */}
-            <label style={labelStyle}>Or select from your saved configurations</label>
+            <label style={labelStyle}>Or select from your saved airports</label>
             <select 
               style={inputStyle} 
-              // If the selected ID isn't in their personal list (i.e. it came from the public search), show the default option
-              value={savedSurfaces.some(s => s.id === selectedSurfaceId) ? selectedSurfaceId : ""} 
+              value={selectedAnalysisOwner === user?.id ? selectedAnalysisAirport : ""} 
               onChange={e => {
-                setSelectedSurfaceId(e.target.value);
-                setPubSurfQuery(""); // Clear the public search box if they select their own
+                setSelectedAnalysisAirport(e.target.value);
+                setSelectedAnalysisOwner(user?.id || 0);
+                setPubSurfQuery(""); 
               }}
             >
-              <option value="">Select your surface...</option>
-              {savedSurfaces.map(s => <option key={s.id} value={s.id}>{s.name} ({s.family})</option>)}
+              <option value="">Select your airport...</option>
+              {Array.from(new Set(savedSurfaces.map(s => s.airport_name))).map(airport => (
+                <option key={airport} value={airport}>{airport}</option>
+              ))}
             </select>
             
             <hr style={{ borderTop: "1px solid #eee", width: "100%" }}/>
@@ -1095,7 +1094,7 @@ export default function Home() {
             <button 
               style={{ ...createBtnStyle, backgroundColor: "#28a745" }}
               onClick={async () => {
-                if (!selectedSurfaceId) return alert("Please select a surface first!");
+                if (!selectedAnalysisAirport) return alert("Please select an airport first!");
                 
                 // Clear previous results while loading
                 setAnalysisResult(null);
@@ -1107,7 +1106,8 @@ export default function Home() {
                     lat: obsPos.lat,
                     lon: obsPos.lon,
                     alt: obsPos.alt,
-                    surface_id: selectedSurfaceId
+                    airport_name: selectedAnalysisAirport, // <-- NEW
+                    owner_id: selectedAnalysisOwner
                   }),
                 });
                 
@@ -1184,7 +1184,7 @@ export default function Home() {
             </div>
 
             {/* --- PREMIUM EXPORT PANEL --- */}
-            {selectedSurfaceId && (
+            {selectedAnalysisAirport && (
               <div style={{ backgroundColor: "#fff3cd", padding: "10px", borderRadius: "4px", marginBottom: "15px", border: "1px solid #ffeeba" }}>
                 <label style={{...labelStyle, color: "#856404", marginBottom: "8px", display: "block"}}>
                   ★ Premium Export Tools
