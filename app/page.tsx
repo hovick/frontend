@@ -10,6 +10,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 export default function Home() {
   const [user, setUser] = useState<{id: number, username: string, email?: string, is_premium: boolean, tier?: string} | null>(null);
   // --- Profile Settings State ---
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [editUsername, setEditUsername] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editPassword, setEditPassword] = useState("");
@@ -177,10 +178,16 @@ export default function Home() {
             setUser(data);
             setEditUsername(data.username || "");
             setEditEmail(data.email || "");
+            
+            // Fetch Surfaces
             fetch(`${API_BASE}/get-surfaces`, { headers: { "Authorization": `Bearer ${token}` } })
               .then(r => r.json()).then(surfs => setSavedSurfaces(surfs));
-          } else {
-            localStorage.removeItem("aero_token");
+              
+            // --- NEW: Fetch Audit Logs if Premium ---
+            if (data.is_premium) {
+              fetch(`${API_BASE}/audit-logs`, { headers: { "Authorization": `Bearer ${token}` } })
+                .then(r => r.json()).then(logs => setAuditLogs(logs));
+            }
           }
         });
     }
@@ -598,6 +605,23 @@ export default function Home() {
     doc.text("This document is an automated analysis report. Please verify with local Civil Aviation Authorities.", 105, pageHeight - 10, { align: "center" });
 
     // --- 8. TRIGGER DOWNLOAD ---
+    // --- NEW: SAVE TO AUDIT LOG (Fire and Forget) ---
+    if (user?.is_premium) {
+      fetch(`${API_BASE}/audit-log`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          airport_name: selectedAnalysisAirport,
+          owner_id: selectedAnalysisOwner,
+          lat: obsPos.lat,
+          lon: obsPos.lon,
+          alt: obsPos.alt,
+          limiting_surface: analysisResult.limiting_surface,
+          margin: analysisResult.margin,
+          penetration: analysisResult.penetration
+        })
+      }).catch(err => console.error("Failed to save audit log", err));
+    }
     doc.save(`AeroCheck_Report_${Date.now()}.pdf`);
   };
 
@@ -1311,6 +1335,46 @@ export default function Home() {
                   <strong>Free Tier Limit Reached.</strong><br/>
                   Upgrade to Premium to save up to 10 distinct airport configurations.
                 </p>
+              </div>
+            )}
+            {/* --- PREMIUM: AUDIT LOG HISTORY --- */}
+            {user?.is_premium && (
+              <div style={{ backgroundColor: "#e8f0fe", padding: "15px", borderRadius: "6px", border: "1px solid #cce5ff", marginTop: "20px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                  <label style={{...labelStyle, margin: 0, color: "#1a73e8"}}>🗄️ Official Authorization Logs</label>
+                  <span style={{ fontSize: "11px", color: "#666" }}>Showing last {auditLogs.length} records</span>
+                </div>
+                
+                {auditLogs.length === 0 ? (
+                  <p style={{ fontSize: "12px", color: "#666" }}>No PDFs have been generated yet.</p>
+                ) : (
+                  <div style={{ overflowX: "auto", maxHeight: "300px", overflowY: "auto", border: "1px solid #ddd", borderRadius: "4px" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", textAlign: "left", backgroundColor: "white" }}>
+                      <thead style={{ backgroundColor: "#f8f9fa", position: "sticky", top: 0 }}>
+                        <tr>
+                          <th style={{ padding: "8px", borderBottom: "1px solid #ddd" }}>Date</th>
+                          <th style={{ padding: "8px", borderBottom: "1px solid #ddd" }}>Airport</th>
+                          <th style={{ padding: "8px", borderBottom: "1px solid #ddd" }}>Obstacle (Lat/Lon/Alt)</th>
+                          <th style={{ padding: "8px", borderBottom: "1px solid #ddd" }}>Status</th>
+                          <th style={{ padding: "8px", borderBottom: "1px solid #ddd" }}>Margin</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {auditLogs.map((log: any, idx) => (
+                          <tr key={idx} style={{ borderBottom: "1px solid #eee" }}>
+                            <td style={{ padding: "8px" }}>{new Date(log.timestamp).toLocaleDateString()}</td>
+                            <td style={{ padding: "8px" }}>{log.airport_name}</td>
+                            <td style={{ padding: "8px", fontFamily: "monospace" }}>{log.lat}, {log.lon} ({log.alt}m)</td>
+                            <td style={{ padding: "8px", fontWeight: "bold", color: log.penetration ? "#dc3545" : "#28a745" }}>
+                              {log.penetration ? "DENIED" : "ALLOWED"}
+                            </td>
+                            <td style={{ padding: "8px" }}>{log.margin.toFixed(2)}m</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
           </div>
