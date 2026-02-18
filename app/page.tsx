@@ -4,7 +4,6 @@ import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-// PRODUCTION READY: Change this to your real domain when deploying (e.g., "https://api.aeroplanner.com")
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 export default function Home() {
