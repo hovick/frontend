@@ -23,6 +23,9 @@ export default function Home() {
   const cesiumContainer = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Cesium.Viewer | null>(null);
   const [mounted, setMounted] = useState(false);
+  // --- NEW: UI & Redraw States ---
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const drawnSurfacesRef = useRef<any[]>([]);
   // UI State: "define" or "analyze"
   const [activeTab, setActiveTab] = useState("define");
   const [isGenericMode, setIsGenericMode] = useState(false);
@@ -436,12 +439,13 @@ export default function Home() {
   const handleDrawSurface = (surfaceInput: any | any[]) => {
     if (!viewerRef.current) return;
     
-    // Clear the map once
     viewerRef.current.entities.removeAll();
     const entitiesToAdd: Cesium.Entity[] = [];
 
-    // Force the input into an array so we can handle 1 surface OR 80 surfaces seamlessly
     const surfaces = Array.isArray(surfaceInput) ? surfaceInput : [surfaceInput];
+    
+    // --- NEW: Save to memory so we can redraw it later! ---
+    drawnSurfacesRef.current = surfaces;
 
     surfaces.forEach(surface => {
         if (surface.geometry) {
@@ -472,6 +476,13 @@ export default function Home() {
         ));
     }
   };
+
+  // --- NEW: Watch for Generic Mode Toggles ---
+  useEffect(() => {
+    if (drawnSurfacesRef.current.length > 0) {
+        handleDrawSurface(drawnSurfacesRef.current);
+    }
+  }, [isGenericMode]);
 
   // --- PUBLIC SURFACE SEARCH LOGIC ---
   const handleSearchPublicSurfaces = async (query: string) => {
@@ -739,10 +750,63 @@ const handleDownloadLogs = async () => {
   if (!mounted) return <div style={{ backgroundColor: "#111", height: "100vh" }} />;
 
   return (
-    <main style={{ display: "flex", height: "100vh", width: "100vw", position: "relative" }}>
-      {/* MAP CONTANER */}
-      <div ref={cesiumContainer} style={{ flex: 1 }} />
+    <main style={{ position: "relative", width: "100vw", height: "100vh", overflow: "hidden" }}>
+      {/* CESIUM MAP CONTAINER */}
+      <div ref={cesiumContainer} style={{ width: "100%", height: "100%" }} />
 
+      {/* --- NEW: ALTITUDE NEXUS BRANDING --- */}
+      <div style={{
+          position: "absolute",
+          bottom: "20px",
+          left: "20px",
+          backgroundColor: "#0b1b3d", // Deep Navy/Aerospace Blue
+          color: "#ffffff",
+          padding: "10px 20px",
+          borderRadius: "4px",
+          fontWeight: "900",
+          letterSpacing: "3px",
+          fontSize: "14px",
+          zIndex: 10,
+          boxShadow: "0 4px 10px rgba(0,0,0,0.5)",
+          pointerEvents: "none" // Prevents the logo from blocking map clicks
+      }}>
+          ALTITUDE NEXUS
+      </div>
+
+      {/* --- NEW: SIDEBAR TOGGLE ARROW --- */}
+      <button 
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          style={{
+              position: "absolute",
+              top: "20px",
+              left: isSidebarOpen ? "380px" : "0px", // Slides with the menu
+              zIndex: 20,
+              width: "35px",
+              height: "45px",
+              backgroundColor: "rgba(255,255,255,0.95)",
+              color: "#0b1b3d",
+              border: "none",
+              borderRadius: "0 8px 8px 0", // Rounded on the right side
+              cursor: "pointer",
+              fontWeight: "bold",
+              boxShadow: "4px 0px 10px rgba(0,0,0,0.1)",
+              transition: "left 0.3s ease-in-out",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center"
+          }}
+      >
+          {isSidebarOpen ? "◀" : "▶"}
+      </button>
+
+      {/* --- SLIDING SIDEBAR CONTAINER --- */}
+      <div style={{ 
+          ...sidebarStyle, 
+          left: isSidebarOpen ? "20px" : "-400px", // Slides off-screen when hidden!
+          transition: "left 0.3s ease-in-out" 
+      }}>
+      </div>
+        
       {/* --- EXAGGERATION WIDGET --- */}
       <div style={{
         position: "absolute",
