@@ -10,7 +10,8 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 export default function Home() {
   const [user, setUser] = useState<{id: number, username: string, email?: string, is_premium: boolean, tier?: string} | null>(null);
   // --- Profile Settings State ---
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [logStartDate, setLogStartDate] = useState("");
+  const [logEndDate, setLogEndDate] = useState("");
   const [editUsername, setEditUsername] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editPassword, setEditPassword] = useState("");
@@ -183,11 +184,6 @@ export default function Home() {
             fetch(`${API_BASE}/get-surfaces`, { headers: { "Authorization": `Bearer ${token}` } })
               .then(r => r.json()).then(surfs => setSavedSurfaces(surfs));
               
-            // --- NEW: Fetch Audit Logs if Premium ---
-            if (data.is_premium) {
-              fetch(`${API_BASE}/audit-logs`, { headers: { "Authorization": `Bearer ${token}` } })
-                .then(r => r.json()).then(logs => setAuditLogs(logs));
-            }
           }
         });
     }
@@ -505,6 +501,30 @@ export default function Home() {
     const link = document.createElement("a");
     link.href = url;
     link.setAttribute("download", `airspace_export.${format}`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+const handleDownloadLogs = async () => {
+    if (!logStartDate || !logEndDate) return alert("Please select both a start and end date.");
+    if (new Date(logStartDate) > new Date(logEndDate)) return alert("Start date cannot be after end date.");
+
+    const res = await fetch(`${API_BASE}/export/audit-logs?start_date=${logStartDate}&end_date=${logEndDate}`, {
+      headers: getAuthHeaders()
+    });
+    
+    if (!res.ok) {
+      const err = await res.json();
+      return alert(`Export Error: ${err.detail}`);
+    }
+    
+    // Trigger the silent file download
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `AeroCheck_Logs_${logStartDate}_to_${logEndDate}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1196,7 +1216,7 @@ export default function Home() {
             {/* --- PREMIUM: BATCH OBSTACLE UPLOAD --- */}
             <div style={{ backgroundColor: "#e8f0fe", padding: "10px", borderRadius: "4px", marginTop: "15px", border: "1px solid #cce5ff", opacity: user?.is_premium ? 1 : 0.6 }}>
               <label style={{...labelStyle, color: "#1a73e8", display: "block", marginBottom: "8px"}}>
-                ★ Premium Feature: Batch Obstacle Analysis
+                ★ Premium Feature: Batch Obstacle Analysis (1000 max)
               </label>
               
               <textarea 
@@ -1337,44 +1357,43 @@ export default function Home() {
                 </p>
               </div>
             )}
-            {/* --- PREMIUM: AUDIT LOG HISTORY --- */}
+            {/* --- PREMIUM: AUDIT LOG HISTORY EXPORTER --- */}
             {user?.is_premium && (
               <div style={{ backgroundColor: "#e8f0fe", padding: "15px", borderRadius: "6px", border: "1px solid #cce5ff", marginTop: "20px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
                   <label style={{...labelStyle, margin: 0, color: "#1a73e8"}}>🗄️ Official Authorization Logs</label>
-                  <span style={{ fontSize: "11px", color: "#666" }}>Showing last {auditLogs.length} records</span>
                 </div>
                 
-                {auditLogs.length === 0 ? (
-                  <p style={{ fontSize: "12px", color: "#666" }}>No PDFs have been generated yet.</p>
-                ) : (
-                  <div style={{ overflowX: "auto", maxHeight: "300px", overflowY: "auto", border: "1px solid #ddd", borderRadius: "4px" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", textAlign: "left", backgroundColor: "white" }}>
-                      <thead style={{ backgroundColor: "#f8f9fa", position: "sticky", top: 0 }}>
-                        <tr>
-                          <th style={{ padding: "8px", borderBottom: "1px solid #ddd" }}>Date</th>
-                          <th style={{ padding: "8px", borderBottom: "1px solid #ddd" }}>Airport</th>
-                          <th style={{ padding: "8px", borderBottom: "1px solid #ddd" }}>Obstacle (Lat/Lon/Alt)</th>
-                          <th style={{ padding: "8px", borderBottom: "1px solid #ddd" }}>Status</th>
-                          <th style={{ padding: "8px", borderBottom: "1px solid #ddd" }}>Margin</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {auditLogs.map((log: any, idx) => (
-                          <tr key={idx} style={{ borderBottom: "1px solid #eee" }}>
-                            <td style={{ padding: "8px" }}>{new Date(log.timestamp).toLocaleDateString()}</td>
-                            <td style={{ padding: "8px" }}>{log.airport_name}</td>
-                            <td style={{ padding: "8px", fontFamily: "monospace" }}>{log.lat}, {log.lon} ({log.alt}m)</td>
-                            <td style={{ padding: "8px", fontWeight: "bold", color: log.penetration ? "#dc3545" : "#28a745" }}>
-                              {log.penetration ? "DENIED" : "ALLOWED"}
-                            </td>
-                            <td style={{ padding: "8px" }}>{log.margin.toFixed(2)}m</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                <p style={{ fontSize: "11px", color: "#555", margin: "0 0 10px 0" }}>
+                  Download a complete CSV record of all official evaluation PDFs generated for your airspaces.
+                </p>
+
+                <div style={{ display: "flex", gap: "10px", alignItems: "flex-end" }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: "10px", fontWeight: "bold", color: "#333", display: "block", marginBottom: "3px" }}>Start Date</label>
+                    <input 
+                      type="date" 
+                      style={{ ...inputStyle, padding: "6px", fontSize: "12px" }} 
+                      value={logStartDate} 
+                      onChange={e => setLogStartDate(e.target.value)} 
+                    />
                   </div>
-                )}
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: "10px", fontWeight: "bold", color: "#333", display: "block", marginBottom: "3px" }}>End Date</label>
+                    <input 
+                      type="date" 
+                      style={{ ...inputStyle, padding: "6px", fontSize: "12px" }} 
+                      value={logEndDate} 
+                      onChange={e => setLogEndDate(e.target.value)} 
+                    />
+                  </div>
+                  <button 
+                    onClick={handleDownloadLogs} 
+                    style={{ ...activeTabBtn, backgroundColor: "#28a745", padding: "6px 12px", fontSize: "12px", height: "31px", flex: "0 1 auto" }}
+                  >
+                    📥 Download CSV
+                  </button>
+                </div>
               </div>
             )}
           </div>
