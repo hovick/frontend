@@ -426,7 +426,6 @@ export default function Home() {
     
     // Remove from UI state
     setSavedSurfaces(prev => prev.filter(s => s.id !== surfaceId));
-    if (selectedAnalysisAirport === surfaceId) setSelectedAnalysisAirport("");
   };
 
   const handleDrawSurface = (surface: any) => {
@@ -669,13 +668,10 @@ export default function Home() {
             5000 
         ));
 
-        // Update the list of surfaces for the Analyze tab
-        setSavedSurfaces(prev => [...prev, data]);
-
     if (!user) {
         // Guests only get 1 surface. Overwrite the array.
         setSavedSurfaces([data]);
-        setSelectedAnalysisAirport(data.id); // Auto-select it for them
+        setSelectedAnalysisAirport(data.airport_name); // Auto-select it for them
     } else {
         // Pros get up to 10. Append it.
         setSavedSurfaces(prev => [...prev, data]);
@@ -1243,7 +1239,9 @@ export default function Home() {
                 {savedSurfaces.map(s => (
                   <div key={s.id} style={{ padding: "12px", backgroundColor: "#f8f9fa", border: "1px solid #ddd", borderRadius: "6px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <strong style={{ fontSize: "13px", color: "#333" }}>{s.name}</strong>
+                      <strong style={{ fontSize: "13px", color: "#333" }}>
+                        {s.airport_name ? `${s.airport_name} - ` : ""}{s.name}
+                      </strong>
                       <span style={{ fontSize: "10px", backgroundColor: "#e9ecef", padding: "2px 6px", borderRadius: "10px", color: "#555" }}>
                         {s.family}
                       </span>
