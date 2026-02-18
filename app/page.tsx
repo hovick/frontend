@@ -417,45 +417,57 @@ export default function Home() {
     const confirmDelete = window.confirm("Are you sure you want to delete this surface?");
     if (!confirmDelete) return;
 
-    const res = await fetch(`${API_BASE}/create-surface`, {
-      method: "DELETE"
+    // FIXED: Point to the correct endpoint AND include the auth headers so Supabase knows who is deleting it!
+    const res = await fetch(`${API_BASE}/delete-surface/${surfaceId}`, {
+      method: "DELETE",
+      headers: getAuthHeaders() 
     });
-    const data = await res.json();
     
-    if (data.error) return alert(data.error);
+    const data = await res.json();
+    if (!res.ok || data.error) return alert(data.error || "Failed to delete from database");
     
     // Remove from UI state
     setSavedSurfaces(prev => prev.filter(s => s.id !== surfaceId));
   };
 
-  const handleDrawSurface = (surface: any) => {
+  const handleDrawSurface = (surfaceInput: any | any[]) => {
     if (!viewerRef.current) return;
     
-    // Clear map and load new surface
+    // Clear the map once
     viewerRef.current.entities.removeAll();
     const entitiesToAdd: Cesium.Entity[] = [];
 
-    surface.geometry.forEach((geo: any) => {
-        const entity = viewerRef.current?.entities.add({
-            name: geo.name,
-            polygon: {
-                hierarchy: Cesium.Cartesian3.fromDegreesArrayHeights(geo.coords),
-                perPositionHeight: true, 
-                material: isGenericMode 
-                  ? genericColor
-                  : Cesium.Color.fromCssColorString(geo.color).withAlpha(0.4),
-                outline: true,
-                outlineColor: Cesium.Color.BLACK
-            }
-        });
-        if (entity) entitiesToAdd.push(entity);
+    // Force the input into an array so we can handle 1 surface OR 80 surfaces seamlessly
+    const surfaces = Array.isArray(surfaceInput) ? surfaceInput : [surfaceInput];
+
+    surfaces.forEach(surface => {
+        if (surface.geometry) {
+            surface.geometry.forEach((geo: any) => {
+                const entity = viewerRef.current?.entities.add({
+                    name: geo.name,
+                    polygon: {
+                        hierarchy: Cesium.Cartesian3.fromDegreesArrayHeights(geo.coords),
+                        perPositionHeight: true, 
+                        material: isGenericMode 
+                          ? genericColor
+                          : Cesium.Color.fromCssColorString(geo.color).withAlpha(0.4),
+                        outline: true,
+                        outlineColor: Cesium.Color.BLACK
+                    }
+                });
+                if (entity) entitiesToAdd.push(entity);
+            });
+        }
     });
 
-    viewerRef.current.zoomTo(entitiesToAdd, new Cesium.HeadingPitchRange(
-        Cesium.Math.toRadians(0), 
-        Cesium.Math.toRadians(-45), 
-        5000 
-    ));
+    // Zoom out to fit the entire airport in the camera view
+    if (entitiesToAdd.length > 0) {
+        viewerRef.current.zoomTo(entitiesToAdd, new Cesium.HeadingPitchRange(
+            Cesium.Math.toRadians(0), 
+            Cesium.Math.toRadians(-45), 
+            5000 
+        ));
+    }
   };
 
   // --- PUBLIC SURFACE SEARCH LOGIC ---
@@ -1046,7 +1058,7 @@ export default function Home() {
                           const res = await fetch(`${API_BASE}/airports/${s.owner_id}/${encodeURIComponent(s.airport_name)}`);
                           if (res.ok) {
                             const airportSurfaces = await res.json();
-                            airportSurfaces.forEach((surf: any) => handleDrawSurface(surf));
+                            handleDrawSurface(airportSurfaces); // <--- FIXED: No more forEach loop here!
                           }
                         } catch (err) {
                           console.error("Could not load airport geometry.");
@@ -1067,9 +1079,19 @@ export default function Home() {
               style={inputStyle} 
               value={selectedAnalysisOwner === user?.id ? selectedAnalysisAirport : ""} 
               onChange={e => {
-                setSelectedAnalysisAirport(e.target.value);
+                const chosenAirport = e.target.value;
+                setSelectedAnalysisAirport(chosenAirport);
                 setSelectedAnalysisOwner(user?.id || 0);
                 setPubSurfQuery(""); 
+                
+                // --- NEW: AUTO DRAW THE AIRPORT ---
+                if (chosenAirport) {
+                  // Find every surface that belongs to the selected airport name
+                  const airportSurfaces = savedSurfaces.filter(s => s.airport_name === chosenAirport);
+                  handleDrawSurface(airportSurfaces);
+                } else {
+                  if (viewerRef.current) viewerRef.current.entities.removeAll();
+                }
               }}
             >
               <option value="">Select your airport...</option>
@@ -1215,14 +1237,20 @@ export default function Home() {
         )}
 
         {/* --- DASHBOARD TAB --- */}
-        {activeTab === "dashboard" && (
+        {activeTab === "dashboard" && (() => {
+          // --- NEW: Calculate Unique Airports ---
+          const uniqueAirportsCount = new Set(savedSurfaces.map(s => s.airport_name)).size;
+          
+          return (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
               <label style={{...labelStyle, margin: 0}}>
                 My Saved Airspaces
               </label>
+              
+              {/* FIXED: Display Airports instead of Surfaces */}
               <span style={{ fontSize: "12px", fontWeight: "bold", color: user?.is_premium ? "#28a745" : "#666" }}>
-                Storage: {savedSurfaces.length} / {user?.is_premium ? 10 : 1}
+                Storage: {uniqueAirportsCount} / {user?.is_premium ? 10 : 1} Airports
               </span>
             </div>
 
@@ -1270,7 +1298,8 @@ export default function Home() {
               </div>
             )}
             
-            {!user?.is_premium && savedSurfaces.length >= 1 && (
+            {/* FIXED: Check against uniqueAirportsCount */}
+            {!user?.is_premium && uniqueAirportsCount >= 1 && (
               <div style={{ backgroundColor: "#fff3cd", padding: "10px", borderRadius: "4px", border: "1px solid #ffeeba", marginTop: "10px" }}>
                 <p style={{ color: "#856404", fontSize: "11px", margin: 0, textAlign: "center" }}>
                   <strong>Free Tier Limit Reached.</strong><br/>
@@ -1279,7 +1308,7 @@ export default function Home() {
               </div>
             )}
           </div>
-        )}
+        );})()}
 
       </div>
     </main>
