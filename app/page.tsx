@@ -27,6 +27,11 @@ export default function Home() {
   const [loginInput, setLoginInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
+  // --- Forgot Password State ---
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [resetToken, setResetToken] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
   const [registerAsPro, setRegisterAsPro] = useState(false);
   const cesiumContainer = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Cesium.Viewer | null>(null);
@@ -179,6 +184,15 @@ export default function Home() {
       viewerRef.current.scene.globe.depthTestAgainstTerrain = !isXRayMode;
     }
   }, [isXRayMode]);
+
+  // Check if user clicked a Password Reset link in their email
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get("reset_token");
+      if (token) setResetToken(token);
+    }
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("aero_token");
@@ -756,719 +770,797 @@ const handleDownloadLogs = async () => {
   };
 
   if (!mounted) return <div style={{ backgroundColor: "#111", height: "100vh" }} />;
+    if (resetToken) {
+      return (
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", backgroundColor: "#f8f9fa", fontFamily: "sans-serif" }}>
+          <div style={{ backgroundColor: "white", padding: "30px", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", width: "350px", textAlign: "center" }}>
+            <h3 style={{ color: "#0b1b3d", marginTop: 0 }}>Reset Your Password</h3>
+            <p style={{ fontSize: "12px", color: "#666", marginBottom: "20px" }}>Enter a new secure password for your Altitude Nexus account.</p>
+            
+            <input 
+              type="password" 
+              style={{...inputStyle, marginBottom: "15px"}} 
+              value={newPassword} 
+              onChange={e => setNewPassword(e.target.value)} 
+              placeholder="New Password" 
+            />
+            
+            <button 
+              style={{...activeTabBtn, width: "100%", padding: "12px", backgroundColor: "#28a745"}} 
+              onClick={async () => {
+                if (!newPassword) return alert("Please enter a new password");
+                
+                const res = await fetch(`${API_BASE}/reset-password`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ token: resetToken, new_password: newPassword })
+                });
+                
+                const data = await res.json();
+                if (!res.ok) return alert(`Error: ${data.detail}`);
+                
+                alert("Password updated successfully! You can now log in.");
+                window.location.href = "/"; // Send them back to the main app to log in natively
+              }}
+            >
+              Save New Password
+            </button>
+          </div>
+        </div>
+      );
+    }
 
-  return (
-    <main style={{ position: "relative", width: "100vw", height: "100vh", overflow: "hidden" }}>
-      {/* CESIUM MAP CONTAINER */}
-      <div ref={cesiumContainer} style={{ width: "100%", height: "100%" }} />
+    return (
+      <main style={{ position: "relative", width: "100vw", height: "100vh", overflow: "hidden" }}>
+        {/* CESIUM MAP CONTAINER */}
+        <div ref={cesiumContainer} style={{ width: "100%", height: "100%" }} />
 
-      {/* --- NEW: ALTITUDE NEXUS BRANDING --- */}
-      <div style={{
-          position: "absolute",
-          bottom: "5px",
-          left: "5px",
-          backgroundColor: "#0b1b3d", // Deep Navy/Aerospace Blue
-          color: "#ffffff",
-          padding: "10px 100px",
-          borderRadius: "4px",
-          fontWeight: "900",
-          letterSpacing: "3px",
-          fontSize: "14px",
-          zIndex: 10,
-          boxShadow: "0 4px 10px rgba(0,0,0,0.5)",
-          pointerEvents: "none" // Prevents the logo from blocking map clicks
-      }}>
-          ALTITUDE NEXUS
-      </div>
-
-      {/* --- NEW: SIDEBAR TOGGLE ARROW --- */}
-      <button 
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          style={{
-              position: "absolute",
-              top: "20px",
-              left: isSidebarOpen ? "380px" : "0px", // Slides with the menu
-              zIndex: 20,
-              width: "35px",
-              height: "45px",
-              backgroundColor: "rgba(255,255,255,0.95)",
-              color: "#0b1b3d",
-              border: "none",
-              borderRadius: "0 8px 8px 0", // Rounded on the right side
-              cursor: "pointer",
-              fontWeight: "bold",
-              boxShadow: "4px 0px 10px rgba(0,0,0,0.1)",
-              transition: "left 0.3s ease-in-out",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center"
-          }}
-      >
-          {isSidebarOpen ? "◀" : "▶"}
-      </button>
-
-        {/* SINGLE INTERACTIVE SIDEBAR */}
-        <div style={{ 
-            ...sidebarStyle, 
-            left: isSidebarOpen ? "20px" : "-400px", 
-            transition: "left 0.3s ease-in-out" 
+        {/* --- NEW: ALTITUDE NEXUS BRANDING --- */}
+        <div style={{
+            position: "absolute",
+            bottom: "5px",
+            left: "5px",
+            backgroundColor: "#0b1b3d", // Deep Navy/Aerospace Blue
+            color: "#ffffff",
+            padding: "10px 100px",
+            borderRadius: "4px",
+            fontWeight: "900",
+            letterSpacing: "3px",
+            fontSize: "14px",
+            zIndex: 10,
+            boxShadow: "0 4px 10px rgba(0,0,0,0.5)",
+            pointerEvents: "none" // Prevents the logo from blocking map clicks
         }}>
-          {/* VISUALIZATION TOGGLES */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "5px", marginBottom: "15px" }}>
-            <label style={{ fontSize: "12px", display: "flex", gap: "5px", alignItems: "center" }}>
-              <input type="checkbox" checked={isXRayMode} onChange={e => setIsXRayMode(e.target.checked)} />
-              X-Ray Mode (See surfaces through terrain)
-            </label>
-            <label style={{ fontSize: "12px", display: "flex", gap: "5px", alignItems: "center" }}>
-              <input type="checkbox" checked={isGenericMode} onChange={e => setIsGenericMode(e.target.checked)} />
-              Activate Generic Color Mode (Blueprint)
-            </label>
-          </div>
+            ALTITUDE NEXUS
+        </div>
 
-          {/* TAB NAVIGATION */}
-          <div style={{ display: "flex", marginBottom: "15px", gap: "5px" }}>
-            <button 
-              style={activeTab === "define" ? activeTabBtn : inactiveTabBtn} 
-              onClick={() => setActiveTab("define")}>DEFINE</button>
-            <button 
-              style={activeTab === "analyze" ? activeTabBtn : inactiveTabBtn} 
-              onClick={() => setActiveTab("analyze")}>ANALYZE</button>
-            <button 
-              style={activeTab === "dashboard" ? activeTabBtn : inactiveTabBtn} 
-              onClick={() => setActiveTab("dashboard")}>DASHBOARD</button>
-          </div>
+        {/* --- NEW: SIDEBAR TOGGLE ARROW --- */}
+        <button 
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            style={{
+                position: "absolute",
+                top: "20px",
+                left: isSidebarOpen ? "380px" : "0px", // Slides with the menu
+                zIndex: 20,
+                width: "35px",
+                height: "45px",
+                backgroundColor: "rgba(255,255,255,0.95)",
+                color: "#0b1b3d",
+                border: "none",
+                borderRadius: "0 8px 8px 0", // Rounded on the right side
+                cursor: "pointer",
+                fontWeight: "bold",
+                boxShadow: "4px 0px 10px rgba(0,0,0,0.1)",
+                transition: "left 0.3s ease-in-out",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+            }}
+        >
+            {isSidebarOpen ? "◀" : "▶"}
+        </button>
 
-          {/* --- DEFINE TAB --- */}
-          {activeTab === "define" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {/* --- PREMIUM OPEN SOURCE SEARCH --- */}
-              <div style={{ backgroundColor: "#e8f0fe", padding: "10px", borderRadius: "4px", border: "1px solid #cce5ff", opacity: user?.is_premium ? 1 : 0.6, position: "relative" }}>
-                <label style={{...labelStyle, color: "#0b1b3d", display: "block", marginBottom: "5px"}}>
-                  ★ Premium Database Search 
-                </label>
+          {/* SINGLE INTERACTIVE SIDEBAR */}
+          <div style={{ 
+              ...sidebarStyle, 
+              left: isSidebarOpen ? "20px" : "-400px", 
+              transition: "left 0.3s ease-in-out" 
+          }}>
+            {/* VISUALIZATION TOGGLES */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px", marginBottom: "15px" }}>
+              <label style={{ fontSize: "12px", display: "flex", gap: "5px", alignItems: "center" }}>
+                <input type="checkbox" checked={isXRayMode} onChange={e => setIsXRayMode(e.target.checked)} />
+                X-Ray Mode (See surfaces through terrain)
+              </label>
+              <label style={{ fontSize: "12px", display: "flex", gap: "5px", alignItems: "center" }}>
+                <input type="checkbox" checked={isGenericMode} onChange={e => setIsGenericMode(e.target.checked)} />
+                Activate Generic Color Mode (Blueprint)
+              </label>
+            </div>
+
+            {/* TAB NAVIGATION */}
+            <div style={{ display: "flex", marginBottom: "15px", gap: "5px" }}>
+              <button 
+                style={activeTab === "define" ? activeTabBtn : inactiveTabBtn} 
+                onClick={() => setActiveTab("define")}>DEFINE</button>
+              <button 
+                style={activeTab === "analyze" ? activeTabBtn : inactiveTabBtn} 
+                onClick={() => setActiveTab("analyze")}>ANALYZE</button>
+              <button 
+                style={activeTab === "dashboard" ? activeTabBtn : inactiveTabBtn} 
+                onClick={() => setActiveTab("dashboard")}>DASHBOARD</button>
+            </div>
+
+            {/* --- DEFINE TAB --- */}
+            {activeTab === "define" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {/* --- PREMIUM OPEN SOURCE SEARCH --- */}
+                <div style={{ backgroundColor: "#e8f0fe", padding: "10px", borderRadius: "4px", border: "1px solid #cce5ff", opacity: user?.is_premium ? 1 : 0.6, position: "relative" }}>
+                  <label style={{...labelStyle, color: "#0b1b3d", display: "block", marginBottom: "5px"}}>
+                    ★ Premium Database Search 
+                  </label>
+                  
+                  <input 
+                    style={inputStyle} 
+                    value={searchQuery} 
+                    onChange={e => handleSearch(e.target.value)} 
+                    placeholder={family === "NAVAID" ? "Search Navaid (e.g. JFK or Kennedy)" : "Search Airport ICAO or Name (e.g. EGLL or Heathrow)"}
+                    disabled={!user?.is_premium}
+                  />
+                  
+                  {!user?.is_premium && (
+                    <p style={{ color: "red", fontSize: "11px", marginTop: "5px", marginBottom: 0 }}>
+                      Log in to a Premium account to auto-fill global coordinates.
+                    </p>
+                  )}
+
+                  {/* SEARCH RESULTS DROPDOWN */}
+                  {searchResults.length > 0 && user?.is_premium && (
+                    <div style={{ position: "absolute", top: "100%", left: 0, right: 0, backgroundColor: "white", border: "1px solid #ccc", zIndex: 100, maxHeight: "300px", overflowY: "auto", boxShadow: "0 4px 8px rgba(0,0,0,0.1)" }}>
+                      {family === "NAVAID" ? (
+                        // NAVAID RESULTS
+                        searchResults.map((nav, idx) => (
+                          <div key={idx} onClick={() => handleSelectNavaid(nav)} style={{ padding: "8px", borderBottom: "1px solid #eee", cursor: "pointer", fontSize: "12px" }}>
+                            <strong>{nav.ident}</strong> - {nav.name} <span style={{ color: "gray" }}>({nav.type})</span>
+                          </div>
+                        ))
+                      ) : (
+                        // AIRPORT RESULTS
+                        searchResults.map((apt, idx) => (
+                          <div key={idx} style={{ padding: "8px", borderBottom: "1px solid #eee", fontSize: "12px" }}>
+                            <strong>{apt.ident}</strong> - {apt.name}
+                            <div style={{ marginTop: "4px", display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                              {apt.runways.map((rwy: any, rIdx: number) => (
+                                <button 
+                                  key={rIdx} 
+                                  onClick={() => handleSelectRunway(apt, rwy)}
+                                  style={{ padding: "2px 6px", fontSize: "10px", backgroundColor: "#0b1b3d", color: "white", border: "none", borderRadius: "3px", cursor: "pointer" }}
+                                >
+                                  RWY {rwy.le_ident}/{rwy.he_ident}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+                {/* --------------------------------- */}
+
+                <label style={labelStyle}>Airport / Group Name</label>
+                <input style={inputStyle} value={airportName} onChange={e => setAirportName(e.target.value)} placeholder="e.g. Heathrow (EGLL)" />
+
+                <label style={labelStyle}>Surface Name</label>
+                <input style={inputStyle} value={surfName} onChange={e => setSurfName(e.target.value)} placeholder="Name (e.g., RWY 09/27)" />
                 
-                <input 
-                  style={inputStyle} 
-                  value={searchQuery} 
-                  onChange={e => handleSearch(e.target.value)} 
-                  placeholder={family === "NAVAID" ? "Search Navaid (e.g. JFK or Kennedy)" : "Search Airport ICAO or Name (e.g. EGLL or Heathrow)"}
-                  disabled={!user?.is_premium}
-                />
-                
-                {!user?.is_premium && (
-                  <p style={{ color: "red", fontSize: "11px", marginTop: "5px", marginBottom: 0 }}>
-                    Log in to a Premium account to auto-fill global coordinates.
-                  </p>
+                <label style={labelStyle}>Surface Family</label>
+                <select style={inputStyle} value={family} onChange={e => setFamily(e.target.value)}>
+                  <option value="OLS">OLS (Annex 14)</option>
+                  {/*<option value="OAS">OAS (PANS-OPS)</option>*/}
+                  <option value="VSS">VSS (Visual Segment)</option>
+                  <option value="OFZ">OFZ / OES</option>
+                  <option value="NAVAID">Navaid Restrictive</option>
+                  <option value="CUSTOM">Custom Surface</option>
+                </select>
+
+                <label style={labelStyle}>Threshold 1 (Lat / Lon / Alt)</label>
+                <div style={rowStyle}>
+                  <input style={numInputStyle} type="number" value={t1.lat} onChange={e => setT1({...t1, lat: +e.target.value})} />
+                  <input style={numInputStyle} type="number" value={t1.lon} onChange={e => setT1({...t1, lon: +e.target.value})} />
+                  <input style={numInputStyle} type="number" value={t1.alt} onChange={e => setT1({...t1, alt: +e.target.value})} />
+                </div>
+
+                <label style={labelStyle}>Threshold 2 (Lat / Lon / Alt)</label>
+                <div style={rowStyle}>
+                  <input style={numInputStyle} type="number" value={t2.lat} onChange={e => setT2({...t2, lat: +e.target.value})} />
+                  <input style={numInputStyle} type="number" value={t2.lon} onChange={e => setT2({...t2, lon: +e.target.value})} />
+                  <input style={numInputStyle} type="number" value={t2.alt} onChange={e => setT2({...t2, alt: +e.target.value})} />
+                </div>
+
+                <label style={labelStyle}>ARP Altitude (m)</label>
+                <input style={inputStyle} type="number" value={arpAlt} onChange={e => setArpAlt(+e.target.value)} />
+
+                {/* NEW RUNWAY TYPE DROPDOWN (Only show for OLS) */}
+                {(family === "OLS" || family === "OFZ") && (
+                  <>
+                    <label style={labelStyle}>Runway Type</label>
+                    <select style={inputStyle} value={runwayType} onChange={e => setRunwayType(e.target.value)}>
+                      <option value="non_instrument">Non-Instrument</option>
+                      <option value="non_precision">Non-Precision Approach</option>
+                      <option value="precision">Precision Approach</option>
+                    </select>
+                  </>
                 )}
 
-                {/* SEARCH RESULTS DROPDOWN */}
-                {searchResults.length > 0 && user?.is_premium && (
-                  <div style={{ position: "absolute", top: "100%", left: 0, right: 0, backgroundColor: "white", border: "1px solid #ccc", zIndex: 100, maxHeight: "300px", overflowY: "auto", boxShadow: "0 4px 8px rgba(0,0,0,0.1)" }}>
-                    {family === "NAVAID" ? (
-                      // NAVAID RESULTS
-                      searchResults.map((nav, idx) => (
-                        <div key={idx} onClick={() => handleSelectNavaid(nav)} style={{ padding: "8px", borderBottom: "1px solid #eee", cursor: "pointer", fontSize: "12px" }}>
-                          <strong>{nav.ident}</strong> - {nav.name} <span style={{ color: "gray" }}>({nav.type})</span>
+                {/* DYNAMIC VSS FIELDS */}
+                {family === "VSS" && (
+                  <div style={{ backgroundColor: "#e9ecef", padding: "10px", borderRadius: "4px", display: "flex", flexDirection: "column", gap: "5px" }}>
+                    <label style={labelStyle}>Strip Width (m)</label>
+                    <input style={inputStyle} type="number" value={vssParams.stripWidth} onChange={e => setVssParams({...vssParams, stripWidth: +e.target.value})} />
+                    <label style={labelStyle}>OCA (m)</label>
+                    <input style={inputStyle} type="number" value={vssParams.oca} onChange={e => setVssParams({...vssParams, oca: +e.target.value})} />
+                    <label style={labelStyle}>Descent Angle (°)</label>
+                    <input style={inputStyle} type="number" value={vssParams.descentAngle} onChange={e => setVssParams({...vssParams, descentAngle: +e.target.value})} />
+                  </div>
+                )}
+
+                {/* DYNAMIC NAVAID FIELDS */}
+                {family === "NAVAID" && (
+                  <div style={{ backgroundColor: "#e9ecef", padding: "10px", borderRadius: "4px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <label style={labelStyle}>Facility Type (EUR Doc 015)</label>
+                    <select style={inputStyle} value={navType} onChange={e => setNavType(e.target.value)}>
+                      <optgroup label="Omni-directional">
+                        <option value="CVOR">CVOR (Conventional VOR)</option>
+                        <option value="DVOR">DVOR (Doppler VOR)</option>
+                        <option value="DF">DF (Direction Finder)</option>
+                        <option value="DME">DME</option>
+                        <option value="NDB">NDB</option>
+                      </optgroup>
+                      <optgroup label="Directional">
+                        <option value="ILS_LLZ">ILS Localizer (LLZ)</option>
+                        <option value="ILS_GP">ILS Glide Path (GP)</option>
+                        <option value="MLS">MLS</option>
+                      </optgroup>
+                    </select>
+
+                    <label style={labelStyle}>Antenna Coordinates (Lat / Lon / Alt)</label>
+                    <div style={rowStyle}>
+                      <input style={numInputStyle} type="number" value={navCoord.lat} onChange={e => setNavCoord({...navCoord, lat: +e.target.value})} />
+                      <input style={numInputStyle} type="number" value={navCoord.lon} onChange={e => setNavCoord({...navCoord, lon: +e.target.value})} />
+                      <input style={numInputStyle} type="number" value={navCoord.alt} onChange={e => setNavCoord({...navCoord, alt: +e.target.value})} />
+                    </div>
+
+                    {/* SHOW BEARING & THRESHOLD ONLY FOR DIRECTIONAL FACILITIES */}
+                    {isDirectional && (
+                      <>
+                        <label style={labelStyle}>Operational Bearing (°)</label>
+                        <input style={inputStyle} type="number" value={navBearing} onChange={e => setNavBearing(+e.target.value)} />
+                        
+                        <label style={labelStyle}>Reference Threshold (Lat / Lon / Alt)</label>
+                        <div style={rowStyle}>
+                          <input style={numInputStyle} type="number" value={navThr.lat} onChange={e => setNavThr({...navThr, lat: +e.target.value})} />
+                          <input style={numInputStyle} type="number" value={navThr.lon} onChange={e => setNavThr({...navThr, lon: +e.target.value})} />
+                          <input style={numInputStyle} type="number" value={navThr.alt} onChange={e => setNavThr({...navThr, alt: +e.target.value})} />
                         </div>
-                      ))
-                    ) : (
-                      // AIRPORT RESULTS
-                      searchResults.map((apt, idx) => (
-                        <div key={idx} style={{ padding: "8px", borderBottom: "1px solid #eee", fontSize: "12px" }}>
-                          <strong>{apt.ident}</strong> - {apt.name}
-                          <div style={{ marginTop: "4px", display: "flex", flexWrap: "wrap", gap: "4px" }}>
-                            {apt.runways.map((rwy: any, rIdx: number) => (
-                              <button 
-                                key={rIdx} 
-                                onClick={() => handleSelectRunway(apt, rwy)}
-                                style={{ padding: "2px 6px", fontSize: "10px", backgroundColor: "#0b1b3d", color: "white", border: "none", borderRadius: "3px", cursor: "pointer" }}
-                              >
-                                RWY {rwy.le_ident}/{rwy.he_ident}
-                              </button>
-                            ))}
-                          </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* DYNAMIC OFZ FIELDS */}
+                {family === "OFZ" && (
+                  <div style={{ backgroundColor: "#e9ecef", padding: "10px", borderRadius: "4px", display: "flex", flexDirection: "column", gap: "5px" }}>
+                    <label style={labelStyle}>Aeroplane Design Group (ADG)</label>
+                    <select style={inputStyle} value={adg} onChange={e => setAdg(e.target.value)}>
+                      <option value="I">I (Wingspan &lt; 24m)</option>
+                      <option value="IIA">IIA (Wingspan 24m - 36m)</option>
+                      <option value="IIB">IIB (Wingspan &lt; 36m, Faster App)</option>
+                      <option value="IIC">IIC (Wingspan &lt; 36m, High Speed)</option>
+                      <option value="III">III (Wingspan 36m - 52m)</option>
+                      <option value="IV">IV (Wingspan 52m - 65m)</option>
+                      <option value="V">V (Wingspan 65m - 80m)</option>
+                    </select>
+                  </div>
+                )}
+
+                {family === "CUSTOM" && (
+                  <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "10px", opacity: user?.is_premium ? 1 : 0.6 }}>
+                    <label style={{...labelStyle, color: "#d4af37"}}>★ Premium Feature: Batch CSV Upload</label>
+                    <input 
+                        type="file" 
+                        accept=".csv,.txt" 
+                        onChange={handleFileUpload} 
+                        style={inputStyle} 
+                        disabled={!user?.is_premium}
+                    />
+                    
+                    <label style={labelStyle}>Coordinates (ID, Lat, Lon, Alt)</label>
+                    <textarea 
+                        style={{ ...inputStyle, height: "120px", fontFamily: "monospace" }} 
+                        placeholder={`Surface_A, 51.47, -0.45, 100\nSurface_A, 51.47, -0.44, 100\n...`}
+                        value={customPoints}
+                        onChange={e => setCustomPoints(e.target.value)}
+                        disabled={!user?.is_premium}
+                    />
+                    {!user?.is_premium && <p style={{ color: "red", fontSize: "12px", margin: 0 }}>Please upgrade to Premium to define Custom Surfaces.</p>}
+                  </div>
+                )}
+
+                <button onClick={handleDefine} style={createBtnStyle}>Create {family}</button>
+              </div>
+            )}
+
+            {/* --- ANALYZE TAB --- */}
+            {activeTab === "analyze" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                
+                {/* 1. PUBLIC PREMIUM SURFACES SEARCH */}
+                <div style={{ backgroundColor: "#f8f9fa", padding: "10px", borderRadius: "4px", border: "1px solid #ddd", position: "relative" }}>
+                  <label style={{...labelStyle, color: "#0b1b3d", display: "block", marginBottom: "5px"}}>
+                    Search Verified Surfaces (CAA surfaces)
+                  </label>
+                  <input 
+                    style={inputStyle} 
+                    value={pubSurfQuery}
+                    onChange={e => handleSearchPublicSurfaces(e.target.value)}
+                    placeholder="e.g. KJFK - RWY 04L..."
+                  />
+                  {/* SEARCH RESULTS AUTOCOMPLETE */}
+                  {pubSurfResults.length > 0 && (
+                    <div style={{ position: "absolute", top: "100%", left: 0, right: 0, backgroundColor: "white", border: "1px solid #ccc", zIndex: 100, maxHeight: "200px", overflowY: "auto", boxShadow: "0 4px 8px rgba(0,0,0,0.1)" }}>
+                      {pubSurfResults.map((s: any, idx) => (
+                        <div 
+                          key={idx} 
+                          onClick={async () => {
+                            setSelectedAnalysisAirport(s.airport_name);
+                            setSelectedAnalysisOwner(s.owner_id);
+                            setPubSurfQuery(s.airport_name); 
+                            setPubSurfResults([]); 
+                            
+                            // Fetch ALL surfaces for this airport to auto-draw them!
+                            try {
+                              const res = await fetch(`${API_BASE}/airports/${s.owner_id}/${encodeURIComponent(s.airport_name)}`);
+                              if (res.ok) {
+                                const airportSurfaces = await res.json();
+                                handleDrawSurface(airportSurfaces); // <--- FIXED: No more forEach loop here!
+                              }
+                            } catch (err) {
+                              console.error("Could not load airport geometry.");
+                            }
+                          }}
+                          style={{ padding: "8px", borderBottom: "1px solid #eee", cursor: "pointer", fontSize: "12px" }}
+                        >
+                          <strong>{s.airport_name}</strong>
                         </div>
-                      ))
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. MY SURFACES DROPDOWN */}
+                <label style={labelStyle}>Or select from your saved airports</label>
+                <select 
+                  style={inputStyle} 
+                  value={selectedAnalysisOwner === user?.id ? selectedAnalysisAirport : ""} 
+                  onChange={e => {
+                    const chosenAirport = e.target.value;
+                    setSelectedAnalysisAirport(chosenAirport);
+                    setSelectedAnalysisOwner(user?.id || 0);
+                    setPubSurfQuery(""); 
+                    
+                    // --- NEW: AUTO DRAW THE AIRPORT ---
+                    if (chosenAirport) {
+                      // Find every surface that belongs to the selected airport name
+                      const airportSurfaces = savedSurfaces.filter(s => s.airport_name === chosenAirport);
+                      handleDrawSurface(airportSurfaces);
+                    } else {
+                      if (viewerRef.current) viewerRef.current.entities.removeAll();
+                    }
+                  }}
+                >
+                  <option value="">Select your airport...</option>
+                  {Array.from(new Set(savedSurfaces.map(s => s.airport_name))).map(airport => (
+                    <option key={airport} value={airport}>{airport}</option>
+                  ))}
+                </select>
+                
+                <hr style={{ borderTop: "1px solid #eee", width: "100%" }}/>
+                
+                <label style={labelStyle}>Obstacle (Lat / Lon / Alt)</label>
+                <div style={rowStyle}>
+                  <input style={numInputStyle} type="number" value={obsPos.lat} onChange={e => setObsPos({...obsPos, lat: +e.target.value})} />
+                  <input style={numInputStyle} type="number" value={obsPos.lon} onChange={e => setObsPos({...obsPos, lon: +e.target.value})} />
+                  <input style={numInputStyle} type="number" value={obsPos.alt} onChange={e => setObsPos({...obsPos, alt: +e.target.value})} />
+                </div>
+
+                <button 
+                  style={{ ...createBtnStyle, backgroundColor: "#0b1b3d" }}
+                  onClick={async () => {
+                    if (!selectedAnalysisAirport) return alert("Please select an airport first!");
+                    
+                    // Clear previous results while loading
+                    setAnalysisResult(null);
+
+                    const isGuestAirport = selectedAnalysisOwner === 0;
+                    const guestPayload = isGuestAirport 
+                      ? savedSurfaces.filter(s => s.airport_name === selectedAnalysisAirport).map(s => ({name: s.name, geometry: s.geometry}))
+                      : null;
+
+                    const res = await fetch(`${API_BASE}/analyze`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        lat: obsPos.lat,
+                        lon: obsPos.lon,
+                        alt: obsPos.alt,
+                        airport_name: selectedAnalysisAirport,
+                        owner_id: selectedAnalysisOwner,
+                        guest_surfaces: guestPayload // --- NEW ---
+                      }),
+                    });
+                    
+                    const result = await res.json();
+                    if (result.error) return alert(result.error);
+                    
+                    // Save result to state instead of an alert!
+                    setAnalysisResult(result);
+                  }}
+                >
+                  Run Analysis
+                </button>
+
+                {/* --- NEW: ANALYSIS RESULTS UI & PDF EXPORT --- */}
+                {analysisResult && (
+                  <div style={{ backgroundColor: analysisResult.penetration ? "#f8d7da" : "#d4edda", padding: "15px", borderRadius: "6px", border: `1px solid ${analysisResult.penetration ? "#f5c6cb" : "#c3e6cb"}`, marginTop: "10px" }}>
+                    <h4 style={{ margin: "0 0 10px 0", color: analysisResult.penetration ? "#721c24" : "#155724" }}>
+                      {analysisResult.penetration ? "❌ VIOLATION DETECTED" : "✅ OBSTACLE CLEAR"}
+                    </h4>
+                    
+                    <p style={{ fontSize: "12px", color: "#333", margin: "0 0 5px 0" }}>
+                      <strong>Limiting Surface:</strong> {analysisResult.limiting_surface}
+                    </p>
+                    <p style={{ fontSize: "12px", color: "#333", margin: "0 0 15px 0" }}>
+                      <strong>Margin:</strong> {analysisResult.margin} m
+                    </p>
+
+                    <button 
+                      style={{ ...activeTabBtn, width: "100%", backgroundColor: "#343a40", fontSize: "13px" }}
+                      onClick={generatePDF}
+                    >
+                      📄 Download Official Report (PDF)
+                    </button>
+                  </div>
+                )}
+
+                {/* --- PREMIUM: BATCH OBSTACLE UPLOAD --- */}
+                <div style={{ backgroundColor: "#e8f0fe", padding: "10px", borderRadius: "4px", marginTop: "15px", border: "1px solid #cce5ff", opacity: user?.is_premium ? 1 : 0.6 }}>
+                  <label style={{...labelStyle, color: "#0b1b3d", display: "block", marginBottom: "8px"}}>
+                    ★ Premium Feature: Batch Obstacle Analysis (1000 max)
+                  </label>
+                  
+                  <textarea 
+                    style={{ ...inputStyle, height: "100px", fontFamily: "monospace", fontSize: "12px" }} 
+                    placeholder={`Crane_1, 51.47, -0.45, 120\nBuilding_A, 51.472, -0.44, 95\n...`}
+                    value={batchInput}
+                    onChange={e => setBatchInput(e.target.value)}
+                    disabled={!user?.is_premium}
+                  />
+                  
+                  <div style={{ ...rowStyle, marginTop: "10px" }}>
+                    <button 
+                      style={{ ...activeTabBtn, backgroundColor: user?.is_premium ? "#0b1b3d" : "#ccc", fontSize: "12px" }}
+                      disabled={!user?.is_premium}
+                      onClick={handleBatchAnalyze}
+                    >
+                      Run Batch Analysis
+                    </button>
+                    
+                    <button 
+                      style={{ ...activeTabBtn, backgroundColor: user?.is_premium && batchResults.length > 0 ? "#0b1b3d" : "#ccc", fontSize: "12px" }}
+                      disabled={!user?.is_premium || batchResults.length === 0}
+                      onClick={downloadBatchCSV}
+                    >
+                      Download Results (.CSV)
+                    </button>
+                  </div>
+
+                  {!user?.is_premium && (
+                    <p style={{ color: "red", fontSize: "11px", marginTop: "8px", textAlign: "center" }}>
+                      Upgrade to Premium to analyze hundreds of obstacles instantly.
+                    </p>
+                  )}
+                </div>
+
+                {/* --- PREMIUM EXPORT PANEL --- */}
+                {selectedAnalysisAirport && (
+                  <div style={{ backgroundColor: "#fff3cd", padding: "10px", borderRadius: "4px", marginBottom: "15px", border: "1px solid #ffeeba" }}>
+                    <label style={{...labelStyle, color: "#856404", marginBottom: "8px", display: "block"}}>
+                      ★ Premium Export Tools
+                    </label>
+                    
+                    <div style={rowStyle}>
+                      <button 
+                        style={{ ...activeTabBtn, backgroundColor: user?.is_premium ? "#0b1b3d" : "#ccc", fontSize: "12px" }}
+                        disabled={!user?.is_premium}
+                        onClick={() => handleExport('kml')}
+                      >
+                        Download .KML
+                      </button>
+                      
+                      <button 
+                        style={{ ...activeTabBtn, backgroundColor: user?.is_premium ? "#0b1b3d" : "#ccc", fontSize: "12px" }}
+                        disabled={!user?.is_premium}
+                        onClick={() => handleExport('dxf')}
+                      >
+                        Download .DXF
+                      </button>
+                    </div>
+                    
+                    {!user?.is_premium && (
+                      <p style={{ color: "red", fontSize: "11px", marginTop: "8px", textAlign: "center" }}>
+                        Log in to a Premium account to unlock 3D exports.
+                      </p>
                     )}
                   </div>
                 )}
               </div>
-              {/* --------------------------------- */}
+            )}
 
-              <label style={labelStyle}>Airport / Group Name</label>
-              <input style={inputStyle} value={airportName} onChange={e => setAirportName(e.target.value)} placeholder="e.g. Heathrow (EGLL)" />
-
-              <label style={labelStyle}>Surface Name</label>
-              <input style={inputStyle} value={surfName} onChange={e => setSurfName(e.target.value)} placeholder="Name (e.g., RWY 09/27)" />
+            {/* --- DASHBOARD TAB --- */}
+            {activeTab === "dashboard" && (() => {
+              const uniqueAirportsCount = new Set(savedSurfaces.map(s => s.airport_name)).size;
+              const maxAirports = user?.tier === "multi" ? 10 : user?.tier === "single" ? 1 : 0;
               
-              <label style={labelStyle}>Surface Family</label>
-              <select style={inputStyle} value={family} onChange={e => setFamily(e.target.value)}>
-                <option value="OLS">OLS (Annex 14)</option>
-                {/*<option value="OAS">OAS (PANS-OPS)</option>*/}
-                <option value="VSS">VSS (Visual Segment)</option>
-                <option value="OFZ">OFZ / OES</option>
-                <option value="NAVAID">Navaid Restrictive</option>
-                <option value="CUSTOM">Custom Surface</option>
-              </select>
-
-              <label style={labelStyle}>Threshold 1 (Lat / Lon / Alt)</label>
-              <div style={rowStyle}>
-                <input style={numInputStyle} type="number" value={t1.lat} onChange={e => setT1({...t1, lat: +e.target.value})} />
-                <input style={numInputStyle} type="number" value={t1.lon} onChange={e => setT1({...t1, lon: +e.target.value})} />
-                <input style={numInputStyle} type="number" value={t1.alt} onChange={e => setT1({...t1, alt: +e.target.value})} />
-              </div>
-
-              <label style={labelStyle}>Threshold 2 (Lat / Lon / Alt)</label>
-              <div style={rowStyle}>
-                <input style={numInputStyle} type="number" value={t2.lat} onChange={e => setT2({...t2, lat: +e.target.value})} />
-                <input style={numInputStyle} type="number" value={t2.lon} onChange={e => setT2({...t2, lon: +e.target.value})} />
-                <input style={numInputStyle} type="number" value={t2.alt} onChange={e => setT2({...t2, alt: +e.target.value})} />
-              </div>
-
-              <label style={labelStyle}>ARP Altitude (m)</label>
-              <input style={inputStyle} type="number" value={arpAlt} onChange={e => setArpAlt(+e.target.value)} />
-
-              {/* NEW RUNWAY TYPE DROPDOWN (Only show for OLS) */}
-              {(family === "OLS" || family === "OFZ") && (
-                <>
-                  <label style={labelStyle}>Runway Type</label>
-                  <select style={inputStyle} value={runwayType} onChange={e => setRunwayType(e.target.value)}>
-                    <option value="non_instrument">Non-Instrument</option>
-                    <option value="non_precision">Non-Precision Approach</option>
-                    <option value="precision">Precision Approach</option>
-                  </select>
-                </>
-              )}
-
-              {/* DYNAMIC VSS FIELDS */}
-              {family === "VSS" && (
-                <div style={{ backgroundColor: "#e9ecef", padding: "10px", borderRadius: "4px", display: "flex", flexDirection: "column", gap: "5px" }}>
-                  <label style={labelStyle}>Strip Width (m)</label>
-                  <input style={inputStyle} type="number" value={vssParams.stripWidth} onChange={e => setVssParams({...vssParams, stripWidth: +e.target.value})} />
-                  <label style={labelStyle}>OCA (m)</label>
-                  <input style={inputStyle} type="number" value={vssParams.oca} onChange={e => setVssParams({...vssParams, oca: +e.target.value})} />
-                  <label style={labelStyle}>Descent Angle (°)</label>
-                  <input style={inputStyle} type="number" value={vssParams.descentAngle} onChange={e => setVssParams({...vssParams, descentAngle: +e.target.value})} />
-                </div>
-              )}
-
-              {/* DYNAMIC NAVAID FIELDS */}
-              {family === "NAVAID" && (
-                <div style={{ backgroundColor: "#e9ecef", padding: "10px", borderRadius: "4px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <label style={labelStyle}>Facility Type (EUR Doc 015)</label>
-                  <select style={inputStyle} value={navType} onChange={e => setNavType(e.target.value)}>
-                    <optgroup label="Omni-directional">
-                      <option value="CVOR">CVOR (Conventional VOR)</option>
-                      <option value="DVOR">DVOR (Doppler VOR)</option>
-                      <option value="DF">DF (Direction Finder)</option>
-                      <option value="DME">DME</option>
-                      <option value="NDB">NDB</option>
-                    </optgroup>
-                    <optgroup label="Directional">
-                      <option value="ILS_LLZ">ILS Localizer (LLZ)</option>
-                      <option value="ILS_GP">ILS Glide Path (GP)</option>
-                      <option value="MLS">MLS</option>
-                    </optgroup>
-                  </select>
-
-                  <label style={labelStyle}>Antenna Coordinates (Lat / Lon / Alt)</label>
-                  <div style={rowStyle}>
-                    <input style={numInputStyle} type="number" value={navCoord.lat} onChange={e => setNavCoord({...navCoord, lat: +e.target.value})} />
-                    <input style={numInputStyle} type="number" value={navCoord.lon} onChange={e => setNavCoord({...navCoord, lon: +e.target.value})} />
-                    <input style={numInputStyle} type="number" value={navCoord.alt} onChange={e => setNavCoord({...navCoord, alt: +e.target.value})} />
-                  </div>
-
-                  {/* SHOW BEARING & THRESHOLD ONLY FOR DIRECTIONAL FACILITIES */}
-                  {isDirectional && (
-                    <>
-                      <label style={labelStyle}>Operational Bearing (°)</label>
-                      <input style={inputStyle} type="number" value={navBearing} onChange={e => setNavBearing(+e.target.value)} />
-                      
-                      <label style={labelStyle}>Reference Threshold (Lat / Lon / Alt)</label>
-                      <div style={rowStyle}>
-                        <input style={numInputStyle} type="number" value={navThr.lat} onChange={e => setNavThr({...navThr, lat: +e.target.value})} />
-                        <input style={numInputStyle} type="number" value={navThr.lon} onChange={e => setNavThr({...navThr, lon: +e.target.value})} />
-                        <input style={numInputStyle} type="number" value={navThr.alt} onChange={e => setNavThr({...navThr, alt: +e.target.value})} />
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* DYNAMIC OFZ FIELDS */}
-              {family === "OFZ" && (
-                <div style={{ backgroundColor: "#e9ecef", padding: "10px", borderRadius: "4px", display: "flex", flexDirection: "column", gap: "5px" }}>
-                  <label style={labelStyle}>Aeroplane Design Group (ADG)</label>
-                  <select style={inputStyle} value={adg} onChange={e => setAdg(e.target.value)}>
-                    <option value="I">I (Wingspan &lt; 24m)</option>
-                    <option value="IIA">IIA (Wingspan 24m - 36m)</option>
-                    <option value="IIB">IIB (Wingspan &lt; 36m, Faster App)</option>
-                    <option value="IIC">IIC (Wingspan &lt; 36m, High Speed)</option>
-                    <option value="III">III (Wingspan 36m - 52m)</option>
-                    <option value="IV">IV (Wingspan 52m - 65m)</option>
-                    <option value="V">V (Wingspan 65m - 80m)</option>
-                  </select>
-                </div>
-              )}
-
-              {family === "CUSTOM" && (
-                <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "10px", opacity: user?.is_premium ? 1 : 0.6 }}>
-                  <label style={{...labelStyle, color: "#d4af37"}}>★ Premium Feature: Batch CSV Upload</label>
-                  <input 
-                      type="file" 
-                      accept=".csv,.txt" 
-                      onChange={handleFileUpload} 
-                      style={inputStyle} 
-                      disabled={!user?.is_premium}
-                  />
+              return (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
+                  <label style={{...labelStyle, margin: 0}}>
+                    My Saved Airspaces
+                  </label>
                   
-                  <label style={labelStyle}>Coordinates (ID, Lat, Lon, Alt)</label>
-                  <textarea 
-                      style={{ ...inputStyle, height: "120px", fontFamily: "monospace" }} 
-                      placeholder={`Surface_A, 51.47, -0.45, 100\nSurface_A, 51.47, -0.44, 100\n...`}
-                      value={customPoints}
-                      onChange={e => setCustomPoints(e.target.value)}
-                      disabled={!user?.is_premium}
-                  />
-                  {!user?.is_premium && <p style={{ color: "red", fontSize: "12px", margin: 0 }}>Please upgrade to Premium to define Custom Surfaces.</p>}
+                  <span style={{ fontSize: "12px", fontWeight: "bold", color: user?.is_premium ? "#0b1b3d" : "#666" }}>
+                    Storage: {uniqueAirportsCount} / {maxAirports} Airports
+                  </span>
                 </div>
-              )}
 
-              <button onClick={handleDefine} style={createBtnStyle}>Create {family}</button>
-            </div>
-          )}
-
-          {/* --- ANALYZE TAB --- */}
-          {activeTab === "analyze" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              
-              {/* 1. PUBLIC PREMIUM SURFACES SEARCH */}
-              <div style={{ backgroundColor: "#f8f9fa", padding: "10px", borderRadius: "4px", border: "1px solid #ddd", position: "relative" }}>
-                <label style={{...labelStyle, color: "#0b1b3d", display: "block", marginBottom: "5px"}}>
-                  Search Verified Surfaces (CAA surfaces)
-                </label>
-                <input 
-                  style={inputStyle} 
-                  value={pubSurfQuery}
-                  onChange={e => handleSearchPublicSurfaces(e.target.value)}
-                  placeholder="e.g. KJFK - RWY 04L..."
-                />
-                {/* SEARCH RESULTS AUTOCOMPLETE */}
-                {pubSurfResults.length > 0 && (
-                  <div style={{ position: "absolute", top: "100%", left: 0, right: 0, backgroundColor: "white", border: "1px solid #ccc", zIndex: 100, maxHeight: "200px", overflowY: "auto", boxShadow: "0 4px 8px rgba(0,0,0,0.1)" }}>
-                    {pubSurfResults.map((s: any, idx) => (
-                      <div 
-                        key={idx} 
-                        onClick={async () => {
-                          setSelectedAnalysisAirport(s.airport_name);
-                          setSelectedAnalysisOwner(s.owner_id);
-                          setPubSurfQuery(s.airport_name); 
-                          setPubSurfResults([]); 
-                          
-                          // Fetch ALL surfaces for this airport to auto-draw them!
-                          try {
-                            const res = await fetch(`${API_BASE}/airports/${s.owner_id}/${encodeURIComponent(s.airport_name)}`);
-                            if (res.ok) {
-                              const airportSurfaces = await res.json();
-                              handleDrawSurface(airportSurfaces); // <--- FIXED: No more forEach loop here!
-                            }
-                          } catch (err) {
-                            console.error("Could not load airport geometry.");
-                          }
-                        }}
-                        style={{ padding: "8px", borderBottom: "1px solid #eee", cursor: "pointer", fontSize: "12px" }}
-                      >
-                        <strong>{s.airport_name}</strong>
+                {!user ? (
+                  <p style={{ fontSize: "12px", color: "#dc3545", backgroundColor: "#f8d7da", padding: "10px", borderRadius: "4px" }}>
+                    Please sign in to manage your saved surfaces.
+                  </p>
+                ) : savedSurfaces.length === 0 ? (
+                  <p style={{ fontSize: "12px", color: "#666", textAlign: "center", padding: "20px" }}>
+                    You haven't saved any surfaces yet. Go to the Define tab to create one!
+                  </p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "60vh", overflowY: "auto" }}>
+                    {savedSurfaces.map(s => (
+                      <div key={s.id} style={{ padding: "12px", backgroundColor: "#f8f9fa", border: "1px solid #ddd", borderRadius: "6px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                          <strong style={{ fontSize: "13px", color: "#333" }}>
+                            {s.airport_name ? `${s.airport_name} - ` : ""}{s.name}
+                          </strong>
+                          <span style={{ fontSize: "10px", backgroundColor: "#e9ecef", padding: "2px 6px", borderRadius: "10px", color: "#555" }}>
+                            {s.family}
+                          </span>
+                        </div>
+                        
+                        <div style={{ fontSize: "11px", color: "#666", margin: "8px 0" }}>
+                          Contains {s.geometry.length} 3D geometric meshes.
+                        </div>
+                        
+                        <div style={rowStyle}>
+                          <button 
+                            style={{...activeTabBtn, backgroundColor: "#0053ac", fontSize: "11px", padding: "6px"}} 
+                            onClick={() => handleDrawSurface(s)}
+                          >
+                            🗺️ Draw on Map
+                          </button>
+                          <button 
+                            style={{...activeTabBtn, backgroundColor: "#ae2936", flex: 0.4, fontSize: "11px", padding: "6px"}} 
+                            onClick={() => handleDeleteSurface(s.id)}
+                          >
+                            🗑️ Delete
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
                 )}
-              </div>
-
-              {/* 2. MY SURFACES DROPDOWN */}
-              <label style={labelStyle}>Or select from your saved airports</label>
-              <select 
-                style={inputStyle} 
-                value={selectedAnalysisOwner === user?.id ? selectedAnalysisAirport : ""} 
-                onChange={e => {
-                  const chosenAirport = e.target.value;
-                  setSelectedAnalysisAirport(chosenAirport);
-                  setSelectedAnalysisOwner(user?.id || 0);
-                  setPubSurfQuery(""); 
-                  
-                  // --- NEW: AUTO DRAW THE AIRPORT ---
-                  if (chosenAirport) {
-                    // Find every surface that belongs to the selected airport name
-                    const airportSurfaces = savedSurfaces.filter(s => s.airport_name === chosenAirport);
-                    handleDrawSurface(airportSurfaces);
-                  } else {
-                    if (viewerRef.current) viewerRef.current.entities.removeAll();
-                  }
-                }}
-              >
-                <option value="">Select your airport...</option>
-                {Array.from(new Set(savedSurfaces.map(s => s.airport_name))).map(airport => (
-                  <option key={airport} value={airport}>{airport}</option>
-                ))}
-              </select>
-              
-              <hr style={{ borderTop: "1px solid #eee", width: "100%" }}/>
-              
-              <label style={labelStyle}>Obstacle (Lat / Lon / Alt)</label>
-              <div style={rowStyle}>
-                <input style={numInputStyle} type="number" value={obsPos.lat} onChange={e => setObsPos({...obsPos, lat: +e.target.value})} />
-                <input style={numInputStyle} type="number" value={obsPos.lon} onChange={e => setObsPos({...obsPos, lon: +e.target.value})} />
-                <input style={numInputStyle} type="number" value={obsPos.alt} onChange={e => setObsPos({...obsPos, alt: +e.target.value})} />
-              </div>
-
-              <button 
-                style={{ ...createBtnStyle, backgroundColor: "#0b1b3d" }}
-                onClick={async () => {
-                  if (!selectedAnalysisAirport) return alert("Please select an airport first!");
-                  
-                  // Clear previous results while loading
-                  setAnalysisResult(null);
-
-                  const isGuestAirport = selectedAnalysisOwner === 0;
-                  const guestPayload = isGuestAirport 
-                    ? savedSurfaces.filter(s => s.airport_name === selectedAnalysisAirport).map(s => ({name: s.name, geometry: s.geometry}))
-                    : null;
-
-                  const res = await fetch(`${API_BASE}/analyze`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      lat: obsPos.lat,
-                      lon: obsPos.lon,
-                      alt: obsPos.alt,
-                      airport_name: selectedAnalysisAirport,
-                      owner_id: selectedAnalysisOwner,
-                      guest_surfaces: guestPayload // --- NEW ---
-                    }),
-                  });
-                  
-                  const result = await res.json();
-                  if (result.error) return alert(result.error);
-                  
-                  // Save result to state instead of an alert!
-                  setAnalysisResult(result);
-                }}
-              >
-                Run Analysis
-              </button>
-
-              {/* --- NEW: ANALYSIS RESULTS UI & PDF EXPORT --- */}
-              {analysisResult && (
-                <div style={{ backgroundColor: analysisResult.penetration ? "#f8d7da" : "#d4edda", padding: "15px", borderRadius: "6px", border: `1px solid ${analysisResult.penetration ? "#f5c6cb" : "#c3e6cb"}`, marginTop: "10px" }}>
-                  <h4 style={{ margin: "0 0 10px 0", color: analysisResult.penetration ? "#721c24" : "#155724" }}>
-                    {analysisResult.penetration ? "❌ VIOLATION DETECTED" : "✅ OBSTACLE CLEAR"}
-                  </h4>
-                  
-                  <p style={{ fontSize: "12px", color: "#333", margin: "0 0 5px 0" }}>
-                    <strong>Limiting Surface:</strong> {analysisResult.limiting_surface}
-                  </p>
-                  <p style={{ fontSize: "12px", color: "#333", margin: "0 0 15px 0" }}>
-                    <strong>Margin:</strong> {analysisResult.margin} m
-                  </p>
-
-                  <button 
-                    style={{ ...activeTabBtn, width: "100%", backgroundColor: "#343a40", fontSize: "13px" }}
-                    onClick={generatePDF}
-                  >
-                    📄 Download Official Report (PDF)
-                  </button>
-                </div>
-              )}
-
-              {/* --- PREMIUM: BATCH OBSTACLE UPLOAD --- */}
-              <div style={{ backgroundColor: "#e8f0fe", padding: "10px", borderRadius: "4px", marginTop: "15px", border: "1px solid #cce5ff", opacity: user?.is_premium ? 1 : 0.6 }}>
-                <label style={{...labelStyle, color: "#0b1b3d", display: "block", marginBottom: "8px"}}>
-                  ★ Premium Feature: Batch Obstacle Analysis (1000 max)
-                </label>
                 
-                <textarea 
-                  style={{ ...inputStyle, height: "100px", fontFamily: "monospace", fontSize: "12px" }} 
-                  placeholder={`Crane_1, 51.47, -0.45, 120\nBuilding_A, 51.472, -0.44, 95\n...`}
-                  value={batchInput}
-                  onChange={e => setBatchInput(e.target.value)}
-                  disabled={!user?.is_premium}
-                />
-                
-                <div style={{ ...rowStyle, marginTop: "10px" }}>
-                  <button 
-                    style={{ ...activeTabBtn, backgroundColor: user?.is_premium ? "#0b1b3d" : "#ccc", fontSize: "12px" }}
-                    disabled={!user?.is_premium}
-                    onClick={handleBatchAnalyze}
-                  >
-                    Run Batch Analysis
-                  </button>
-                  
-                  <button 
-                    style={{ ...activeTabBtn, backgroundColor: user?.is_premium && batchResults.length > 0 ? "#0b1b3d" : "#ccc", fontSize: "12px" }}
-                    disabled={!user?.is_premium || batchResults.length === 0}
-                    onClick={downloadBatchCSV}
-                  >
-                    Download Results (.CSV)
-                  </button>
-                </div>
+                {/* FIXED: Check against uniqueAirportsCount */}
+                {!user?.is_premium && uniqueAirportsCount >= 1 && (
+                  <div style={{ backgroundColor: "#fff3cd", padding: "10px", borderRadius: "4px", border: "1px solid #ffeeba", marginTop: "10px" }}>
+                    <p style={{ color: "#856404", fontSize: "11px", margin: 0, textAlign: "center" }}>
+                      <strong>Free Tier Limit Reached.</strong><br/>
+                      Upgrade to Premium to save up to 10 distinct airport configurations.
+                    </p>
+                  </div>
+                )}
+                {/* --- PREMIUM: AUDIT LOG HISTORY EXPORTER --- */}
+                {user?.is_premium && (
+                  <div style={{ backgroundColor: "#e8f0fe", padding: "15px", borderRadius: "6px", border: "1px solid #cce5ff", marginTop: "20px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
+                      <label style={{...labelStyle, margin: 0, color: "#0b1b3d"}}>🗄️ Official Authorization Logs</label>
+                    </div>
+                    
+                    <p style={{ fontSize: "11px", color: "#555", margin: "0 0 10px 0" }}>
+                      Download a complete CSV record of all official evaluation PDFs generated for your airspaces.
+                    </p>
 
-                {!user?.is_premium && (
-                  <p style={{ color: "red", fontSize: "11px", marginTop: "8px", textAlign: "center" }}>
-                    Upgrade to Premium to analyze hundreds of obstacles instantly.
-                  </p>
+                    <div style={{ display: "flex", gap: "10px", alignItems: "flex-end" }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#333", display: "block", marginBottom: "3px" }}>Start Date</label>
+                        <input 
+                          type="date" 
+                          style={{ ...inputStyle, padding: "6px", fontSize: "12px" }} 
+                          value={logStartDate} 
+                          onChange={e => setLogStartDate(e.target.value)} 
+                        />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#333", display: "block", marginBottom: "3px" }}>End Date</label>
+                        <input 
+                          type="date" 
+                          style={{ ...inputStyle, padding: "6px", fontSize: "12px" }} 
+                          value={logEndDate} 
+                          onChange={e => setLogEndDate(e.target.value)} 
+                        />
+                      </div>
+                      <div style={{ display: "flex", gap: "10px", alignItems: "flex-end" }}>
+                      <button 
+                        onClick={handleDownloadLogs} 
+                        style={{ ...activeTabBtn, backgroundColor: "#176429", padding: "6px 12px", fontSize: "12px", height: "31px", flex: "0 1 auto" }}
+                      >
+                        📥 Download CSV
+                      </button>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
+            );})()}
+          </div>
 
-              {/* --- PREMIUM EXPORT PANEL --- */}
-              {selectedAnalysisAirport && (
-                <div style={{ backgroundColor: "#fff3cd", padding: "10px", borderRadius: "4px", marginBottom: "15px", border: "1px solid #ffeeba" }}>
-                  <label style={{...labelStyle, color: "#856404", marginBottom: "8px", display: "block"}}>
-                    ★ Premium Export Tools
-                  </label>
+          {/* --- EXAGGERATION WIDGET --- */}
+          <div style={{
+            position: "absolute",
+            bottom: "30px",
+            right: "30px", // Puts it in the bottom right corner of the map
+            backgroundColor: "rgba(255, 255, 255, 0.9)",
+            padding: "10px 15px",
+            borderRadius: "8px",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            zIndex: 10,
+            display: "flex",
+            flexDirection: "column",
+            gap: "5px",
+            width: "200px"
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <label style={{ fontSize: "12px", fontWeight: "bold", color: "#333", margin: 0 }}>
+                3D Exaggeration
+              </label>
+              <span style={{ fontSize: "12px", color: "#0b1b3d", fontWeight: "bold" }}>
+                {exaggeration}x
+              </span>
+            </div>
+            <input
+              type="range"
+              min="1"
+              max="10"
+              step="0.5"
+              value={exaggeration}
+              onChange={(e) => setExaggeration(parseFloat(e.target.value))}
+              style={{ width: "100%", cursor: "pointer" }}
+            />
+          </div>
+          {/* --------------------------- */}
+
+          {/* --- ACCOUNT / LOGIN PANEL (Floating Box) --- */}
+          <div style={{ position: "absolute", bottom: "100px", right: "20px", width: "300px", backgroundColor: "rgba(255, 255, 255, 0.95)", padding: "15px", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", border: "1px solid #ddd", zIndex: 10 }}>
+            {!user ? (
+              isForgotPassword ? (
+                // --- FORGOT PASSWORD PANEL ---
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <strong style={{ fontSize: "14px", color: "#333" }}>Reset Password</strong>
+                  <p style={{ fontSize: "11px", color: "#666", margin: 0 }}>Enter your account email to receive a reset link.</p>
                   
-                  <div style={rowStyle}>
-                    <button 
-                      style={{ ...activeTabBtn, backgroundColor: user?.is_premium ? "#0b1b3d" : "#ccc", fontSize: "12px" }}
-                      disabled={!user?.is_premium}
-                      onClick={() => handleExport('kml')}
-                    >
-                      Download .KML
-                    </button>
-                    
-                    <button 
-                      style={{ ...activeTabBtn, backgroundColor: user?.is_premium ? "#0b1b3d" : "#ccc", fontSize: "12px" }}
-                      disabled={!user?.is_premium}
-                      onClick={() => handleExport('dxf')}
-                    >
-                      Download .DXF
-                    </button>
+                  <input style={{...inputStyle, padding: "6px"}} type="email" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} placeholder="Registered Email Address" />
+                  
+                  <button 
+                    style={{...activeTabBtn, padding: "8px", backgroundColor: "#007bff"}} 
+                    onClick={async () => {
+                      if (!forgotEmail) return alert("Please enter your email");
+                      await fetch(`${API_BASE}/forgot-password`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email: forgotEmail })
+                      });
+                      alert("If that email exists in our system, a reset link has been sent.");
+                      setIsForgotPassword(false);
+                    }}
+                  >
+                    Send Reset Link
+                  </button>
+                  
+                  <button style={{ backgroundColor: "transparent", border: "none", color: "#666", fontSize: "11px", cursor: "pointer", marginTop: "5px" }} onClick={() => setIsForgotPassword(false)}>
+                    Back to Login
+                  </button>
+                </div>
+              ) : (
+                // --- EXISTING LOGIN/REGISTER PANEL ---
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <strong style={{ fontSize: "14px", color: "#333" }}>{isRegistering ? "Register Account" : "Guest Mode"}</strong>
+                    {!isRegistering && <span style={{ fontSize: "10px", backgroundColor: "#e2e3e5", padding: "2px 6px", borderRadius: "4px" }}>Free</span>}
                   </div>
                   
-                  {!user?.is_premium && (
-                    <p style={{ color: "red", fontSize: "11px", marginTop: "8px", textAlign: "center" }}>
-                      Log in to a Premium account to unlock 3D exports.
-                    </p>
+                  {!isRegistering && <p style={{ fontSize: "11px", color: "#666", margin: 0 }}>Create 1 surface as a guest, or log in.</p>}
+                  <hr style={{ margin: "5px 0", borderTop: "1px solid #ddd" }} />
+                  
+                  <input style={{...inputStyle, padding: "6px"}} value={loginInput} onChange={e => setLoginInput(e.target.value)} placeholder="Username" />
+                  <input type="password" style={{...inputStyle, padding: "6px"}} value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="Password" />
+
+                  <button style={{...activeTabBtn, padding: "8px", backgroundColor: isRegistering ? "#28a745" : "#007bff"}} onClick={handleAuth}>
+                    {isRegistering ? "Sign Up" : "Log In"}
+                  </button>
+                  
+                  <button style={{ backgroundColor: "transparent", border: "none", color: "#007bff", fontSize: "11px", cursor: "pointer", marginTop: "5px" }} onClick={() => setIsRegistering(!isRegistering)}>
+                    {isRegistering ? "Already have an account? Log in." : "Create an account"}
+                  </button>
+
+                  {/* --- NEW: FORGOT PASSWORD BUTTON --- */}
+                  {!isRegistering && (
+                    <button style={{ backgroundColor: "transparent", border: "none", color: "#888", fontSize: "11px", cursor: "pointer", marginTop: "0px", textDecoration: "underline" }} onClick={() => setIsForgotPassword(true)}>
+                      Forgot your password?
+                    </button>
                   )}
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* --- DASHBOARD TAB --- */}
-          {activeTab === "dashboard" && (() => {
-            const uniqueAirportsCount = new Set(savedSurfaces.map(s => s.airport_name)).size;
-            const maxAirports = user?.tier === "multi" ? 10 : user?.tier === "single" ? 1 : 0;
-            
-            return (
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
-                <label style={{...labelStyle, margin: 0}}>
-                  My Saved Airspaces
-                </label>
-                
-                <span style={{ fontSize: "12px", fontWeight: "bold", color: user?.is_premium ? "#0b1b3d" : "#666" }}>
-                  Storage: {uniqueAirportsCount} / {maxAirports} Airports
-                </span>
-              </div>
-
-              {!user ? (
-                <p style={{ fontSize: "12px", color: "#dc3545", backgroundColor: "#f8d7da", padding: "10px", borderRadius: "4px" }}>
-                  Please sign in to manage your saved surfaces.
-                </p>
-              ) : savedSurfaces.length === 0 ? (
-                <p style={{ fontSize: "12px", color: "#666", textAlign: "center", padding: "20px" }}>
-                  You haven't saved any surfaces yet. Go to the Define tab to create one!
-                </p>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "60vh", overflowY: "auto" }}>
-                  {savedSurfaces.map(s => (
-                    <div key={s.id} style={{ padding: "12px", backgroundColor: "#f8f9fa", border: "1px solid #ddd", borderRadius: "6px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <strong style={{ fontSize: "13px", color: "#333" }}>
-                          {s.airport_name ? `${s.airport_name} - ` : ""}{s.name}
-                        </strong>
-                        <span style={{ fontSize: "10px", backgroundColor: "#e9ecef", padding: "2px 6px", borderRadius: "10px", color: "#555" }}>
-                          {s.family}
-                        </span>
-                      </div>
-                      
-                      <div style={{ fontSize: "11px", color: "#666", margin: "8px 0" }}>
-                        Contains {s.geometry.length} 3D geometric meshes.
-                      </div>
-                      
-                      <div style={rowStyle}>
-                        <button 
-                          style={{...activeTabBtn, backgroundColor: "#0053ac", fontSize: "11px", padding: "6px"}} 
-                          onClick={() => handleDrawSurface(s)}
-                        >
-                          🗺️ Draw on Map
-                        </button>
-                        <button 
-                          style={{...activeTabBtn, backgroundColor: "#ae2936", flex: 0.4, fontSize: "11px", padding: "6px"}} 
-                          onClick={() => handleDeleteSurface(s.id)}
-                        >
-                          🗑️ Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              
-              {/* FIXED: Check against uniqueAirportsCount */}
-              {!user?.is_premium && uniqueAirportsCount >= 1 && (
-                <div style={{ backgroundColor: "#fff3cd", padding: "10px", borderRadius: "4px", border: "1px solid #ffeeba", marginTop: "10px" }}>
-                  <p style={{ color: "#856404", fontSize: "11px", margin: 0, textAlign: "center" }}>
-                    <strong>Free Tier Limit Reached.</strong><br/>
-                    Upgrade to Premium to save up to 10 distinct airport configurations.
-                  </p>
-                </div>
-              )}
-              {/* --- PREMIUM: AUDIT LOG HISTORY EXPORTER --- */}
-              {user?.is_premium && (
-                <div style={{ backgroundColor: "#e8f0fe", padding: "15px", borderRadius: "6px", border: "1px solid #cce5ff", marginTop: "20px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
-                    <label style={{...labelStyle, margin: 0, color: "#0b1b3d"}}>🗄️ Official Authorization Logs</label>
-                  </div>
-                  
-                  <p style={{ fontSize: "11px", color: "#555", margin: "0 0 10px 0" }}>
-                    Download a complete CSV record of all official evaluation PDFs generated for your airspaces.
-                  </p>
-
-                  <div style={{ display: "flex", gap: "10px", alignItems: "flex-end" }}>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ fontSize: "10px", fontWeight: "bold", color: "#333", display: "block", marginBottom: "3px" }}>Start Date</label>
-                      <input 
-                        type="date" 
-                        style={{ ...inputStyle, padding: "6px", fontSize: "12px" }} 
-                        value={logStartDate} 
-                        onChange={e => setLogStartDate(e.target.value)} 
-                      />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ fontSize: "10px", fontWeight: "bold", color: "#333", display: "block", marginBottom: "3px" }}>End Date</label>
-                      <input 
-                        type="date" 
-                        style={{ ...inputStyle, padding: "6px", fontSize: "12px" }} 
-                        value={logEndDate} 
-                        onChange={e => setLogEndDate(e.target.value)} 
-                      />
-                    </div>
-                    <div style={{ display: "flex", gap: "10px", alignItems: "flex-end" }}>
-                    <button 
-                      onClick={handleDownloadLogs} 
-                      style={{ ...activeTabBtn, backgroundColor: "#176429", padding: "6px 12px", fontSize: "12px", height: "31px", flex: "0 1 auto" }}
-                    >
-                      📥 Download CSV
-                    </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          );})()}
-        </div>
-
-        {/* --- EXAGGERATION WIDGET --- */}
-        <div style={{
-          position: "absolute",
-          bottom: "30px",
-          right: "30px", // Puts it in the bottom right corner of the map
-          backgroundColor: "rgba(255, 255, 255, 0.9)",
-          padding: "10px 15px",
-          borderRadius: "8px",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-          zIndex: 10,
-          display: "flex",
-          flexDirection: "column",
-          gap: "5px",
-          width: "200px"
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <label style={{ fontSize: "12px", fontWeight: "bold", color: "#333", margin: 0 }}>
-              3D Exaggeration
-            </label>
-            <span style={{ fontSize: "12px", color: "#0b1b3d", fontWeight: "bold" }}>
-              {exaggeration}x
-            </span>
-          </div>
-          <input
-            type="range"
-            min="1"
-            max="10"
-            step="0.5"
-            value={exaggeration}
-            onChange={(e) => setExaggeration(parseFloat(e.target.value))}
-            style={{ width: "100%", cursor: "pointer" }}
-          />
-        </div>
-        {/* --------------------------- */}
-
-        {/* --- ACCOUNT / LOGIN PANEL (Floating Box) --- */}
-        <div style={{ position: "absolute", bottom: "100px", right: "20px", width: "300px", backgroundColor: "rgba(255, 255, 255, 0.95)", padding: "15px", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", border: "1px solid #ddd", zIndex: 10 }}>
-          {!user ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              )
+            ) : (
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <strong style={{ fontSize: "14px", color: "#333" }}>{isRegistering ? "Register Account" : "Guest Mode"}</strong>
-                {!isRegistering && <span style={{ fontSize: "10px", backgroundColor: "#e2e3e5", padding: "2px 6px", borderRadius: "4px" }}>Free</span>}
+                <span style={{ fontSize: "14px" }}>
+                  👤 {user.username} {user.is_premium && <span style={{ color: "gold", textShadow: "0 0 2px rgba(0,0,0,0.2)" }}>★ Premium</span>}
+                </span>
+                <button onClick={handleLogout} style={{ fontSize: "12px", padding: "4px 8px", cursor: "pointer", backgroundColor: "#f8f9fa", border: "1px solid #ddd", borderRadius: "4px" }}>Logout</button>
               </div>
-              
-              {!isRegistering && <p style={{ fontSize: "11px", color: "#666", margin: 0 }}>Create 1 surface as a guest, or log in.</p>}
-              <hr style={{ margin: "5px 0", borderTop: "1px solid #ddd" }} />
-              
-              <input style={{...inputStyle, padding: "6px"}} value={loginInput} onChange={e => setLoginInput(e.target.value)} placeholder="Username" />
-              <input type="password" style={{...inputStyle, padding: "6px"}} value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="Password" />
-
-              <button style={{...activeTabBtn, padding: "8px", backgroundColor: isRegistering ? "#0b1b3d" : "#0b1b3d"}} onClick={handleAuth}>
-                {isRegistering ? "Sign Up" : "Log In"}
-              </button>
-              <button style={{ backgroundColor: "transparent", border: "none", color: "#0b1b3d", fontSize: "11px", cursor: "pointer", marginTop: "5px" }} onClick={() => setIsRegistering(!isRegistering)}>
-                {isRegistering ? "Already have an account? Log in." : "Create an account"}
-              </button>
-            </div>
-          ) : (
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: "14px" }}>
-                👤 {user.username} {user.is_premium && <span style={{ color: "gold", textShadow: "0 0 2px rgba(0,0,0,0.2)" }}>★ Premium</span>}
-              </span>
-              <button onClick={handleLogout} style={{ fontSize: "12px", padding: "4px 8px", cursor: "pointer", backgroundColor: "#f8f9fa", border: "1px solid #ddd", borderRadius: "4px" }}>Logout</button>
-            </div>
-          )}
-          {/* --- PROFILE SETTINGS PANEL --- */}
-              {user && (
-                <div style={{ backgroundColor: "#f8f9fa", padding: "15px", borderRadius: "6px", border: "1px solid #ddd", marginTop: "20px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                    <label style={{...labelStyle, margin: 0, color: "#333"}}>⚙️ Account Settings</label>
-                    <button 
-                      onClick={() => setIsEditingProfile(!isEditingProfile)} 
-                      style={{ fontSize: "11px", padding: "4px 8px", cursor: "pointer", backgroundColor: "#fff", border: "1px solid #ccc", borderRadius: "4px" }}
-                    >
-                      {isEditingProfile ? "Cancel" : "Edit Profile"}
-                    </button>
-                  </div>
-
-                  {isEditingProfile ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      <input style={{...inputStyle, padding: "6px", fontSize: "12px"}} value={editUsername} onChange={e => setEditUsername(e.target.value)} placeholder="New Username" />
-                      <input style={{...inputStyle, padding: "6px", fontSize: "12px"}} type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} placeholder="Email Address (e.g. caa@gov.uk)" />
-                      <input style={{...inputStyle, padding: "6px", fontSize: "12px"}} type="password" value={editPassword} onChange={e => setEditPassword(e.target.value)} placeholder="New Password (Leave blank to keep current)" />
+            )}
+            {/* --- PROFILE SETTINGS PANEL --- */}
+                {user && (
+                  <div style={{ backgroundColor: "#f8f9fa", padding: "15px", borderRadius: "6px", border: "1px solid #ddd", marginTop: "20px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                      <label style={{...labelStyle, margin: 0, color: "#333"}}>⚙️ Account Settings</label>
                       <button 
-                        onClick={handleUpdateProfile} 
-                        style={{...activeTabBtn, backgroundColor: "#0b1b3d", padding: "8px", fontSize: "12px", marginTop: "5px"}}
+                        onClick={() => setIsEditingProfile(!isEditingProfile)} 
+                        style={{ fontSize: "11px", padding: "4px 8px", cursor: "pointer", backgroundColor: "#fff", border: "1px solid #ccc", borderRadius: "4px" }}
                       >
-                        Save Changes
+                        {isEditingProfile ? "Cancel" : "Edit Profile"}
                       </button>
                     </div>
-                  ) : (
-                    <div style={{ fontSize: "12px", color: "#555" }}>
-                      <p style={{ margin: "0 0 5px 0" }}><strong>Username:</strong> {user.username}</p>
-                      <p style={{ margin: "0 0 5px 0" }}><strong>Email:</strong> {user.email || <span style={{color: "#999"}}>Not provided</span>}</p>
-                      <p style={{ margin: "0" }}><strong>Account Type:</strong> {user.is_premium ? "Premium Authority" : "Free User"}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-        </div>
-    </main>
-  );
+
+                    {isEditingProfile ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        <input style={{...inputStyle, padding: "6px", fontSize: "12px"}} value={editUsername} onChange={e => setEditUsername(e.target.value)} placeholder="New Username" />
+                        <input style={{...inputStyle, padding: "6px", fontSize: "12px"}} type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} placeholder="Email Address (e.g. caa@gov.uk)" />
+                        <input style={{...inputStyle, padding: "6px", fontSize: "12px"}} type="password" value={editPassword} onChange={e => setEditPassword(e.target.value)} placeholder="New Password (Leave blank to keep current)" />
+                        <button 
+                          onClick={handleUpdateProfile} 
+                          style={{...activeTabBtn, backgroundColor: "#0b1b3d", padding: "8px", fontSize: "12px", marginTop: "5px"}}
+                        >
+                          Save Changes
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: "12px", color: "#555" }}>
+                        <p style={{ margin: "0 0 5px 0" }}><strong>Username:</strong> {user.username}</p>
+                        <p style={{ margin: "0 0 5px 0" }}><strong>Email:</strong> {user.email || <span style={{color: "#999"}}>Not provided</span>}</p>
+                        <p style={{ margin: "0" }}><strong>Account Type:</strong> {user.is_premium ? "Premium Authority" : "Free User"}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+          </div>
+      </main>
+    );
 }
