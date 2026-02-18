@@ -8,7 +8,7 @@ import autoTable from "jspdf-autotable";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 export default function Home() {
-  const [user, setUser] = useState<{id: number, username: string, email?: string, is_premium: boolean} | null>(null);
+  const [user, setUser] = useState<{id: number, username: string, email?: string, is_premium: boolean, tier?: string} | null>(null);
   // --- Profile Settings State ---
   const [editUsername, setEditUsername] = useState("");
   const [editEmail, setEditEmail] = useState("");
@@ -680,14 +680,15 @@ export default function Home() {
             5000 
         ));
 
-    if (!user) {
-        // Guests only get 1 surface. Overwrite the array.
-        setSavedSurfaces([data]);
-        setSelectedAnalysisAirport(data.airport_name); // Auto-select it for them
-    } else {
-        // Pros get up to 10. Append it.
-        setSavedSurfaces(prev => [...prev, data]);
-    }
+    if (!user || user.tier === "free") {
+            // Overwrite array so guests only hold 1 temporary surface in memory
+            setSavedSurfaces([data]);
+            setSelectedAnalysisAirport(data.airport_name);
+            setSelectedAnalysisOwner(0); // Force owner to 0 so the Analyze button knows it's temporary
+        } else {
+            // Pros get appended permanently
+            setSavedSurfaces(prev => [...prev, data]);
+        }
     }
   };
 
@@ -892,7 +893,7 @@ export default function Home() {
             <label style={labelStyle}>Surface Family</label>
             <select style={inputStyle} value={family} onChange={e => setFamily(e.target.value)}>
               <option value="OLS">OLS (Annex 14)</option>
-              <option value="OAS">OAS (PANS-OPS)</option>
+              {/*<option value="OAS">OAS (PANS-OPS)</option>*/}
               <option value="VSS">VSS (Visual Segment)</option>
               <option value="OFZ">OFZ / OES</option>
               <option value="NAVAID">Navaid Restrictive</option>
@@ -1117,6 +1118,11 @@ export default function Home() {
                 // Clear previous results while loading
                 setAnalysisResult(null);
 
+                const isGuestAirport = selectedAnalysisOwner === 0;
+                const guestPayload = isGuestAirport 
+                  ? savedSurfaces.filter(s => s.airport_name === selectedAnalysisAirport).map(s => ({name: s.name, geometry: s.geometry}))
+                  : null;
+
                 const res = await fetch(`${API_BASE}/analyze`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
@@ -1124,8 +1130,9 @@ export default function Home() {
                     lat: obsPos.lat,
                     lon: obsPos.lon,
                     alt: obsPos.alt,
-                    airport_name: selectedAnalysisAirport, // <-- NEW
-                    owner_id: selectedAnalysisOwner
+                    airport_name: selectedAnalysisAirport,
+                    owner_id: selectedAnalysisOwner,
+                    guest_surfaces: guestPayload // --- NEW ---
                   }),
                 });
                 
@@ -1238,8 +1245,8 @@ export default function Home() {
 
         {/* --- DASHBOARD TAB --- */}
         {activeTab === "dashboard" && (() => {
-          // --- NEW: Calculate Unique Airports ---
           const uniqueAirportsCount = new Set(savedSurfaces.map(s => s.airport_name)).size;
+          const maxAirports = user?.tier === "multi" ? 10 : user?.tier === "single" ? 1 : 0;
           
           return (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -1248,9 +1255,8 @@ export default function Home() {
                 My Saved Airspaces
               </label>
               
-              {/* FIXED: Display Airports instead of Surfaces */}
               <span style={{ fontSize: "12px", fontWeight: "bold", color: user?.is_premium ? "#28a745" : "#666" }}>
-                Storage: {uniqueAirportsCount} / {user?.is_premium ? 10 : 1} Airports
+                Storage: {uniqueAirportsCount} / {maxAirports} Airports
               </span>
             </div>
 
