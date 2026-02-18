@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "cesium": "^1.138.0",
+    "jspdf": "^4.1.0",
+    "jspdf-autotable": "^5.0.7",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3"
@@ -20,8 +22,8 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.1.6",
+    "eslint": "^4.1.1",
+    "eslint-config-next": "^0.2.4",
     "symlink-dir": "^9.0.0",
     "tailwindcss": "^4",
     "typescript": "^5"

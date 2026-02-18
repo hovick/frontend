@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 // PRODUCTION READY: Change this to your real domain when deploying (e.g., "https://api.aeroplanner.com")
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -19,6 +21,7 @@ const [user, setUser] = useState<{id: number, username: string, is_premium: bool
   const [isGenericMode, setIsGenericMode] = useState(false);
   const genericColor = Cesium.Color.SLATEGRAY.withAlpha(0.5); // Choose your generic color here
   const [isXRayMode, setIsXRayMode] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
   // Map Controls State
   const [exaggeration, setExaggeration] = useState(1);
   // Public Surface Search State
@@ -459,6 +462,69 @@ const [user, setUser] = useState<{id: number, username: string, is_premium: bool
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // --- OFFICIAL PDF GENERATOR ---
+  const generatePDF = () => {
+    if (!analysisResult) return;
+    const doc = new jsPDF();
+    const date = new Date().toLocaleString();
+
+    // 1. Header
+    doc.setFontSize(18);
+    doc.setTextColor(0, 51, 102); // Navy Blue
+    doc.text("AERONAUTICAL OBSTACLE EVALUATION REPORT", 105, 20, { align: "center" });
+    
+    doc.setLineWidth(0.5);
+    doc.line(14, 25, 196, 25); // Horizontal line
+
+    // 2. Metadata Section
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Date of Analysis: ${date}`, 14, 35);
+    doc.text(`Authority / Defined By: ${analysisResult.authority_name}`, 14, 42);
+    doc.text(`Evaluated Airspace: ${analysisResult.surface_name}`, 14, 49);
+
+    // 3. Obstacle Details
+    doc.setFont("helvetica", "bold"); // FIXED: Explicitly string typed
+    doc.text("Obstacle Details:", 14, 60);
+    doc.setFont("helvetica", "normal"); // FIXED
+    doc.text(`Latitude:  ${obsPos.lat}°`, 20, 67);
+    doc.text(`Longitude: ${obsPos.lon}°`, 20, 74);
+    doc.text(`Proposed Height: ${analysisResult.obstacle_alt} m`, 20, 81);
+
+    // 4. Official Determination (Green or Red)
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold"); // FIXED
+    if (analysisResult.penetration) {
+      doc.setTextColor(200, 0, 0); // Red
+      doc.text(`DETERMINATION: DENIED (PENETRATES SURFACES)`, 14, 95);
+    } else {
+      doc.setTextColor(0, 150, 0); // Green
+      doc.text(`DETERMINATION: ALLOWED (CLEAR OF SURFACES)`, 14, 95);
+    }
+
+    // 5. Analysis Breakdown Table
+    autoTable(doc, {
+      startY: 105,
+      headStyles: { fillColor: [0, 51, 102] },
+      head: [['Evaluated Surface', 'Allowed Max Height (m)', 'Margin to Obstacle (m)']],
+      body: analysisResult.all_surfaces.map((s: any) => [
+        s.surface_name,
+        s.allowed_alt,
+        (s.allowed_alt - analysisResult.obstacle_alt).toFixed(2)
+      ]),
+    });
+
+    // 6. Footer Disclaimer
+    const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal"); // FIXED
+    doc.setTextColor(100, 100, 100);
+    doc.text("This document is an automated analysis report. Please verify with local Civil Aviation Authorities.", 105, pageHeight - 10, { align: "center" });
+
+    // 7. Save the PDF
+    doc.save(`AeroCheck_Report_${Date.now()}.pdf`);
   };
 
  const handleDefine = async () => {
@@ -922,7 +988,10 @@ const [user, setUser] = useState<{id: number, username: string, is_premium: bool
               onClick={async () => {
                 if (!selectedSurfaceId) return alert("Please select a surface first!");
                 
-                const res = await fetch("${API_BASE}/analyze", {
+                // Clear previous results while loading
+                setAnalysisResult(null);
+
+                const res = await fetch(`${API_BASE}/analyze`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
@@ -936,25 +1005,35 @@ const [user, setUser] = useState<{id: number, username: string, is_premium: bool
                 const result = await res.json();
                 if (result.error) return alert(result.error);
                 
-                // Build the dynamic alert message
-                let details = `--- ANALYSIS RESULT ---\n`;
-                details += `Status: ${result.penetration ? "❌ VIOLATION" : "✅ CLEAR"}\n`;
-                details += `Obstacle Height: ${result.obstacle_alt}m\n\n`;
-                
-                details += `⚠️ LIMITING SURFACE:\n`;
-                details += `${result.limiting_surface}\n`;
-                details += `Max Allowed: ${result.allowed_alt}m (Margin: ${result.margin}m)\n\n`;
-                
-                details += `--- ALL SURFACES ABOVE POINT ---\n`;
-                result.all_surfaces.forEach((s: any) => {
-                  details += `- ${s.surface_name}: ${s.allowed_alt}m\n`;
-                });
-
-                alert(details);
+                // Save result to state instead of an alert!
+                setAnalysisResult(result);
               }}
             >
               Run Analysis
             </button>
+
+            {/* --- NEW: ANALYSIS RESULTS UI & PDF EXPORT --- */}
+            {analysisResult && (
+              <div style={{ backgroundColor: analysisResult.penetration ? "#f8d7da" : "#d4edda", padding: "15px", borderRadius: "6px", border: `1px solid ${analysisResult.penetration ? "#f5c6cb" : "#c3e6cb"}`, marginTop: "10px" }}>
+                <h4 style={{ margin: "0 0 10px 0", color: analysisResult.penetration ? "#721c24" : "#155724" }}>
+                  {analysisResult.penetration ? "❌ VIOLATION DETECTED" : "✅ OBSTACLE CLEAR"}
+                </h4>
+                
+                <p style={{ fontSize: "12px", color: "#333", margin: "0 0 5px 0" }}>
+                  <strong>Limiting Surface:</strong> {analysisResult.limiting_surface}
+                </p>
+                <p style={{ fontSize: "12px", color: "#333", margin: "0 0 15px 0" }}>
+                  <strong>Margin:</strong> {analysisResult.margin} m
+                </p>
+
+                <button 
+                  style={{ ...activeTabBtn, width: "100%", backgroundColor: "#343a40", fontSize: "13px" }}
+                  onClick={generatePDF}
+                >
+                  📄 Download Official Report (PDF)
+                </button>
+              </div>
+            )}
 
             {/* --- PREMIUM: BATCH OBSTACLE UPLOAD --- */}
             <div style={{ backgroundColor: "#e8f0fe", padding: "10px", borderRadius: "4px", marginTop: "15px", border: "1px solid #cce5ff", opacity: user?.is_premium ? 1 : 0.6 }}>
