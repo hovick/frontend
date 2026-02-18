@@ -945,11 +945,24 @@ const [user, setUser] = useState<{id: number, username: string, is_premium: bool
                   {pubSurfResults.map(s => (
                     <div 
                       key={s.id} 
-                      onClick={() => {
+                      // --- THIS IS THE UPDATED ONCLICK HANDLER ---
+                      onClick={async () => {
                         setSelectedSurfaceId(s.id);
                         setPubSurfQuery(`${s.name} (${s.family})`); // Fill the box with the selection
                         setPubSurfResults([]); // Close the dropdown
+                        
+                        // --- NEW: FETCH AND DRAW THE SURFACE INSTANTLY ---
+                        try {
+                          const res = await fetch(`${API_BASE}/surfaces/${s.id}`);
+                          if (res.ok) {
+                            const fullSurface = await res.json();
+                            handleDrawSurface(fullSurface);
+                          }
+                        } catch (err) {
+                          alert("Network error: Could not load surface geometry.");
+                        }
                       }}
+                      // -------------------------------------------
                       style={{ padding: "8px", borderBottom: "1px solid #eee", cursor: "pointer", fontSize: "12px" }}
                     >
                       <strong>{s.name}</strong> <span style={{color: "gray"}}>({s.family})</span>
