@@ -895,7 +895,7 @@ const handleDownloadLogs = async () => {
             {activeTab === "define" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 {/* --- PREMIUM OPEN SOURCE SEARCH --- */}
-                <div style={{ backgroundColor: "#e8f0fe", padding: "10px", borderRadius: "4px", border: "1px solid #cce5ff", opacity: user?.is_premium ? 1 : 0.6, position: "relative" }}>
+                <div style={{ backgroundColor: "#e8f0fe", padding: "10px", borderRadius: "4px", border: "1px solid #cce5ff", position: "relative" }}>
                   <label style={{...labelStyle, color: "#0b1b3d", display: "block", marginBottom: "5px"}}>
                     ★ Premium Database Search 
                   </label>
@@ -905,17 +905,9 @@ const handleDownloadLogs = async () => {
                     value={searchQuery} 
                     onChange={e => handleSearch(e.target.value)} 
                     placeholder={family === "NAVAID" ? "Search Navaid (e.g. JFK or Kennedy)" : "Search Airport ICAO or Name (e.g. EGLL or Heathrow)"}
-                    disabled={!user?.is_premium}
                   />
-                  
-                  {!user?.is_premium && (
-                    <p style={{ color: "red", fontSize: "11px", marginTop: "5px", marginBottom: 0 }}>
-                      Log in to a Premium account to auto-fill global coordinates.
-                    </p>
-                  )}
 
                   {/* SEARCH RESULTS DROPDOWN */}
-                  {searchResults.length > 0 && user?.is_premium && (
                     <div style={{ position: "absolute", top: "100%", left: 0, right: 0, backgroundColor: "white", border: "1px solid #ccc", zIndex: 100, maxHeight: "300px", overflowY: "auto", boxShadow: "0 4px 8px rgba(0,0,0,0.1)" }}>
                       {family === "NAVAID" ? (
                         // NAVAID RESULTS
@@ -944,7 +936,6 @@ const handleDownloadLogs = async () => {
                         ))
                       )}
                     </div>
-                  )}
                 </div>
                 {/* --------------------------------- */}
 
