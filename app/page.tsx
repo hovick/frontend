@@ -2927,7 +2927,7 @@ const handleDownloadLogs = async () => {
                       </button>
                       
                       <button style={{ backgroundColor: "transparent", border: "none", color: "#007bff", fontSize: "11px", cursor: "pointer", marginTop: "5px" }} onClick={() => setIsRegistering(!isRegistering)}>
-                        {isRegistering ? "Already have an account? Log in." : "Create an account"}
+                        {isRegistering ? "Already have an account? Log in." : "Create a FREE PREMIUM account"}
                       </button>
 
                       {/* --- FORGOT PASSWORD / RESEND --- */}
