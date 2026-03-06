@@ -219,6 +219,18 @@ export default function Home() {
   const [t2, setT2] = useState({ lat: 10.452475, lon: -75.512492, alt: 2.13 });
   const [arpAlt, setArpAlt] = useState(1.22);
   const [runwayType, setRunwayType] = useState("precision");
+  // --- Custom OLS State ---
+  const [cOls, setCOls] = useState({
+    draw_strip: true, strip_end: 60, strip_width: 75,
+    draw_app: true, app_div: 15, app_s1_len: 3000, app_s1_slope: 2, app_s2_len: 3600, app_s2_slope: 2.5, app_s3_len: 8400, app_s3_slope: 0,
+    draw_dep: true, dep_inner: 180, dep_start: 60, dep_div: 12.5, dep_slope: 2, dep_len: 15000, dep_max_w: 1200,
+    draw_trans: true, trans_slope: 14.3,
+    draw_ihs: true, ihs_radius: 4000,
+    draw_conical: true, conical_slope: 5, conical_height: 100,
+    draw_balked: false, balked_start: 1800, balked_slope: 3.33, balked_div: 10,
+    draw_in_app: false, in_app_len: 900, in_app_hw: 60, in_app_slope: 2, in_app_offset: 60,
+    draw_in_trans: false
+  });
   
   // VSS specific state
   const [vssParams, setVssParams] = useState({ stripWidth: 150, oca: 100, descentAngle: 3.0 });
@@ -1294,7 +1306,27 @@ const handleDownloadLogs = async () => {
                 { length: heliParams.tkofS2Len, slope_pct: heliParams.tkofS2Slope, divergence_pct: heliParams.tkofS2Div },
                 { length: heliParams.tkofS3Len, slope_pct: heliParams.tkofS3Slope, divergence_pct: heliParams.tkofS3Div }
             ].filter(s => s.length > 0)
-        } : null
+        } : null,
+        custom_coords: family === "CUSTOM" ? customPoints : undefined,
+            // --- NEW: Custom OLS Payload Mapper ---
+            custom_ols_params: runwayType === "custom" ? {
+                draw_strip: cOls.draw_strip, draw_approach: cOls.draw_app, draw_departure: cOls.draw_dep,
+                draw_transitional: cOls.draw_trans, draw_ihs: cOls.draw_ihs, draw_conical: cOls.draw_conical,
+                draw_balked: cOls.draw_balked, draw_inner_approach: cOls.draw_in_app, draw_inner_transitional: cOls.draw_in_trans,
+                strip_end: cOls.strip_end, strip_width: cOls.strip_width, ihs_radius: cOls.ihs_radius,
+                app_div: cOls.app_div / 100, 
+                app_sections: [
+                    { len: cOls.app_s1_len, slope: cOls.app_s1_slope / 100 },
+                    { len: cOls.app_s2_len, slope: cOls.app_s2_slope / 100 },
+                    { len: cOls.app_s3_len, slope: cOls.app_s3_slope / 100 }
+                ].filter(s => s.len > 0), // Ignore 0-length sections
+                trans_slope: cOls.trans_slope / 100,
+                dep_inner: cOls.dep_inner, dep_start: cOls.dep_start, dep_div: cOls.dep_div / 100,
+                dep_slope: cOls.dep_slope / 100, dep_len: cOls.dep_len, dep_max_w: cOls.dep_max_w,
+                conical_slope: cOls.conical_slope / 100, conical_height: cOls.conical_height,
+                balked_start: cOls.balked_start, balked_slope: cOls.balked_slope / 100, balked_div: cOls.balked_div / 100,
+                inner_app_len: cOls.in_app_len, inner_app_hw: cOls.in_app_hw, inner_app_slope: cOls.in_app_slope / 100, inner_app_offset: cOls.in_app_offset
+            } : undefined
     };
     if (family === "CUSTOM") {
             const lines = customPoints.split("\n");
@@ -1749,7 +1781,7 @@ const handleDownloadLogs = async () => {
                 )}
 
                 {/* NEW RUNWAY TYPE DROPDOWN (Only show for OLS) */}
-                {(family === "OLS" || family === "OFZ") && (
+                {(family === "OFZ") && (
                   <>
                     <label style={labelStyle}>Runway Type</label>
                     <select style={inputStyle} value={runwayType} onChange={e => setRunwayType(e.target.value)}>
@@ -1757,6 +1789,127 @@ const handleDownloadLogs = async () => {
                       <option value="non_precision">Non-Precision Approach</option>
                       <option value="precision">Precision Approach</option>
                     </select>
+                  </>
+                )}
+                {/* --- STANDARD OLS SETTINGS --- */}
+                {family === "OLS" && (
+                  <>
+                    <label style={labelStyle}>Runway Type / Regulation Set</label>
+                    <select style={inputStyle} value={runwayType} onChange={e => setRunwayType(e.target.value)}>
+                      <option value="non_instrument">Non-Instrument</option>
+                      <option value="non_precision">Non-Precision Approach</option>
+                      <option value="precision">Precision Approach</option>
+                      <option value="custom">⚙️ Custom Parameters</option>
+                    </select>
+
+                    {/* --- NEW: CUSTOM OLS CONFIGURATOR --- */}
+                    {runwayType === "custom" && (
+                      <div style={{ backgroundColor: "#e9ecef", padding: "12px", borderRadius: "6px", display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px", border: "1px solid #ccc" }}>
+                        <p style={{fontSize: "13px", color:"#0b1b3d", margin: "0 0 5px 0", fontWeight: "bold"}}>Custom Parameters (Meters & Percentages)</p>
+
+                        {/* Helper functions to keep UI code incredibly clean and perfectly sized */}
+                        {(() => {
+                          // Standardized tiny input box with a clear label above it
+                          const ParamInput = ({ label, value, onChange }: any) => (
+                            <div style={{ display: "flex", flexDirection: "column", width: "65px" }}>
+                              <span style={{ fontSize: "10px", color: "#555", marginBottom: "2px", fontWeight: "bold", whiteSpace: "nowrap" }}>{label}</span>
+                              <input 
+                                type="number" 
+                                style={{ padding: "4px", fontSize: "12px", borderRadius: "4px", border: "1px solid #ccc", width: "100%", boxSizing: "border-box" }} 
+                                value={value} 
+                                onChange={onChange} 
+                              />
+                            </div>
+                          );
+
+                          // Standardized Row: Checkbox on top, inputs wrapped below
+                          const CustomRow = ({ label, toggle, inputs }: any) => (
+                            <div style={{ display: "flex", flexDirection: "column", padding: "8px", backgroundColor: cOls[toggle as keyof typeof cOls] ? "#ffffff" : "#f5f5f5", borderRadius: "4px", border: "1px solid #ddd", transition: "all 0.2s" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: cOls[toggle as keyof typeof cOls] ? "8px" : "0" }}>
+                                <input type="checkbox" checked={cOls[toggle as keyof typeof cOls] as boolean} onChange={(e) => setCOls({...cOls, [toggle]: e.target.checked})} />
+                                <strong style={{ fontSize: "12px", color: cOls[toggle as keyof typeof cOls] ? "#0b1b3d" : "#999" }}>{label}</strong>
+                              </div>
+                              {cOls[toggle as keyof typeof cOls] && (
+                                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginLeft: "22px" }}>
+                                  {inputs}
+                                </div>
+                              )}
+                            </div>
+                          );
+
+                          return (
+                            <>
+                              <CustomRow label="Basic Strip" toggle="draw_strip" inputs={
+                                <>
+                                  <ParamInput label="End Dist." value={cOls.strip_end} onChange={(e: any) => setCOls({...cOls, strip_end: +e.target.value})} />
+                                  <ParamInput label="Width (m)" value={cOls.strip_width} onChange={(e: any) => setCOls({...cOls, strip_width: +e.target.value})} />
+                                </>
+                              }/>
+                              
+                              <CustomRow label="Approach Surface" toggle="draw_app" inputs={
+                                <>
+                                  <ParamInput label="Div. (%)" value={cOls.app_div} onChange={(e: any) => setCOls({...cOls, app_div: +e.target.value})} />
+                                  <div style={{ width: "1px", backgroundColor: "#eee", margin: "0 4px" }}></div>
+                                  <ParamInput label="Sec 1 Len" value={cOls.app_s1_len} onChange={(e: any) => setCOls({...cOls, app_s1_len: +e.target.value})} />
+                                  <ParamInput label="Sec 1 Slope" value={cOls.app_s1_slope} onChange={(e: any) => setCOls({...cOls, app_s1_slope: +e.target.value})} />
+                                  <div style={{ width: "1px", backgroundColor: "#eee", margin: "0 4px" }}></div>
+                                  <ParamInput label="Sec 2 Len" value={cOls.app_s2_len} onChange={(e: any) => setCOls({...cOls, app_s2_len: +e.target.value})} />
+                                  <ParamInput label="Sec 2 Slope" value={cOls.app_s2_slope} onChange={(e: any) => setCOls({...cOls, app_s2_slope: +e.target.value})} />
+                                  <div style={{ width: "1px", backgroundColor: "#eee", margin: "0 4px" }}></div>
+                                  <ParamInput label="Sec 3 Len" value={cOls.app_s3_len} onChange={(e: any) => setCOls({...cOls, app_s3_len: +e.target.value})} />
+                                  <ParamInput label="Sec 3 Slope" value={cOls.app_s3_slope} onChange={(e: any) => setCOls({...cOls, app_s3_slope: +e.target.value})} />
+                                </>
+                              }/>
+
+                              <CustomRow label="Take-off Climb Surface" toggle="draw_dep" inputs={
+                                <>
+                                  <ParamInput label="Start Offset" value={cOls.dep_start} onChange={(e: any) => setCOls({...cOls, dep_start: +e.target.value})} />
+                                  <ParamInput label="Inner W." value={cOls.dep_inner} onChange={(e: any) => setCOls({...cOls, dep_inner: +e.target.value})} />
+                                  <ParamInput label="Max W." value={cOls.dep_max_w} onChange={(e: any) => setCOls({...cOls, dep_max_w: +e.target.value})} />
+                                  <ParamInput label="Div. (%)" value={cOls.dep_div} onChange={(e: any) => setCOls({...cOls, dep_div: +e.target.value})} />
+                                  <ParamInput label="Length (m)" value={cOls.dep_len} onChange={(e: any) => setCOls({...cOls, dep_len: +e.target.value})} />
+                                  <ParamInput label="Slope (%)" value={cOls.dep_slope} onChange={(e: any) => setCOls({...cOls, dep_slope: +e.target.value})} />
+                                </>
+                              }/>
+
+                              <CustomRow label="Transitional Surface" toggle="draw_trans" inputs={
+                                <ParamInput label="Slope (%)" value={cOls.trans_slope} onChange={(e: any) => setCOls({...cOls, trans_slope: +e.target.value})} />
+                              }/>
+
+                              <CustomRow label="Inner Horizontal Surface (IHS)" toggle="draw_ihs" inputs={
+                                <ParamInput label="Radius (m)" value={cOls.ihs_radius} onChange={(e: any) => setCOls({...cOls, ihs_radius: +e.target.value})} />
+                              }/>
+
+                              <CustomRow label="Conical Surface" toggle="draw_conical" inputs={
+                                <>
+                                  <ParamInput label="Height (m)" value={cOls.conical_height} onChange={(e: any) => setCOls({...cOls, conical_height: +e.target.value})} />
+                                  <ParamInput label="Slope (%)" value={cOls.conical_slope} onChange={(e: any) => setCOls({...cOls, conical_slope: +e.target.value})} />
+                                </>
+                              }/>
+                              
+                              <CustomRow label="Balked Landing Surface" toggle="draw_balked" inputs={
+                                <>
+                                  <ParamInput label="Start Offset" value={cOls.balked_start} onChange={(e: any) => setCOls({...cOls, balked_start: +e.target.value})} />
+                                  <ParamInput label="Div. (%)" value={cOls.balked_div} onChange={(e: any) => setCOls({...cOls, balked_div: +e.target.value})} />
+                                  <ParamInput label="Slope (%)" value={cOls.balked_slope} onChange={(e: any) => setCOls({...cOls, balked_slope: +e.target.value})} />
+                                </>
+                              }/>
+
+                              <CustomRow label="Inner Approach Surface" toggle="draw_in_app" inputs={
+                                <>
+                                  <ParamInput label="Offset" value={cOls.in_app_offset} onChange={(e: any) => setCOls({...cOls, in_app_offset: +e.target.value})} />
+                                  <ParamInput label="Half-W (m)" value={cOls.in_app_hw} onChange={(e: any) => setCOls({...cOls, in_app_hw: +e.target.value})} />
+                                  <ParamInput label="Length (m)" value={cOls.in_app_len} onChange={(e: any) => setCOls({...cOls, in_app_len: +e.target.value})} />
+                                  <ParamInput label="Slope (%)" value={cOls.in_app_slope} onChange={(e: any) => setCOls({...cOls, in_app_slope: +e.target.value})} />
+                                </>
+                              }/>
+
+                              <CustomRow label="Inner Transitional" toggle="draw_in_trans" inputs={<span style={{fontSize: "11px", color: "#666", marginTop:"4px"}}>Derived from Inner Approach & Strip settings.</span>} />
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
                   </>
                 )}
                 {/* DYNAMIC HELIPORT FIELDS */}
