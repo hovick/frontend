@@ -331,7 +331,20 @@ export default function Home() {
         if (data.detail || !data.access_token) return alert(`Login Error: ${data.detail || "Invalid credentials"}`);
         
         localStorage.setItem("aero_token", data.access_token);
-        window.location.reload();
+        const res2 = await fetch(`${API_BASE}/users/me`, {
+            headers: { "Authorization": `Bearer ${data.access_token}` }
+        });
+        const userData = await res2.json();
+        setUser(userData);
+        setLoginInput("");
+        setPasswordInput("");
+        setShowAccountPanel(false);
+        // Fetch surfaces without reloading
+        const surfRes = await fetch(`${API_BASE}/get-surfaces`, {
+            headers: { "Authorization": `Bearer ${data.access_token}` }
+        });
+        const surfs = await surfRes.json();
+        setSavedSurfaces(surfs);
       } catch (err) {
         alert("Network error: Could not reach the server.");
       }
@@ -363,7 +376,20 @@ export default function Home() {
     // Save the brand new token so they don't get logged out
     localStorage.setItem("aero_token", data.access_token);
     alert("Profile updated successfully!");
-    window.location.reload();
+    const res2 = await fetch(`${API_BASE}/users/me`, {
+      headers: { "Authorization": `Bearer ${data.access_token}` }
+    });
+    const userData = await res2.json();
+    setUser(userData);
+    setLoginInput("");
+    setPasswordInput("");
+    setShowAccountPanel(false);
+    // Fetch surfaces without reloading
+    const surfRes = await fetch(`${API_BASE}/get-surfaces`, {
+        headers: { "Authorization": `Bearer ${data.access_token}` }
+    });
+    const surfs = await surfRes.json();
+    setSavedSurfaces(surfs);
   };
 
   useEffect(() => {
