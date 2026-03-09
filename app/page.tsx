@@ -221,19 +221,6 @@ export default function Home() {
     acftCat: "C",          // "AB", "C", "D"
   });
 
-  // ── ILS OAS state (Doc 8168 Part II §1.4.8) ──────────────────────────────
-  const [oasParams, setOasParams] = useState({
-    thrLat: 10.4309, thrLon: -75.5134, thrAlt: 2.0,
-    bearing: 194.0,        // final approach track TO threshold
-    runwayLength: 2800.0,  // runway length (m)
-    gpAngleDeg: 3.0,       // glide path angle (°)
-    attM: 3000.0,          // antenna-to-threshold distance (m)
-    rdh: 15.0,             // ILS reference datum height (m)
-    locSectorWidth: 210.0, // LOC sector width at threshold (m)
-    ilsCategory: "I",      // "I", "II", "III"
-    maGradPct: 2.5,
-  });
-
   const clearTools = () => {
     setActiveTool("none");
     setRulerPts([]);
@@ -1384,13 +1371,6 @@ const handleDownloadLogs = async () => {
             ma_gradient_pct: apvParams.maGradPct,
             acft_category: apvParams.acftCat,
         } : null,
-    oas_params: family === "OAS" ? {
-            thr_lat: oasParams.thrLat, thr_lon: oasParams.thrLon, thr_alt: oasParams.thrAlt,
-            bearing: oasParams.bearing, runway_length: oasParams.runwayLength,
-            gp_angle_deg: oasParams.gpAngleDeg, att_m: oasParams.attM,
-            rdh: oasParams.rdh, loc_sector_width: oasParams.locSectorWidth,
-            ils_category: oasParams.ilsCategory, ma_gradient_pct: oasParams.maGradPct,
-        } : null,
         custom_coords: family === "CUSTOM" ? customPoints : undefined,
             // --- NEW: Custom OLS Payload Mapper ---
             custom_ols_params: runwayType === "custom" ? {
@@ -1827,7 +1807,7 @@ const handleDownloadLogs = async () => {
                 <label style={labelStyle}>Surface Family</label>
                 <select style={inputStyle} value={family} onChange={e => setFamily(e.target.value)}>
                   <option value="OLS">OLS (Annex 14)</option>
-                  <option value="OAS">ILS OAS (Doc 8168 §1.4.8)</option>
+                  {/* --- <option value="OAS">ILS OAS (Doc 8168 §1.4.8)</option> --- */}
                   <option value="APV_BARO">APV Baro-VNAV OAS (Doc 8168 §3.4)</option>
                   <option value="RNAV">RNAV / RNP Procedure</option>
                   <option value="VSS">VSS (Visual Segment)</option>
@@ -2173,68 +2153,7 @@ const handleDownloadLogs = async () => {
                     </div>
                   </div>
                 )}
-
-                {/* ── ILS OAS FIELDS (Doc 8168 Part II §1.4.8) ── */}
-                {family === "OAS" && (
-                  <div style={{ backgroundColor: "#e9ecef", padding: "10px", borderRadius: "4px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <div style={{ fontSize: "11px", color: "#555", backgroundColor: "#fff3cd", padding: "6px 8px", borderRadius: "4px", border: "1px solid #ffc107" }}>
-                      ILS OAS — Doc 8168 Vol II Part II §1.4.8. Six plane surfaces (W, X, Y, Z) in runway-aligned frame. Standard conditions: GP=3.0°, ATT=3000 m, RDH=15 m, LOC sector=210 m. Visual reference only — verify OCA/H with official PANS-OPS software.
-                    </div>
-
-                    <label style={{...labelStyle, color: "#B8860B"}}>Threshold (Lat / Lon / Alt m)</label>
-                    <div style={rowStyle}>
-                      <input style={numInputStyle} type="number" step="0.000001" value={oasParams.thrLat} onChange={e => setOasParams({...oasParams, thrLat: +e.target.value})} placeholder="Thr Lat" />
-                      <input style={numInputStyle} type="number" step="0.000001" value={oasParams.thrLon} onChange={e => setOasParams({...oasParams, thrLon: +e.target.value})} placeholder="Thr Lon" />
-                      <input style={numInputStyle} type="number" value={oasParams.thrAlt} onChange={e => setOasParams({...oasParams, thrAlt: +e.target.value})} placeholder="Thr Alt (m)" />
-                    </div>
-
-                    <div style={rowStyle}>
-                      <div style={{flex:1}}>
-                        <label style={labelStyle}>Final Appr Track TO Thr (°)</label>
-                        <input style={inputStyle} type="number" value={oasParams.bearing} onChange={e => setOasParams({...oasParams, bearing: +e.target.value})} />
-                      </div>
-                      <div style={{flex:1}}>
-                        <label style={labelStyle}>Runway Length (m)</label>
-                        <input style={inputStyle} type="number" value={oasParams.runwayLength} onChange={e => setOasParams({...oasParams, runwayLength: +e.target.value})} />
-                      </div>
-                    </div>
-
-                    <div style={rowStyle}>
-                      <div style={{flex:1}}>
-                        <label style={labelStyle}>GP Angle (°)</label>
-                        <input style={inputStyle} type="number" step="0.1" min="2.5" max="3.5" value={oasParams.gpAngleDeg} onChange={e => setOasParams({...oasParams, gpAngleDeg: +e.target.value})} />
-                      </div>
-                      <div style={{flex:1}}>
-                        <label style={labelStyle}>ATT (m)</label>
-                        <input style={inputStyle} type="number" value={oasParams.attM} onChange={e => setOasParams({...oasParams, attM: +e.target.value})} />
-                      </div>
-                      <div style={{flex:1}}>
-                        <label style={labelStyle}>RDH (m)</label>
-                        <input style={inputStyle} type="number" value={oasParams.rdh} onChange={e => setOasParams({...oasParams, rdh: +e.target.value})} />
-                      </div>
-                    </div>
-
-                    <div style={rowStyle}>
-                      <div style={{flex:1}}>
-                        <label style={labelStyle}>LOC Sector Width at Thr (m)</label>
-                        <input style={inputStyle} type="number" value={oasParams.locSectorWidth} onChange={e => setOasParams({...oasParams, locSectorWidth: +e.target.value})} />
-                      </div>
-                      <div style={{flex:1}}>
-                        <label style={labelStyle}>ILS Category</label>
-                        <select style={inputStyle} value={oasParams.ilsCategory} onChange={e => setOasParams({...oasParams, ilsCategory: e.target.value})}>
-                          <option value="I">Cat I (limit 300 m)</option>
-                          <option value="II">Cat II (limit 150 m)</option>
-                          <option value="III">Cat III (limit 150 m)</option>
-                        </select>
-                      </div>
-                      <div style={{flex:1}}>
-                        <label style={labelStyle}>MA Gradient (%)</label>
-                        <input style={inputStyle} type="number" step="0.1" value={oasParams.maGradPct} onChange={e => setOasParams({...oasParams, maGradPct: +e.target.value})} />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
+                
                 {/* --- DYNAMIC RNAV FIELDS --- */}
                 {family === "RNAV" && (
                   <div style={{ backgroundColor: "#e9ecef", padding: "10px", borderRadius: "4px", display: "flex", flexDirection: "column", gap: "8px" }}>
