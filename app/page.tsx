@@ -161,38 +161,78 @@ export default function Home() {
   const [heliPreset, setHeliPreset] = useState("cat_a");
 
   const [heliParams, setHeliParams] = useState({
-    fatoType: "non_instrument", 
+    fatoType: "non_instrument",
     lat: 40.4168, lon: -3.7038, alt: 100,
-    bearing: 45,            
-    innerWidth: 30,         
+    bearing: 45,
+    innerWidth: 30,
     startOffset: 15,
-    // Approach Sections (Length, Slope%, Div%)
-    appS1Len: 3386, appS1Slope: 4.5, appS1Div: 10.0,
-    appS2Len: 0, appS2Slope: 0, appS2Div: 0.0, 
-    appS3Len: 0, appS3Slope: 0, appS3Div: 0.0, // --- NEW: Section 3 ---
+    // Bug F fix: PinS VSS gate for visual FATO transitional surfaces (Annex 14 Vol II §4.1.9)
+    hasPinsVss: false,
+    // Approach Sections (Length, Slope%, Div%, MaxOuterWidth m — null = uncapped)
+    // Bug G fix: max_outer_width enforces ICAO Table 4-1 footnote (b) 7D/10D cap
+    appS1Len: 3386, appS1Slope: 4.5, appS1Div: 10.0, appS1MaxW: null as number | null,
+    appS2Len: 0,    appS2Slope: 0,   appS2Div: 0.0,  appS2MaxW: null as number | null,
+    appS3Len: 0,    appS3Slope: 0,   appS3Div: 0.0,  appS3MaxW: null as number | null,
     // Take-off Sections
-    tkofS1Len: 3386, tkofS1Slope: 4.5, tkofS1Div: 10.0,
-    tkofS2Len: 0, tkofS2Slope: 0, tkofS2Div: 0.0,
-    tkofS3Len: 0, tkofS3Slope: 0, tkofS3Div: 0.0 // --- NEW: Section 3 ---
+    tkofS1Len: 3386, tkofS1Slope: 4.5, tkofS1Div: 10.0, tkofS1MaxW: null as number | null,
+    tkofS2Len: 0,    tkofS2Slope: 0,   tkofS2Div: 0.0,  tkofS2MaxW: null as number | null,
+    tkofS3Len: 0,    tkofS3Slope: 0,   tkofS3Div: 0.0,  tkofS3MaxW: null as number | null,
   });
 
   const handleHeliPresetChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const preset = e.target.value;
     setHeliPreset(preset);
-    
-    // THE FIX: Accurate ICAO Annex 14 Vol II Auto-Fill Rules
-    if (preset === "cat_a") { // PC1
-      setHeliParams(prev => ({ ...prev, fatoType: "non_instrument", innerWidth: 30, startOffset: 15, appS1Len: 3386, appS1Slope: 4.5, appS1Div: 10, appS2Len: 0, appS2Slope: 0, appS2Div: 0, appS3Len: 0, appS3Slope: 0, appS3Div: 0, tkofS1Len: 3386, tkofS1Slope: 4.5, tkofS1Div: 10, tkofS2Len: 0, tkofS2Slope: 0, tkofS2Div: 0, tkofS3Len: 0, tkofS3Slope: 0, tkofS3Div: 0 }));
-    } else if (preset === "cat_b") { // PC3
-      setHeliParams(prev => ({ ...prev, fatoType: "non_instrument", innerWidth: 30, startOffset: 15, appS1Len: 245, appS1Slope: 8.0, appS1Div: 10, appS2Len: 830, appS2Slope: 16.0, appS2Div: 0, appS3Len: 0, appS3Slope: 0, appS3Div: 0, tkofS1Len: 245, tkofS1Slope: 8.0, tkofS1Div: 10, tkofS2Len: 830, tkofS2Slope: 16.0, tkofS2Div: 0, tkofS3Len: 0, tkofS3Slope: 0, tkofS3Div: 0 }));
-    } else if (preset === "cat_c") { // PC2
-      setHeliParams(prev => ({ ...prev, fatoType: "non_instrument", innerWidth: 30, startOffset: 15, appS1Len: 1220, appS1Slope: 12.5, appS1Div: 10, appS2Len: 0, appS2Slope: 0, appS2Div: 0, appS3Len: 0, appS3Slope: 0, appS3Div: 0, tkofS1Len: 1220, tkofS1Slope: 12.5, tkofS1Div: 10, tkofS2Len: 0, tkofS2Slope: 0, tkofS2Div: 0, tkofS3Len: 0, tkofS3Slope: 0, tkofS3Div: 0 }));
-    } else if (preset === "non_precision") { // Fixed Instrument Offsets & 3-Section Takeoff
-      setHeliParams(prev => ({ ...prev, fatoType: "non_precision", innerWidth: 90, startOffset: 60, appS1Len: 2500, appS1Slope: 3.33, appS1Div: 16, appS2Len: 0, appS2Slope: 0, appS2Div: 0, appS3Len: 0, appS3Slope: 0, appS3Div: 0, tkofS1Len: 2850, tkofS1Slope: 3.5, tkofS1Div: 30, tkofS2Len: 1510, tkofS2Slope: 3.5, tkofS2Div: 0, tkofS3Len: 7640, tkofS3Slope: 2.0, tkofS3Div: 0 }));
+    // Reset Bug F/G fields on every preset change
+    const base = { hasPinsVss: false, appS1MaxW: null, appS2MaxW: null, appS3MaxW: null, tkofS1MaxW: null, tkofS2MaxW: null, tkofS3MaxW: null };
+    if (preset === "cat_a") { // PC1 — Slope Cat A
+      setHeliParams(prev => ({ ...prev, ...base, fatoType: "non_instrument", innerWidth: 30, startOffset: 15,
+        appS1Len: 3386, appS1Slope: 4.5, appS1Div: 10, appS2Len: 0, appS2Slope: 0, appS2Div: 0, appS3Len: 0, appS3Slope: 0, appS3Div: 0,
+        tkofS1Len: 3386, tkofS1Slope: 4.5, tkofS1Div: 10, tkofS2Len: 0, tkofS2Slope: 0, tkofS2Div: 0, tkofS3Len: 0, tkofS3Slope: 0, tkofS3Div: 0 }));
+    } else if (preset === "cat_b") { // PC3 — Bug C fix: S2 divergence = 10% (same as S1, ICAO Table 4-1 "1st and 2nd section")
+      setHeliParams(prev => ({ ...prev, ...base, fatoType: "non_instrument", innerWidth: 30, startOffset: 15,
+        appS1Len: 245,  appS1Slope: 8.0,  appS1Div: 10, appS2Len: 830, appS2Slope: 16.0, appS2Div: 10, appS3Len: 0, appS3Slope: 0, appS3Div: 0,
+        tkofS1Len: 245, tkofS1Slope: 8.0, tkofS1Div: 10, tkofS2Len: 830, tkofS2Slope: 16.0, tkofS2Div: 10, tkofS3Len: 0, tkofS3Slope: 0, tkofS3Div: 0 }));
+    } else if (preset === "cat_c") { // PC2 — Slope Cat C
+      setHeliParams(prev => ({ ...prev, ...base, fatoType: "non_instrument", innerWidth: 30, startOffset: 15,
+        appS1Len: 1220, appS1Slope: 12.5, appS1Div: 10, appS2Len: 0, appS2Slope: 0, appS2Div: 0, appS3Len: 0, appS3Slope: 0, appS3Div: 0,
+        tkofS1Len: 1220, tkofS1Slope: 12.5, tkofS1Div: 10, tkofS2Len: 0, tkofS2Slope: 0, tkofS2Div: 0, tkofS3Len: 0, tkofS3Slope: 0, tkofS3Div: 0 }));
+    } else if (preset === "non_precision") { // Instrument Non-Precision
+      setHeliParams(prev => ({ ...prev, ...base, fatoType: "non_precision", innerWidth: 90, startOffset: 60,
+        appS1Len: 2500, appS1Slope: 3.33, appS1Div: 16, appS2Len: 0, appS2Slope: 0, appS2Div: 0, appS3Len: 0, appS3Slope: 0, appS3Div: 0,
+        tkofS1Len: 2850, tkofS1Slope: 3.5, tkofS1Div: 30, tkofS2Len: 1510, tkofS2Slope: 3.5, tkofS2Div: 0, tkofS3Len: 7640, tkofS3Slope: 2.0, tkofS3Div: 0 }));
     } else if (preset === "precision") {
-      setHeliParams(prev => ({ ...prev, fatoType: "precision", innerWidth: 90, startOffset: 60, appS1Len: 3000, appS1Slope: 2.5, appS1Div: 25, appS2Len: 5500, appS2Slope: 3.0, appS2Div: 15, appS3Len: 0, appS3Slope: 0, appS3Div: 0, tkofS1Len: 2850, tkofS1Slope: 3.5, tkofS1Div: 30, tkofS2Len: 1510, tkofS2Slope: 3.5, tkofS2Div: 0, tkofS3Len: 7640, tkofS3Slope: 2.0, tkofS3Div: 0 }));
+      // Bug D fix: S2=2500 m (not 5500), add horizontal S3=4500 m — Annex 14 Vol II Table A2-2 (3° approach)
+      setHeliParams(prev => ({ ...prev, ...base, fatoType: "precision", innerWidth: 90, startOffset: 60,
+        appS1Len: 3000, appS1Slope: 2.5, appS1Div: 25, appS2Len: 2500, appS2Slope: 3.0, appS2Div: 15, appS3Len: 4500, appS3Slope: 0, appS3Div: 0,
+        tkofS1Len: 2850, tkofS1Slope: 3.5, tkofS1Div: 30, tkofS2Len: 1510, tkofS2Slope: 3.5, tkofS2Div: 0, tkofS3Len: 7640, tkofS3Slope: 2.0, tkofS3Div: 0 }));
     }
   };
+
+  // ── APV BARO state (Doc 8168 Part III §3.4) ───────────────────────────────
+  const [apvParams, setApvParams] = useState({
+    thrLat: 10.4309, thrLon: -75.5134, thrAlt: 2.0,
+    bearing: 194.0,        // final approach track TO threshold
+    vpaDeg: 3.0,           // promulgated VPA (°)
+    rdh: 15.0,             // reference datum height (m)
+    aeroElftFt: 0.0,       // aerodrome elevation (ft) — for Hi tier selection
+    fafLat: 10.3498, fafLon: -75.5174, fafAlt: 500.0,
+    maptLat: 10.4309, maptLon: -75.5134,
+    maGradPct: 2.5,        // missed approach gradient (%)
+    acftCat: "C",          // "AB", "C", "D"
+  });
+
+  // ── ILS OAS state (Doc 8168 Part II §1.4.8) ──────────────────────────────
+  const [oasParams, setOasParams] = useState({
+    thrLat: 10.4309, thrLon: -75.5134, thrAlt: 2.0,
+    bearing: 194.0,        // final approach track TO threshold
+    runwayLength: 2800.0,  // runway length (m)
+    gpAngleDeg: 3.0,       // glide path angle (°)
+    attM: 3000.0,          // antenna-to-threshold distance (m)
+    rdh: 15.0,             // ILS reference datum height (m)
+    locSectorWidth: 210.0, // LOC sector width at threshold (m)
+    ilsCategory: "I",      // "I", "II", "III"
+    maGradPct: 2.5,
+  });
 
   const clearTools = () => {
     setActiveTool("none");
@@ -1320,18 +1360,36 @@ const handleDownloadLogs = async () => {
     heliport_params: family === "HELIPORT" ? {
             fato_type: heliParams.fatoType,
             lat: heliParams.lat, lon: heliParams.lon, alt: heliParams.alt,
-            bearing: heliParams.bearing, 
-            inner_width: heliParams.innerWidth, start_offset: heliParams.startOffset, 
+            bearing: heliParams.bearing,
+            inner_width: heliParams.innerWidth, start_offset: heliParams.startOffset,
+            has_pins_vss: heliParams.hasPinsVss,
             approach_sections: [
-                { length: heliParams.appS1Len, slope_pct: heliParams.appS1Slope, divergence_pct: heliParams.appS1Div },
-                { length: heliParams.appS2Len, slope_pct: heliParams.appS2Slope, divergence_pct: heliParams.appS2Div },
-                { length: heliParams.appS3Len, slope_pct: heliParams.appS3Slope, divergence_pct: heliParams.appS3Div }
+                { length: heliParams.appS1Len, slope_pct: heliParams.appS1Slope, divergence_pct: heliParams.appS1Div, max_outer_width: heliParams.appS1MaxW || null },
+                { length: heliParams.appS2Len, slope_pct: heliParams.appS2Slope, divergence_pct: heliParams.appS2Div, max_outer_width: heliParams.appS2MaxW || null },
+                { length: heliParams.appS3Len, slope_pct: heliParams.appS3Slope, divergence_pct: heliParams.appS3Div, max_outer_width: heliParams.appS3MaxW || null },
             ].filter(s => s.length > 0),
             takeoff_sections: [
-                { length: heliParams.tkofS1Len, slope_pct: heliParams.tkofS1Slope, divergence_pct: heliParams.tkofS1Div },
-                { length: heliParams.tkofS2Len, slope_pct: heliParams.tkofS2Slope, divergence_pct: heliParams.tkofS2Div },
-                { length: heliParams.tkofS3Len, slope_pct: heliParams.tkofS3Slope, divergence_pct: heliParams.tkofS3Div }
-            ].filter(s => s.length > 0)
+                { length: heliParams.tkofS1Len, slope_pct: heliParams.tkofS1Slope, divergence_pct: heliParams.tkofS1Div, max_outer_width: heliParams.tkofS1MaxW || null },
+                { length: heliParams.tkofS2Len, slope_pct: heliParams.tkofS2Slope, divergence_pct: heliParams.tkofS2Div, max_outer_width: heliParams.tkofS2MaxW || null },
+                { length: heliParams.tkofS3Len, slope_pct: heliParams.tkofS3Slope, divergence_pct: heliParams.tkofS3Div, max_outer_width: heliParams.tkofS3MaxW || null },
+            ].filter(s => s.length > 0),
+        } : null,
+    apv_baro_params: family === "APV_BARO" ? {
+            thr_lat: apvParams.thrLat, thr_lon: apvParams.thrLon, thr_alt: apvParams.thrAlt,
+            bearing: apvParams.bearing,
+            vpa_deg: apvParams.vpaDeg, rdh: apvParams.rdh,
+            aerodrome_elev_ft: apvParams.aeroElftFt,
+            faf_lat: apvParams.fafLat, faf_lon: apvParams.fafLon, faf_alt: apvParams.fafAlt,
+            mapt_lat: apvParams.maptLat, mapt_lon: apvParams.maptLon,
+            ma_gradient_pct: apvParams.maGradPct,
+            acft_category: apvParams.acftCat,
+        } : null,
+    oas_params: family === "OAS" ? {
+            thr_lat: oasParams.thrLat, thr_lon: oasParams.thrLon, thr_alt: oasParams.thrAlt,
+            bearing: oasParams.bearing, runway_length: oasParams.runwayLength,
+            gp_angle_deg: oasParams.gpAngleDeg, att_m: oasParams.attM,
+            rdh: oasParams.rdh, loc_sector_width: oasParams.locSectorWidth,
+            ils_category: oasParams.ilsCategory, ma_gradient_pct: oasParams.maGradPct,
         } : null,
         custom_coords: family === "CUSTOM" ? customPoints : undefined,
             // --- NEW: Custom OLS Payload Mapper ---
@@ -1769,13 +1827,14 @@ const handleDownloadLogs = async () => {
                 <label style={labelStyle}>Surface Family</label>
                 <select style={inputStyle} value={family} onChange={e => setFamily(e.target.value)}>
                   <option value="OLS">OLS (Annex 14)</option>
-                  {/*<option value="OAS">OAS (PANS-OPS)</option>*/}
+                  <option value="OAS">ILS OAS (Doc 8168 §1.4.8)</option>
+                  <option value="APV_BARO">APV Baro-VNAV OAS (Doc 8168 §3.4)</option>
                   <option value="RNAV">RNAV / RNP Procedure</option>
                   <option value="VSS">VSS (Visual Segment)</option>
                   <option value="OFZ">OFZ / OES</option>
                   <option value="NAVAID">Navaid Restrictive</option>
                   <option value="CUSTOM">Custom Surface</option>
-                  <option value="HELIPORT">Heliport OLS (In progress)</option>
+                  <option value="HELIPORT">Heliport OLS</option>
                 </select>
 
                 {/* --- ONLY SHOW T1, T2, and ARP for Aeroplane OLS and OFZ --- */}
@@ -1952,6 +2011,16 @@ const handleDownloadLogs = async () => {
                                 <option value="precision">Precision Approach</option>
                             </select>
                         </div>
+                        {/* Bug F: PinS VSS gate — transitional surfaces required for visual FATO only when PinS+VSS present */}
+                        {heliParams.fatoType === "non_instrument" && (
+                          <div style={{flex:1, display:"flex", alignItems:"center", gap:"6px", marginTop:"18px"}}>
+                            <input type="checkbox" id="hasPinsVss" checked={heliParams.hasPinsVss}
+                              onChange={e => setHeliParams({...heliParams, hasPinsVss: e.target.checked})} />
+                            <label htmlFor="hasPinsVss" style={{...labelStyle, marginTop:0, cursor:"pointer"}}>
+                              PinS + VSS (enables transitionals)
+                            </label>
+                          </div>
+                        )}
                         <div style={{flex: 1}}>
                             <label style={{...labelStyle, color: "#d35400"}}>Annex 14 Presets</label>
                             <select style={inputStyle} value={heliPreset} onChange={handleHeliPresetChange}>
@@ -1992,25 +2061,28 @@ const handleDownloadLogs = async () => {
                     {/* --- MULTI-SECTION BUILDER --- */}
                     <label style={{...labelStyle, marginTop: "10px", color: "#27ae60"}}>Approach Surface (Inbound)</label>
                     <div style={{ display: "flex", gap: "5px", fontSize: "10px", fontWeight: "bold" }}>
-                        <span style={{flex:1}}>Section</span><span style={{flex:1}}>Length (m)</span><span style={{flex:1}}>Slope (%)</span><span style={{flex:1}}>Div (%)</span>
+                        <span style={{flex:1}}>Section</span><span style={{flex:1}}>Length (m)</span><span style={{flex:1}}>Slope (%)</span><span style={{flex:1}}>Div (%)</span><span style={{flex:1}}>MaxW (m)</span>
                     </div>
                     <div style={{ display: "flex", gap: "5px" }}>
                         <span style={{flex:1, fontSize:"11px", alignSelf:"center"}}>1 (Inner)</span>
                         <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.appS1Len} onChange={e => { setHeliParams({...heliParams, appS1Len: +e.target.value}); setHeliPreset("custom"); }} />
                         <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.appS1Slope} onChange={e => { setHeliParams({...heliParams, appS1Slope: +e.target.value}); setHeliPreset("custom"); }} />
-                        <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.appS1Div} onChange={e => { setHeliParams({...heliParams, appS1Div: +e.target.value}); setHeliPreset("custom"); }} />
+                        <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.appS1Div} onChange={e => { setHeliParams({...heliParams, appS1Div: +e.target.value}); setHeliPreset("custom"); } }/>
+                        <input style={{...numInputStyle, padding:"4px"}} type="number" placeholder="—" value={heliParams.appS1MaxW ?? ""} onChange={e => { setHeliParams({...heliParams, appS1MaxW: e.target.value ? +e.target.value : null}); setHeliPreset("custom"); } }/>
                     </div>
                     <div style={{ display: "flex", gap: "5px", marginTop: "3px" }}>
                         <span style={{flex:1, fontSize:"11px", alignSelf:"center"}}>2 (Mid)</span>
                         <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.appS2Len} onChange={e => { setHeliParams({...heliParams, appS2Len: +e.target.value}); setHeliPreset("custom"); }} />
                         <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.appS2Slope} onChange={e => { setHeliParams({...heliParams, appS2Slope: +e.target.value}); setHeliPreset("custom"); }} />
-                        <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.appS2Div} onChange={e => { setHeliParams({...heliParams, appS2Div: +e.target.value}); setHeliPreset("custom"); }} />
+                        <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.appS2Div} onChange={e => { setHeliParams({...heliParams, appS2Div: +e.target.value}); setHeliPreset("custom"); } }/>
+                        <input style={{...numInputStyle, padding:"4px"}} type="number" placeholder="—" value={heliParams.appS2MaxW ?? ""} onChange={e => { setHeliParams({...heliParams, appS2MaxW: e.target.value ? +e.target.value : null}); setHeliPreset("custom"); } }/>
                     </div>
                     <div style={{ display: "flex", gap: "5px", marginTop: "3px" }}>
                         <span style={{flex:1, fontSize:"11px", alignSelf:"center"}}>3 (Outer)</span>
                         <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.appS3Len} onChange={e => { setHeliParams({...heliParams, appS3Len: +e.target.value}); setHeliPreset("custom"); }} />
                         <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.appS3Slope} onChange={e => { setHeliParams({...heliParams, appS3Slope: +e.target.value}); setHeliPreset("custom"); }} />
-                        <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.appS3Div} onChange={e => { setHeliParams({...heliParams, appS3Div: +e.target.value}); setHeliPreset("custom"); }} />
+                        <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.appS3Div} onChange={e => { setHeliParams({...heliParams, appS3Div: +e.target.value}); setHeliPreset("custom"); } }/>
+                        <input style={{...numInputStyle, padding:"4px"}} type="number" placeholder="—" value={heliParams.appS3MaxW ?? ""} onChange={e => { setHeliParams({...heliParams, appS3MaxW: e.target.value ? +e.target.value : null}); setHeliPreset("custom"); } }/>
                     </div>
 
                     <label style={{...labelStyle, marginTop: "10px", color: "#c0392b"}}>Take-off Climb Surface (Outbound)</label>
@@ -2018,24 +2090,151 @@ const handleDownloadLogs = async () => {
                         <span style={{flex:1, fontSize:"11px", alignSelf:"center"}}>1 (Inner)</span>
                         <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.tkofS1Len} onChange={e => { setHeliParams({...heliParams, tkofS1Len: +e.target.value}); setHeliPreset("custom"); }} />
                         <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.tkofS1Slope} onChange={e => { setHeliParams({...heliParams, tkofS1Slope: +e.target.value}); setHeliPreset("custom"); }} />
-                        <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.tkofS1Div} onChange={e => { setHeliParams({...heliParams, tkofS1Div: +e.target.value}); setHeliPreset("custom"); }} />
+                        <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.tkofS1Div} onChange={e => { setHeliParams({...heliParams, tkofS1Div: +e.target.value}); setHeliPreset("custom"); } }/>
+                        <input style={{...numInputStyle, padding:"4px"}} type="number" placeholder="—" value={heliParams.tkofS1MaxW ?? ""} onChange={e => { setHeliParams({...heliParams, tkofS1MaxW: e.target.value ? +e.target.value : null}); setHeliPreset("custom"); } }/>
                     </div>
                     <div style={{ display: "flex", gap: "5px", marginTop: "3px" }}>
                         <span style={{flex:1, fontSize:"11px", alignSelf:"center"}}>2 (Mid)</span>
                         <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.tkofS2Len} onChange={e => { setHeliParams({...heliParams, tkofS2Len: +e.target.value}); setHeliPreset("custom"); }} />
                         <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.tkofS2Slope} onChange={e => { setHeliParams({...heliParams, tkofS2Slope: +e.target.value}); setHeliPreset("custom"); }} />
-                        <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.tkofS2Div} onChange={e => { setHeliParams({...heliParams, tkofS2Div: +e.target.value}); setHeliPreset("custom"); }} />
+                        <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.tkofS2Div} onChange={e => { setHeliParams({...heliParams, tkofS2Div: +e.target.value}); setHeliPreset("custom"); } }/>
+                        <input style={{...numInputStyle, padding:"4px"}} type="number" placeholder="—" value={heliParams.tkofS2MaxW ?? ""} onChange={e => { setHeliParams({...heliParams, tkofS2MaxW: e.target.value ? +e.target.value : null}); setHeliPreset("custom"); } }/>
                     </div>
                     <div style={{ display: "flex", gap: "5px", marginTop: "3px" }}>
                         <span style={{flex:1, fontSize:"11px", alignSelf:"center"}}>3 (Outer)</span>
                         <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.tkofS3Len} onChange={e => { setHeliParams({...heliParams, tkofS3Len: +e.target.value}); setHeliPreset("custom"); }} />
                         <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.tkofS3Slope} onChange={e => { setHeliParams({...heliParams, tkofS3Slope: +e.target.value}); setHeliPreset("custom"); }} />
-                        <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.tkofS3Div} onChange={e => { setHeliParams({...heliParams, tkofS3Div: +e.target.value}); setHeliPreset("custom"); }} />
+                        <input style={{...numInputStyle, padding:"4px"}} type="number" value={heliParams.tkofS3Div} onChange={e => { setHeliParams({...heliParams, tkofS3Div: +e.target.value}); setHeliPreset("custom"); } }/>
+                        <input style={{...numInputStyle, padding:"4px"}} type="number" placeholder="—" value={heliParams.tkofS3MaxW ?? ""} onChange={e => { setHeliParams({...heliParams, tkofS3MaxW: e.target.value ? +e.target.value : null}); setHeliPreset("custom"); } }/>
                     </div>
 
                   </div>
                 )}
                 
+                {/* ── APV BARO-VNAV OAS FIELDS (Doc 8168 Part III §3.4) ── */}
+                {family === "APV_BARO" && (
+                  <div style={{ backgroundColor: "#e9ecef", padding: "10px", borderRadius: "4px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <div style={{ fontSize: "11px", color: "#555", backgroundColor: "#fff3cd", padding: "6px 8px", borderRadius: "4px", border: "1px solid #ffc107" }}>
+                      APV/Baro-VNAV OAS — Doc 8168 Vol II Part III §3.4. Generates FAS, Ground Plane and Z (missed approach) surfaces. Lateral bounds = LNAV primary ±463 m + secondary.
+                    </div>
+
+                    <label style={{...labelStyle, color: "#4169E1"}}>Threshold (Lat / Lon / Alt m)</label>
+                    <div style={rowStyle}>
+                      <input style={numInputStyle} type="number" step="0.000001" value={apvParams.thrLat} onChange={e => setApvParams({...apvParams, thrLat: +e.target.value})} placeholder="Thr Lat" />
+                      <input style={numInputStyle} type="number" step="0.000001" value={apvParams.thrLon} onChange={e => setApvParams({...apvParams, thrLon: +e.target.value})} placeholder="Thr Lon" />
+                      <input style={numInputStyle} type="number" value={apvParams.thrAlt} onChange={e => setApvParams({...apvParams, thrAlt: +e.target.value})} placeholder="Thr Alt (m)" />
+                    </div>
+
+                    <div style={rowStyle}>
+                      <div style={{flex:1}}>
+                        <label style={labelStyle}>Final Appr Track TO Thr (°)</label>
+                        <input style={inputStyle} type="number" value={apvParams.bearing} onChange={e => setApvParams({...apvParams, bearing: +e.target.value})} />
+                      </div>
+                      <div style={{flex:1}}>
+                        <label style={labelStyle}>VPA (°) — 2.5–3.5</label>
+                        <input style={inputStyle} type="number" step="0.1" min="2.5" max="3.5" value={apvParams.vpaDeg} onChange={e => setApvParams({...apvParams, vpaDeg: +e.target.value})} />
+                      </div>
+                      <div style={{flex:1}}>
+                        <label style={labelStyle}>RDH (m)</label>
+                        <input style={inputStyle} type="number" value={apvParams.rdh} onChange={e => setApvParams({...apvParams, rdh: +e.target.value})} />
+                      </div>
+                    </div>
+
+                    <div style={rowStyle}>
+                      <div style={{flex:1}}>
+                        <label style={labelStyle}>Aerodrome Elev (ft) — for Hi</label>
+                        <input style={inputStyle} type="number" value={apvParams.aeroElftFt} onChange={e => setApvParams({...apvParams, aeroElftFt: +e.target.value})} />
+                      </div>
+                      <div style={{flex:1}}>
+                        <label style={labelStyle}>MA Gradient (%)</label>
+                        <input style={inputStyle} type="number" step="0.1" value={apvParams.maGradPct} onChange={e => setApvParams({...apvParams, maGradPct: +e.target.value})} />
+                      </div>
+                      <div style={{flex:1}}>
+                        <label style={labelStyle}>Aircraft Category</label>
+                        <select style={inputStyle} value={apvParams.acftCat} onChange={e => setApvParams({...apvParams, acftCat: e.target.value})}>
+                          <option value="AB">A/B (Xz = −900 m)</option>
+                          <option value="C">C (Xz = −1100 m)</option>
+                          <option value="D">D (Xz = −1400 m)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <label style={{...labelStyle, color: "#4169E1", marginTop:"4px"}}>FAF (Lat / Lon / Alt m)</label>
+                    <div style={rowStyle}>
+                      <input style={numInputStyle} type="number" step="0.000001" value={apvParams.fafLat} onChange={e => setApvParams({...apvParams, fafLat: +e.target.value})} placeholder="FAF Lat" />
+                      <input style={numInputStyle} type="number" step="0.000001" value={apvParams.fafLon} onChange={e => setApvParams({...apvParams, fafLon: +e.target.value})} placeholder="FAF Lon" />
+                      <input style={numInputStyle} type="number" value={apvParams.fafAlt} onChange={e => setApvParams({...apvParams, fafAlt: +e.target.value})} placeholder="FAF Alt (m)" />
+                    </div>
+
+                    <label style={{...labelStyle, color: "#FF8C00", marginTop:"4px"}}>MAPt (Lat / Lon) — Z surface terminus</label>
+                    <div style={rowStyle}>
+                      <input style={numInputStyle} type="number" step="0.000001" value={apvParams.maptLat} onChange={e => setApvParams({...apvParams, maptLat: +e.target.value})} placeholder="MAPt Lat" />
+                      <input style={numInputStyle} type="number" step="0.000001" value={apvParams.maptLon} onChange={e => setApvParams({...apvParams, maptLon: +e.target.value})} placeholder="MAPt Lon" />
+                    </div>
+                  </div>
+                )}
+
+                {/* ── ILS OAS FIELDS (Doc 8168 Part II §1.4.8) ── */}
+                {family === "OAS" && (
+                  <div style={{ backgroundColor: "#e9ecef", padding: "10px", borderRadius: "4px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <div style={{ fontSize: "11px", color: "#555", backgroundColor: "#fff3cd", padding: "6px 8px", borderRadius: "4px", border: "1px solid #ffc107" }}>
+                      ILS OAS — Doc 8168 Vol II Part II §1.4.8. Six plane surfaces (W, X, Y, Z) in runway-aligned frame. Standard conditions: GP=3.0°, ATT=3000 m, RDH=15 m, LOC sector=210 m. Visual reference only — verify OCA/H with official PANS-OPS software.
+                    </div>
+
+                    <label style={{...labelStyle, color: "#B8860B"}}>Threshold (Lat / Lon / Alt m)</label>
+                    <div style={rowStyle}>
+                      <input style={numInputStyle} type="number" step="0.000001" value={oasParams.thrLat} onChange={e => setOasParams({...oasParams, thrLat: +e.target.value})} placeholder="Thr Lat" />
+                      <input style={numInputStyle} type="number" step="0.000001" value={oasParams.thrLon} onChange={e => setOasParams({...oasParams, thrLon: +e.target.value})} placeholder="Thr Lon" />
+                      <input style={numInputStyle} type="number" value={oasParams.thrAlt} onChange={e => setOasParams({...oasParams, thrAlt: +e.target.value})} placeholder="Thr Alt (m)" />
+                    </div>
+
+                    <div style={rowStyle}>
+                      <div style={{flex:1}}>
+                        <label style={labelStyle}>Final Appr Track TO Thr (°)</label>
+                        <input style={inputStyle} type="number" value={oasParams.bearing} onChange={e => setOasParams({...oasParams, bearing: +e.target.value})} />
+                      </div>
+                      <div style={{flex:1}}>
+                        <label style={labelStyle}>Runway Length (m)</label>
+                        <input style={inputStyle} type="number" value={oasParams.runwayLength} onChange={e => setOasParams({...oasParams, runwayLength: +e.target.value})} />
+                      </div>
+                    </div>
+
+                    <div style={rowStyle}>
+                      <div style={{flex:1}}>
+                        <label style={labelStyle}>GP Angle (°)</label>
+                        <input style={inputStyle} type="number" step="0.1" min="2.5" max="3.5" value={oasParams.gpAngleDeg} onChange={e => setOasParams({...oasParams, gpAngleDeg: +e.target.value})} />
+                      </div>
+                      <div style={{flex:1}}>
+                        <label style={labelStyle}>ATT (m)</label>
+                        <input style={inputStyle} type="number" value={oasParams.attM} onChange={e => setOasParams({...oasParams, attM: +e.target.value})} />
+                      </div>
+                      <div style={{flex:1}}>
+                        <label style={labelStyle}>RDH (m)</label>
+                        <input style={inputStyle} type="number" value={oasParams.rdh} onChange={e => setOasParams({...oasParams, rdh: +e.target.value})} />
+                      </div>
+                    </div>
+
+                    <div style={rowStyle}>
+                      <div style={{flex:1}}>
+                        <label style={labelStyle}>LOC Sector Width at Thr (m)</label>
+                        <input style={inputStyle} type="number" value={oasParams.locSectorWidth} onChange={e => setOasParams({...oasParams, locSectorWidth: +e.target.value})} />
+                      </div>
+                      <div style={{flex:1}}>
+                        <label style={labelStyle}>ILS Category</label>
+                        <select style={inputStyle} value={oasParams.ilsCategory} onChange={e => setOasParams({...oasParams, ilsCategory: e.target.value})}>
+                          <option value="I">Cat I (limit 300 m)</option>
+                          <option value="II">Cat II (limit 150 m)</option>
+                          <option value="III">Cat III (limit 150 m)</option>
+                        </select>
+                      </div>
+                      <div style={{flex:1}}>
+                        <label style={labelStyle}>MA Gradient (%)</label>
+                        <input style={inputStyle} type="number" step="0.1" value={oasParams.maGradPct} onChange={e => setOasParams({...oasParams, maGradPct: +e.target.value})} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* --- DYNAMIC RNAV FIELDS --- */}
                 {family === "RNAV" && (
                   <div style={{ backgroundColor: "#e9ecef", padding: "10px", borderRadius: "4px", display: "flex", flexDirection: "column", gap: "8px" }}>
