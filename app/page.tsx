@@ -191,14 +191,7 @@ export default function Home() {
     faf_xtt: 0.3, faf_att: 0.24, faf_sw: 1.45,
     mapt_xtt: 0.3, mapt_att: 0.24, mapt_sw: 0.95
   });
-  // Intermediate Fix
-  const [ifPos, setIfPos] = useState({ lat: 10.260051, lon: -75.522081, alt: 600 }); 
-  // Final Approach Fix
-  const [fafPos, setFafPos] = useState({ lat: 10.349778, lon: -75.517365, alt: 1640 });
-  // Missed Approach Point
-  const [maptPos, setMaptPos] = useState({ lat: 10.430861, lon: -75.513378, alt: 830 });
-  // Heliport Specific State
-  // --- Heliport Specific State ---
+
   // --- Heliport Specific State ---
   const [heliPreset, setHeliPreset] = useState("cat_a");
 
@@ -1395,17 +1388,18 @@ const handleDownloadLogs = async () => {
         vss_params: family === "VSS" ? vssParams : null,
         adg: family === "OFZ" ? adg : null,
         rnav_params: family === "RNAV" ? {
-        mode: rnavMode,
-        alt_unit: altUnit,
-        if_lat: ifPos.lat, if_lon: ifPos.lon,
-        faf_lat: fafPos.lat, faf_lon: fafPos.lon, faf_alt: fafPos.alt,
-        mapt_lat: maptPos.lat, mapt_lon: maptPos.lon, mapt_alt: maptPos.alt,
-        
-        use_custom_values: useCustomRnav,
-        if_xtt: rnavOverrides.if_xtt, if_att: rnavOverrides.if_att, if_sw: rnavOverrides.if_sw,
-        faf_xtt: rnavOverrides.faf_xtt, faf_att: rnavOverrides.faf_att, faf_sw: rnavOverrides.faf_sw,
-        mapt_xtt: rnavOverrides.mapt_xtt, mapt_att: rnavOverrides.mapt_att, mapt_sw: rnavOverrides.mapt_sw,
-    } : null,
+            mode: rnavMode,
+            alt_unit: altUnit,
+            // --- THE FIX: Use rnavParams instead of the hardcoded Colombia states ---
+            if_lat: rnavParams.if_lat, if_lon: rnavParams.if_lon,
+            faf_lat: rnavParams.faf_lat, faf_lon: rnavParams.faf_lon, faf_alt: rnavParams.faf_alt,
+            mapt_lat: rnavParams.mapt_lat, mapt_lon: rnavParams.mapt_lon, mapt_alt: rnavParams.mapt_alt,
+            
+            use_custom_values: useCustomRnav,
+            if_xtt: rnavOverrides.if_xtt, if_att: rnavOverrides.if_att, if_sw: rnavOverrides.if_sw,
+            faf_xtt: rnavOverrides.faf_xtt, faf_att: rnavOverrides.faf_att, faf_sw: rnavOverrides.faf_sw,
+            mapt_xtt: rnavOverrides.mapt_xtt, mapt_att: rnavOverrides.mapt_att, mapt_sw: rnavOverrides.mapt_sw,
+        } : null,
         navaid_params: family === "NAVAID" ? {
             n_type: navType,
             lat: navCoord.lat,
