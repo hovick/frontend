@@ -92,6 +92,39 @@ export default function Home() {
   // Map Controls State
   const [exaggeration, setExaggeration] = useState(1);
   const [geoidOffset, setGeoidOffset] = useState(0);
+  // --- RNAV Map Cursor Selector ---
+  const [selectingRnavPoint, setSelectingRnavPoint] = useState<"IF" | "FAF" | "MAPT" | null>(null);
+
+  useEffect(() => {
+    // Only turn on the map listener if the user clicked a target button
+    if (!viewerRef.current || !selectingRnavPoint) return;
+
+    const handler = new Cesium.ScreenSpaceEventHandler(viewerRef.current.scene.canvas);
+
+    handler.setInputAction((click: any) => {
+      const cartesian = viewerRef.current?.camera.pickEllipsoid(click.position);
+      if (cartesian) {
+        const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+        const lat = Number(Cesium.Math.toDegrees(cartographic.latitude).toFixed(6));
+        const lon = Number(Cesium.Math.toDegrees(cartographic.longitude).toFixed(6));
+
+        // Update the correct RNAV coordinate
+        setRnavParams(prev => {
+          if (selectingRnavPoint === "IF") return { ...prev, if_lat: lat, if_lon: lon };
+          if (selectingRnavPoint === "FAF") return { ...prev, faf_lat: lat, faf_lon: lon };
+          if (selectingRnavPoint === "MAPT") return { ...prev, mapt_lat: lat, mapt_lon: lon };
+          return prev;
+        });
+
+        // Turn off the target cursor automatically after a successful click!
+        setSelectingRnavPoint(null);
+      }
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+    return () => {
+      handler.destroy();
+    };
+  }, [selectingRnavPoint]);
   // --- HELPER: Pick Coordinates from Map ---
   const getCenterFromMap = (setter: React.Dispatch<React.SetStateAction<any>>, currentVal: any) => {
     if (!viewerRef.current) return;
@@ -119,35 +152,7 @@ export default function Home() {
       }
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
   };
-  // --- RNAV Map Center Grabber ---
-  const getRnavCenterFromMap = (point: "IF" | "FAF" | "MAPT") => {
-    if (!viewerRef.current) return;
-    
-    // Temporarily change cursor to crosshair
-    viewerRef.current.canvas.style.cursor = "crosshair";
-    
-    const handler = new Cesium.ScreenSpaceEventHandler(viewerRef.current.scene.canvas);
-    handler.setInputAction((click: any) => {
-      const ray = viewerRef.current?.camera.getPickRay(click.position);
-      if (!ray) return;
-      
-      const cartesian = viewerRef.current?.scene.globe.pick(ray, viewerRef.current.scene);
-      if (cartesian) {
-        const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
-        const lat = Number(Cesium.Math.toDegrees(cartographic.latitude).toFixed(6));
-        const lon = Number(Cesium.Math.toDegrees(cartographic.longitude).toFixed(6));
-        
-        // Update the specific RNAV point
-        if (point === "IF") setRnavParams(prev => ({ ...prev, if_lat: lat, if_lon: lon }));
-        else if (point === "FAF") setRnavParams(prev => ({ ...prev, faf_lat: lat, faf_lon: lon }));
-        else if (point === "MAPT") setRnavParams(prev => ({ ...prev, mapt_lat: lat, mapt_lon: lon }));
-        
-        // Clean up and reset cursor
-        viewerRef.current!.canvas.style.cursor = "default";
-        handler.destroy(); 
-      }
-    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-  };
+
   // --- HELPER: Auto-fetch Geoid Offset ---
   const autoFetchGeoidOffset = async (lat: number, lon: number) => {
     try {
@@ -2251,7 +2256,16 @@ const handleDownloadLogs = async () => {
                         <div style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
                           <input type="number" placeholder="Lat" style={inputStyle} value={rnavParams.if_lat || ""} onChange={e => setRnavParams({...rnavParams, if_lat: +e.target.value})} />
                           <input type="number" placeholder="Lon" style={inputStyle} value={rnavParams.if_lon || ""} onChange={e => setRnavParams({...rnavParams, if_lon: +e.target.value})} />
-                          <button onClick={() => getRnavCenterFromMap("IF")} style={{ padding: "0 8px", backgroundColor: "#e9ecef", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", fontSize: "14px" }} title="Grab center of map"> 🎯</button>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation(); // <-- The Shield against the Colombia Bug
+                              setSelectingRnavPoint(selectingRnavPoint === "IF" ? null : "IF");
+                            }} 
+                            style={{ padding: "0 8px", backgroundColor: selectingRnavPoint === "IF" ? "#dc3545" : "#e9ecef", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", fontSize: "14px" }} 
+                            title="Select on map"
+                          >
+                            {selectingRnavPoint === "IF" ? "❌" : "🎯"}
+                          </button>
                         </div>
                       </div>
 
@@ -2262,8 +2276,15 @@ const handleDownloadLogs = async () => {
                           <input type="number" placeholder="Lat" style={inputStyle} value={rnavParams.faf_lat || ""} onChange={e => setRnavParams({...rnavParams, faf_lat: +e.target.value})} />
                           <input type="number" placeholder="Lon" style={inputStyle} value={rnavParams.faf_lon || ""} onChange={e => setRnavParams({...rnavParams, faf_lon: +e.target.value})} />
                           <input type="number" placeholder="Alt" style={inputStyle} value={rnavParams.faf_alt || ""} onChange={e => setRnavParams({...rnavParams, faf_alt: +e.target.value})} title={`Altitude in ${rnavParams.alt_unit}`} />
-                          <button onClick={() => getRnavCenterFromMap("FAF")} style={{ padding: "0 8px", backgroundColor: "#e9ecef", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", fontSize: "14px" }} title="Grab center of map">
-                            🎯
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation(); 
+                              setSelectingRnavPoint(selectingRnavPoint === "FAF" ? null : "FAF");
+                            }} 
+                            style={{ padding: "0 8px", backgroundColor: selectingRnavPoint === "FAF" ? "#dc3545" : "#e9ecef", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", fontSize: "14px" }} 
+                            title="Select on map"
+                          >
+                            {selectingRnavPoint === "FAF" ? "❌" : "🎯"}
                           </button>
                         </div>
                       </div>
@@ -2275,8 +2296,15 @@ const handleDownloadLogs = async () => {
                           <input type="number" placeholder="Lat" style={inputStyle} value={rnavParams.mapt_lat || ""} onChange={e => setRnavParams({...rnavParams, mapt_lat: +e.target.value})} />
                           <input type="number" placeholder="Lon" style={inputStyle} value={rnavParams.mapt_lon || ""} onChange={e => setRnavParams({...rnavParams, mapt_lon: +e.target.value})} />
                           <input type="number" placeholder="Alt" style={inputStyle} value={rnavParams.mapt_alt || ""} onChange={e => setRnavParams({...rnavParams, mapt_alt: +e.target.value})} title={`Altitude in ${rnavParams.alt_unit}`} />
-                          <button onClick={() => getRnavCenterFromMap("MAPT")} style={{ padding: "0 8px", backgroundColor: "#e9ecef", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", fontSize: "14px" }} title="Grab center of map">
-                            🎯
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation(); 
+                              setSelectingRnavPoint(selectingRnavPoint === "MAPT" ? null : "MAPT");
+                            }} 
+                            style={{ padding: "0 8px", backgroundColor: selectingRnavPoint === "MAPT" ? "#dc3545" : "#e9ecef", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", fontSize: "14px" }} 
+                            title="Select on map"
+                          >
+                            {selectingRnavPoint === "MAPT" ? "❌" : "🎯"}
                           </button>
                         </div>
                       </div>
