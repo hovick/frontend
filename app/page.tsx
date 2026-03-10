@@ -262,9 +262,11 @@ export default function Home() {
  // --- VSS / OCS State ---
   const [vssParams, setVssParams] = useState({
     vpa: 3.0,
-    appType: "NPA", // "NPA", "APV_BARO", "APV_GEO"
-    runwayWidth: 45,
-    stripWidth: 150,
+    rdh: 15.0,            // <-- NEW RDH PARAMETER
+    appType: "NPA", 
+    stripWidth: 150,      // VSS Half-Width
+    ocsStartWidth: 30,    // OCS Start Half-Width 
+    ocsEndWidthBase: 120, // OCS End Base Width 
     oca: 100, 
     vssAngle: 1.88,
     ocsAngle: 2.00,
@@ -2267,9 +2269,14 @@ const handleDownloadLogs = async () => {
                     {/* Auto-Calculation Row */}
                     <div style={{ display: "flex", gap: "8px", backgroundColor: "#fff3cd", padding: "8px", borderRadius: "4px", border: "1px solid #ffeeba" }}>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#856404" }}>Promulgated VPA (°)</label>
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#856404" }}>VPA (°)</label>
                         <input type="number" step="0.1" style={inputStyle} value={vssParams.vpa} 
                           onChange={e => handleVpaOrTypeChange(+e.target.value, vssParams.appType)} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#856404" }}>RDH (m)</label>
+                        <input type="number" step="0.1" style={inputStyle} value={vssParams.rdh} 
+                          onChange={e => setVssParams({...vssParams, rdh: +e.target.value})} />
                       </div>
                       <div style={{ flex: 1.5 }}>
                         <label style={{ fontSize: "10px", fontWeight: "bold", color: "#856404" }}>Approach Type</label>
@@ -2284,16 +2291,16 @@ const handleDownloadLogs = async () => {
 
                     <div style={{ display: "flex", gap: "8px" }}>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Runway W. (m)</label>
-                        <input type="number" style={inputStyle} value={vssParams.runwayWidth} onChange={e => setVssParams({...vssParams, runwayWidth: +e.target.value})} title="Used for OCS lateral limit" />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>VSS Half-W (m)</label>
+                        <input type="number" style={inputStyle} value={vssParams.stripWidth} onChange={e => setVssParams({...vssParams, stripWidth: +e.target.value})} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Strip Half-W (m)</label>
-                        <input type="number" style={inputStyle} value={vssParams.stripWidth} onChange={e => setVssParams({...vssParams, stripWidth: +e.target.value})} title="Used for VSS lateral limit" />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>OCS Start Half-W (m)</label>
+                        <input type="number" style={inputStyle} value={vssParams.ocsStartWidth} onChange={e => setVssParams({...vssParams, ocsStartWidth: +e.target.value})} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>OCA/H (m MSL)</label>
-                        <input type="number" style={inputStyle} value={vssParams.oca} onChange={e => setVssParams({...vssParams, oca: +e.target.value})} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>OCS End Base (m)</label>
+                        <input type="number" style={inputStyle} value={vssParams.ocsEndWidthBase} onChange={e => setVssParams({...vssParams, ocsEndWidthBase: +e.target.value})} title="120m standard" />
                       </div>
                     </div>
 
