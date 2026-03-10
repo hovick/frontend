@@ -123,25 +123,30 @@ export default function Home() {
   const getRnavCenterFromMap = (point: "IF" | "FAF" | "MAPT") => {
     if (!viewerRef.current) return;
     
-    // 1. Find the exact center pixel of the canvas
-    const canvas = viewerRef.current.scene.canvas;
-    const center = new Cesium.Cartesian2(canvas.clientWidth / 2, canvas.clientHeight / 2);
+    // Temporarily change cursor to crosshair
+    viewerRef.current.canvas.style.cursor = "crosshair";
     
-    // 2. Shoot a ray to the globe to get the 3D coordinate
-    const pickRay = viewerRef.current.camera.getPickRay(center);
-    if (!pickRay) return;
-    
-    const cartesian = viewerRef.current.scene.globe.pick(pickRay, viewerRef.current.scene);
-    if (cartesian) {
-      const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
-      const lat = Number(Cesium.Math.toDegrees(cartographic.latitude).toFixed(6));
-      const lon = Number(Cesium.Math.toDegrees(cartographic.longitude).toFixed(6));
+    const handler = new Cesium.ScreenSpaceEventHandler(viewerRef.current.scene.canvas);
+    handler.setInputAction((click: any) => {
+      const ray = viewerRef.current?.camera.getPickRay(click.position);
+      if (!ray) return;
       
-      // 3. Update the specific RNAV point
-      if (point === "IF") setRnavParams(prev => ({ ...prev, if_lat: lat, if_lon: lon }));
-      else if (point === "FAF") setRnavParams(prev => ({ ...prev, faf_lat: lat, faf_lon: lon }));
-      else if (point === "MAPT") setRnavParams(prev => ({ ...prev, mapt_lat: lat, mapt_lon: lon }));
-    }
+      const cartesian = viewerRef.current?.scene.globe.pick(ray, viewerRef.current.scene);
+      if (cartesian) {
+        const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+        const lat = Number(Cesium.Math.toDegrees(cartographic.latitude).toFixed(6));
+        const lon = Number(Cesium.Math.toDegrees(cartographic.longitude).toFixed(6));
+        
+        // Update the specific RNAV point
+        if (point === "IF") setRnavParams(prev => ({ ...prev, if_lat: lat, if_lon: lon }));
+        else if (point === "FAF") setRnavParams(prev => ({ ...prev, faf_lat: lat, faf_lon: lon }));
+        else if (point === "MAPT") setRnavParams(prev => ({ ...prev, mapt_lat: lat, mapt_lon: lon }));
+        
+        // Clean up and reset cursor
+        viewerRef.current!.canvas.style.cursor = "default";
+        handler.destroy(); 
+      }
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
   };
   // --- HELPER: Auto-fetch Geoid Offset ---
   const autoFetchGeoidOffset = async (lat: number, lon: number) => {
