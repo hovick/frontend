@@ -26,6 +26,20 @@ export default function Home() {
   const [activeTool, setActiveTool] = useState<"none" | "ruler" | "point">("none");
   const [toolTip, setToolTip] = useState(""); // Instructions (e.g. "Click Start Point")
   
+  // New state to track which RNAV point we are clicking on the map
+  const [selectingRnavPoint, setSelectingRnavPoint] = useState<"IF" | "FAF" | "MAPT" | null>(null);
+  // --- Missing Map Selection States ---
+  const [isSelectingT1, setIsSelectingT1] = useState(false);
+  const [isSelectingT2, setIsSelectingT2] = useState(false);
+
+  // --- Missing RNAV State ---
+  const [rnavParams, setRnavParams] = useState({
+    mode: "Advanced RNP",
+    alt_unit: "m",
+    if_lat: 0, if_lon: 0,
+    faf_lat: 0, faf_lon: 0, faf_alt: 0,
+    mapt_lat: 0, mapt_lon: 0, mapt_alt: 0
+  });
   // Data for the tools
   const [rulerPts, setRulerPts] = useState<Cesium.Cartesian3[]>([]);
   const [measureResult, setMeasureResult] = useState<{ m: number, nm: number } | null>(null);
@@ -601,6 +615,49 @@ export default function Home() {
     
     toggleBuildings();
   }, [showBuildings]);
+
+  // --- Map Click Listener for TARGET BUTTONS (T1, T2, RNAV) ---
+  useEffect(() => {
+    if (!viewerRef.current || !mounted) return;
+
+    // Only activate this listener if one of the target buttons is currently active
+    if (!isSelectingT1 && !isSelectingT2 && !selectingRnavPoint) return;
+
+    const handler = new Cesium.ScreenSpaceEventHandler(viewerRef.current.scene.canvas);
+
+    handler.setInputAction((click: any) => {
+      const cartesian = viewerRef.current?.camera.pickEllipsoid(click.position);
+      if (cartesian) {
+        const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+        const lat = Cesium.Math.toDegrees(cartographic.latitude);
+        const lon = Cesium.Math.toDegrees(cartographic.longitude);
+
+        // 1. T1 / T2 Logic
+        if (isSelectingT1) {
+          setT1(prev => ({ ...prev, lat: parseFloat(lat.toFixed(6)), lon: parseFloat(lon.toFixed(6)) }));
+          setIsSelectingT1(false);
+        } else if (isSelectingT2) {
+          setT2(prev => ({ ...prev, lat: parseFloat(lat.toFixed(6)), lon: parseFloat(lon.toFixed(6)) }));
+          setIsSelectingT2(false);
+        } 
+        // 2. RNAV Logic
+        else if (selectingRnavPoint === "IF") {
+          setRnavParams(prev => ({ ...prev, if_lat: parseFloat(lat.toFixed(6)), if_lon: parseFloat(lon.toFixed(6)) }));
+          setSelectingRnavPoint(null);
+        } else if (selectingRnavPoint === "FAF") {
+          setRnavParams(prev => ({ ...prev, faf_lat: parseFloat(lat.toFixed(6)), faf_lon: parseFloat(lon.toFixed(6)) }));
+          setSelectingRnavPoint(null);
+        } else if (selectingRnavPoint === "MAPT") {
+          setRnavParams(prev => ({ ...prev, mapt_lat: parseFloat(lat.toFixed(6)), mapt_lon: parseFloat(lon.toFixed(6)) }));
+          setSelectingRnavPoint(null);
+        }
+      }
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+    return () => {
+      handler.destroy();
+    };
+  }, [isSelectingT1, isSelectingT2, selectingRnavPoint, mounted]);
 
   // Map Click Listener for Analyze Tab
   useEffect(() => {
@@ -2205,24 +2262,47 @@ const handleDownloadLogs = async () => {
                         </div>
                     </div>
 
-                    <label style={{...labelStyle, color: "#d35400"}}>1. Intermediate Fix (IF)</label>
-                    <div style={rowStyle}>
-                        <input style={numInputStyle} placeholder="Lat" type="number" value={ifPos.lat} onChange={e => setIfPos({...ifPos, lat: +e.target.value})} />
-                        <input style={numInputStyle} placeholder="Lon" type="number" value={ifPos.lon} onChange={e => setIfPos({...ifPos, lon: +e.target.value})} />
-                    </div>
+                    {/* --- IF / FAF / MAPt Coordinates with Map Targets --- */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      
+                      {/* Intermediate Fix (IF) */}
+                      <div style={{ padding: "8px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
+                        <strong style={{ fontSize: "11px", color: "#0b1b3d" }}>Intermediate Fix (IF)</strong>
+                        <div style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
+                          <input type="number" placeholder="Lat" style={inputStyle} value={rnavParams.if_lat || ""} onChange={e => setRnavParams({...rnavParams, if_lat: +e.target.value})} />
+                          <input type="number" placeholder="Lon" style={inputStyle} value={rnavParams.if_lon || ""} onChange={e => setRnavParams({...rnavParams, if_lon: +e.target.value})} />
+                          <button onClick={() => setSelectingRnavPoint(selectingRnavPoint === "IF" ? null : "IF")} style={{ padding: "0 8px", backgroundColor: selectingRnavPoint === "IF" ? "#dc3545" : "#e9ecef", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", fontSize: "14px" }} title="Select on map">
+                            {selectingRnavPoint === "IF" ? "❌" : "🎯"}
+                          </button>
+                        </div>
+                      </div>
 
-                    <label style={{...labelStyle, color: "#27ae60"}}>2. Final Approach Fix (FAF)</label>
-                    <div style={rowStyle}>
-                        <input style={numInputStyle} placeholder="Lat" type="number" value={fafPos.lat} onChange={e => setFafPos({...fafPos, lat: +e.target.value})} />
-                        <input style={numInputStyle} placeholder="Lon" type="number" value={fafPos.lon} onChange={e => setFafPos({...fafPos, lon: +e.target.value})} />
-                        <input style={numInputStyle} placeholder={`Alt (${altUnit})`} type="number" value={fafPos.alt} onChange={e => setFafPos({...fafPos, alt: +e.target.value})} />
-                    </div>
+                      {/* Final Approach Fix (FAF) */}
+                      <div style={{ padding: "8px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
+                        <strong style={{ fontSize: "11px", color: "#0b1b3d" }}>Final Approach Fix (FAF)</strong>
+                        <div style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
+                          <input type="number" placeholder="Lat" style={inputStyle} value={rnavParams.faf_lat || ""} onChange={e => setRnavParams({...rnavParams, faf_lat: +e.target.value})} />
+                          <input type="number" placeholder="Lon" style={inputStyle} value={rnavParams.faf_lon || ""} onChange={e => setRnavParams({...rnavParams, faf_lon: +e.target.value})} />
+                          <input type="number" placeholder="Alt" style={inputStyle} value={rnavParams.faf_alt || ""} onChange={e => setRnavParams({...rnavParams, faf_alt: +e.target.value})} title={`Altitude in ${rnavParams.alt_unit}`} />
+                          <button onClick={() => setSelectingRnavPoint(selectingRnavPoint === "FAF" ? null : "FAF")} style={{ padding: "0 8px", backgroundColor: selectingRnavPoint === "FAF" ? "#dc3545" : "#e9ecef", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", fontSize: "14px" }} title="Select on map">
+                            {selectingRnavPoint === "FAF" ? "❌" : "🎯"}
+                          </button>
+                        </div>
+                      </div>
 
-                    <label style={{...labelStyle, color: "#c0392b"}}>3. Missed Approach Point (MAPt)</label>
-                    <div style={rowStyle}>
-                        <input style={numInputStyle} placeholder="Lat" type="number" value={maptPos.lat} onChange={e => setMaptPos({...maptPos, lat: +e.target.value})} />
-                        <input style={numInputStyle} placeholder="Lon" type="number" value={maptPos.lon} onChange={e => setMaptPos({...maptPos, lon: +e.target.value})} />
-                        <input style={numInputStyle} placeholder={`Alt (${altUnit})`} type="number" value={maptPos.alt} onChange={e => setMaptPos({...maptPos, alt: +e.target.value})} />
+                      {/* Missed Approach Point (MAPt) */}
+                      <div style={{ padding: "8px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
+                        <strong style={{ fontSize: "11px", color: "#0b1b3d" }}>Missed Approach Point (MAPt)</strong>
+                        <div style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
+                          <input type="number" placeholder="Lat" style={inputStyle} value={rnavParams.mapt_lat || ""} onChange={e => setRnavParams({...rnavParams, mapt_lat: +e.target.value})} />
+                          <input type="number" placeholder="Lon" style={inputStyle} value={rnavParams.mapt_lon || ""} onChange={e => setRnavParams({...rnavParams, mapt_lon: +e.target.value})} />
+                          <input type="number" placeholder="Alt" style={inputStyle} value={rnavParams.mapt_alt || ""} onChange={e => setRnavParams({...rnavParams, mapt_alt: +e.target.value})} title={`Altitude in ${rnavParams.alt_unit}`} />
+                          <button onClick={() => setSelectingRnavPoint(selectingRnavPoint === "MAPT" ? null : "MAPT")} style={{ padding: "0 8px", backgroundColor: selectingRnavPoint === "MAPT" ? "#dc3545" : "#e9ecef", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", fontSize: "14px" }} title="Select on map">
+                            {selectingRnavPoint === "MAPT" ? "❌" : "🎯"}
+                          </button>
+                        </div>
+                      </div>
+                      
                     </div>
 
                     <label style={{...labelStyle, display: "flex", alignItems: "center", gap: "5px", marginTop: "10px", cursor: "pointer"}}>
