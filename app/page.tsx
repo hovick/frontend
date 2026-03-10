@@ -259,16 +259,36 @@ export default function Home() {
     draw_in_trans: false
   });
   
-  // --- VSS / OCS State ---
+ // --- VSS / OCS State ---
   const [vssParams, setVssParams] = useState({
+    vpa: 3.0,
+    appType: "NPA", // "NPA", "APV_BARO", "APV_GEO"
+    runwayWidth: 45,
     stripWidth: 150,
     oca: 100, 
     vssAngle: 1.88,
-    ocsAngle: 1.12,
+    ocsAngle: 2.00,
     offsetAngle: 0.0,
     drawVSS: true,
     drawOCS: true
   });
+
+  // Helper to auto-calculate slopes when VPA or Type changes
+  const handleVpaOrTypeChange = (newVpa: number, newType: string) => {
+    const newVss = newVpa - 1.12;
+    let newOcs = 0;
+    if (newType === "NPA") newOcs = newVpa - 1.0;
+    else if (newType === "APV_BARO") newOcs = newVpa - 0.5; 
+    else if (newType === "APV_GEO") newOcs = newVpa - 0.5;
+
+    setVssParams(prev => ({
+      ...prev,
+      vpa: newVpa,
+      appType: newType,
+      vssAngle: Number(newVss.toFixed(2)),
+      ocsAngle: Number(newOcs.toFixed(2))
+    }));
+  };
   // OFZ specific state
   const [adg, setAdg] = useState("IV");
   const handleDeleteComponent = async (surfaceId: string, componentName: string) => {
@@ -2240,48 +2260,70 @@ const handleDownloadLogs = async () => {
                 )}
 
                 {/* --- VSS / OCS CONFIGURATOR --- */}
-                  {family === "VSS" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "10px", padding: "12px", backgroundColor: "#e9ecef", borderRadius: "6px", border: "1px solid #ccc" }}>
-                      <strong style={{ fontSize: "13px", color: "#0b1b3d", margin: 0 }}>VSS & OCS Parameters</strong>
+                {family === "VSS" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "10px", padding: "12px", backgroundColor: "#e9ecef", borderRadius: "6px", border: "1px solid #ccc" }}>
+                    <strong style={{ fontSize: "13px", color: "#0b1b3d", margin: 0 }}>VSS & OCS Generator</strong>
 
-                      <div style={{ display: "flex", gap: "8px" }}>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Half-Width (m)</label>
-                          <input type="number" style={inputStyle} value={vssParams.stripWidth} onChange={e => setVssParams({...vssParams, stripWidth: +e.target.value})} />
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>OCA/H (m MSL)</label>
-                          <input type="number" style={inputStyle} value={vssParams.oca} onChange={e => setVssParams({...vssParams, oca: +e.target.value})} />
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Offset Angle (°)</label>
-                          <input type="number" step="0.1" style={inputStyle} value={vssParams.offsetAngle} onChange={e => setVssParams({...vssParams, offsetAngle: +e.target.value})} />
-                        </div>
+                    {/* Auto-Calculation Row */}
+                    <div style={{ display: "flex", gap: "8px", backgroundColor: "#fff3cd", padding: "8px", borderRadius: "4px", border: "1px solid #ffeeba" }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#856404" }}>Promulgated VPA (°)</label>
+                        <input type="number" step="0.1" style={inputStyle} value={vssParams.vpa} 
+                          onChange={e => handleVpaOrTypeChange(+e.target.value, vssParams.appType)} />
                       </div>
-
-                      <div style={{ display: "flex", gap: "8px" }}>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>VSS Angle (°)</label>
-                          <input type="number" step="0.01" style={inputStyle} value={vssParams.vssAngle} onChange={e => setVssParams({...vssParams, vssAngle: +e.target.value})} />
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>OCS Angle (°)</label>
-                          <input type="number" step="0.01" style={inputStyle} value={vssParams.ocsAngle} onChange={e => setVssParams({...vssParams, ocsAngle: +e.target.value})} />
-                        </div>
-                      </div>
-
-                      <div style={{ display: "flex", gap: "15px", marginTop: "4px", backgroundColor: "#ffffff", padding: "8px", borderRadius: "4px", border: "1px solid #ddd" }}>
-                        <label style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "5px", color: "#0b1b3d", fontWeight: "bold" }}>
-                          <input type="checkbox" checked={vssParams.drawVSS} onChange={e => setVssParams({...vssParams, drawVSS: e.target.checked})} />
-                          Draw VSS (Top)
-                        </label>
-                        <label style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "5px", color: "#0b1b3d", fontWeight: "bold" }}>
-                          <input type="checkbox" checked={vssParams.drawOCS} onChange={e => setVssParams({...vssParams, drawOCS: e.target.checked})} />
-                          Draw OCS (Floor)
-                        </label>
+                      <div style={{ flex: 1.5 }}>
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#856404" }}>Approach Type</label>
+                        <select style={inputStyle} value={vssParams.appType} 
+                          onChange={e => handleVpaOrTypeChange(vssParams.vpa, e.target.value)}>
+                          <option value="NPA">NPA (VPA - 1°)</option>
+                          <option value="APV_BARO">APV Baro (VPA - 0.5°)</option>
+                          <option value="APV_GEO">APV Geo (VPA - 0.5°)</option>
+                        </select>
                       </div>
                     </div>
-                  )}
+
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Runway W. (m)</label>
+                        <input type="number" style={inputStyle} value={vssParams.runwayWidth} onChange={e => setVssParams({...vssParams, runwayWidth: +e.target.value})} title="Used for OCS lateral limit" />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Strip Half-W (m)</label>
+                        <input type="number" style={inputStyle} value={vssParams.stripWidth} onChange={e => setVssParams({...vssParams, stripWidth: +e.target.value})} title="Used for VSS lateral limit" />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>OCA/H (m MSL)</label>
+                        <input type="number" style={inputStyle} value={vssParams.oca} onChange={e => setVssParams({...vssParams, oca: +e.target.value})} />
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>VSS Angle (°)</label>
+                        <input type="number" step="0.01" style={{...inputStyle, backgroundColor: "#e8f0fe"}} value={vssParams.vssAngle} onChange={e => setVssParams({...vssParams, vssAngle: +e.target.value})} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>OCS Angle (°)</label>
+                        <input type="number" step="0.01" style={{...inputStyle, backgroundColor: "#e8f0fe"}} value={vssParams.ocsAngle} onChange={e => setVssParams({...vssParams, ocsAngle: +e.target.value})} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Offset Angle (°)</label>
+                        <input type="number" step="0.1" style={inputStyle} value={vssParams.offsetAngle} onChange={e => setVssParams({...vssParams, offsetAngle: +e.target.value})} />
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "15px", marginTop: "4px", backgroundColor: "#ffffff", padding: "8px", borderRadius: "4px", border: "1px solid #ddd" }}>
+                      <label style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "5px", color: "#0b1b3d", fontWeight: "bold" }}>
+                        <input type="checkbox" checked={vssParams.drawVSS} onChange={e => setVssParams({...vssParams, drawVSS: e.target.checked})} />
+                        Draw VSS (Top)
+                      </label>
+                      <label style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "5px", color: "#0b1b3d", fontWeight: "bold" }}>
+                        <input type="checkbox" checked={vssParams.drawOCS} onChange={e => setVssParams({...vssParams, drawOCS: e.target.checked})} />
+                        Draw OCS (Floor)
+                      </label>
+                    </div>
+                  </div>
+                )}
 
                 {/* DYNAMIC NAVAID FIELDS */}
                 {family === "NAVAID" && (
