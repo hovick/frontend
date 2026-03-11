@@ -18,6 +18,31 @@ export default function Home() {
   const createBtnStyle: React.CSSProperties = { marginTop: "15px", padding: "12px", backgroundColor: "#0b1b3d", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontWeight: "bold", fontSize: "15px" };
   const [registerEmail, setRegisterEmail] = useState(""); // --- NEW ---
   const [user, setUser] = useState<{id: number, username: string, email?: string, is_premium: boolean, max_airports: number, ion_token: string} | null>(null);
+  // ── Mobile "view as desktop" scaling ──────────────────────────────────────
+  // The UI was designed for ~1200 px wide desktops. On narrower screens we
+  // scale the whole inner canvas down so all panels stay visible at once,
+  // exactly like "Request Desktop Site" in a mobile browser.
+  const DESIGN_W = 1200;
+  const [vpScale, setVpScale] = useState(1);
+  const [scaledH, setScaledH] = useState("100vh");
+  useEffect(() => {
+    const update = () => {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      if (vw < DESIGN_W) {
+        const s = vw / DESIGN_W;
+        setVpScale(s);
+        // Make the inner div tall enough that, after scaling, it fills the real viewport height
+        setScaledH(`${vh / s}px`);
+      } else {
+        setVpScale(1);
+        setScaledH("100vh");
+      }
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
   // YOUR Global Default Token (The one currently in useEffect)
   const DEFAULT_ION_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIwOTZmOGMwZC1kNTlkLTRkYWUtYWUxZC0wMzBlOWVlNmM3N2QiLCJpZCI6ODM2NDQsImlhdCI6MTY0NTY5NTMxN30.qUC3Y6wM0_bcbb73TLGH87Azql1ZDX5gM_7relGRRSg';
   const [editIonToken, setEditIonToken] = useState(""); // --- NEW ---
@@ -1573,7 +1598,18 @@ const handleDownloadLogs = async () => {
     }
 
     return (
-      <main style={{ position: "relative", width: "100vw", height: "100vh", overflow: "hidden" }}>
+      <main style={{ width: "100vw", height: "100vh", overflow: "hidden", position: "relative" }}>
+        {/* Inner canvas: fixed DESIGN_W wide, scaled to fit mobile screens.
+            transform-origin "top left" means the top-left corner stays pinned
+            and the content shrinks towards it, just like "desktop mode" in Safari/Chrome. */}
+        <div style={{
+          position: "relative",
+          width: vpScale < 1 ? `${DESIGN_W}px` : "100%",
+          height: vpScale < 1 ? scaledH : "100%",
+          transformOrigin: "top left",
+          transform: vpScale < 1 ? `scale(${vpScale})` : "none",
+          overflow: "hidden",
+        }}>
         {/* CESIUM MAP CONTAINER */}
         <div ref={cesiumContainer} style={{ width: "100%", height: "100%" }} />
 
@@ -3323,6 +3359,7 @@ const handleDownloadLogs = async () => {
               </div>
             )}
           </div>
+        </div>{/* end inner scaled canvas */}
       </main>
     );
 }
