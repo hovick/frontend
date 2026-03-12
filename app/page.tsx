@@ -59,30 +59,21 @@ export default function Home() {
     faf_lat: 0, faf_lon: 0, faf_alt: 0,
     mapt_lat: 0, mapt_lon: 0, mapt_alt: 0
   });
-  // --- OAS (Obstacle Assessment Surface) State ---
+  // --- OAS (Obstacle Assessment Surface) State - ICAO Standard ---
   const [oasParams, setOasParams] = useState({
-    // Aid Navigation Data
+    // Navigation Aid Data
     appCat: "ILS CAT I",
     glidePath: 3.0,
+    rdh: 15.0,
+    locThrDist: 3000,
     courseWidth: 210,
-    rdh: 50,
-    thrElev: 0,
     
-    // Airplane Data
+    // Aircraft Data
     missedAppCG: 2.5,
     acCategory: "C",
     isStandard: true,
-    halfWidth: 60,
-    antennaHeight: 6.0,
-    
-    // OAS Extension
-    extend300m: false,
-    extendToIf: false,
-    ifPos: 10.0,
-    ifAlt: 3000,
-    fapPos: 5.0,
-    fapAlt: 2000,
-    rdhCorrection: false
+    wingSemiSpan: 30,
+    antennaHeight: 6.0
   });
   // Data for the tools
   const [rulerPts, setRulerPts] = useState<Cesium.Cartesian3[]>([]);
@@ -2220,125 +2211,84 @@ const handleDownloadLogs = async () => {
                   </div>
                 )}
                 
-                {/* --- OAS (OBSTACLE ASSESSMENT SURFACE) CONFIGURATOR --- */}
+                {/* --- OAS ICAO CONFIGURATOR --- */}
                 {family === "OAS" && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "10px", padding: "12px", backgroundColor: "#e9ecef", borderRadius: "6px", border: "1px solid #ccc" }}>
-                    
-                    {/* 1. AID NAVIGATION DATA */}
-                    <div style={{ padding: "10px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
-                      <strong style={{ fontSize: "12px", color: "#0b1b3d", display: "block", marginBottom: "8px", borderBottom: "1px solid #eee", paddingBottom: "4px" }}>AID NAVIGATION DATA</strong>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "10px", padding: "12px", backgroundColor: "#e9ecef", borderRadius: "6px", border: "1px solid #ccc" }}>
                       
-                      <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
-                        <div style={{ flex: 1.5 }}>
-                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Approach Cat</label>
-                          <select style={inputStyle} value={oasParams.appCat} onChange={e => setOasParams({...oasParams, appCat: e.target.value})}>
-                            <option value="ILS CAT I">ILS CAT I</option>
-                            <option value="ILS CAT II">ILS CAT II</option>
-                            <option value="ILS CAT III">ILS CAT III</option>
-                            <option value="SBAS APV">SBAS APV</option>
-                            <option value="SBAS CAT I">SBAS CAT I</option>
-                          </select>
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Glide Path (°)</label>
-                          <input type="number" step="0.1" style={inputStyle} value={oasParams.glidePath} onChange={e => setOasParams({...oasParams, glidePath: +e.target.value})} />
-                        </div>
-                      </div>
-
-                      <div style={{ display: "flex", gap: "8px" }}>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Course W. (m)</label>
-                          <input type="number" style={inputStyle} value={oasParams.courseWidth} onChange={e => setOasParams({...oasParams, courseWidth: +e.target.value})} title="Wide course in THR" />
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>RDH (ft)</label>
-                          <input type="number" style={inputStyle} value={oasParams.rdh} onChange={e => setOasParams({...oasParams, rdh: +e.target.value})} />
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>THR Elev (ft)</label>
-                          <input type="number" style={inputStyle} value={oasParams.thrElev} onChange={e => setOasParams({...oasParams, thrElev: +e.target.value})} />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 2. AIRPLANE DATA */}
-                    <div style={{ padding: "10px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
-                      <strong style={{ fontSize: "12px", color: "#0b1b3d", display: "block", marginBottom: "8px", borderBottom: "1px solid #eee", paddingBottom: "4px" }}>AIRPLANE DATA</strong>
-                      
-                      <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Missed App CG (%)</label>
-                          <input type="number" step="0.1" style={inputStyle} value={oasParams.missedAppCG} onChange={e => setOasParams({...oasParams, missedAppCG: +e.target.value})} />
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Aircraft CAT</label>
-                          <select style={inputStyle} value={oasParams.acCategory} onChange={e => setOasParams({...oasParams, acCategory: e.target.value})}>
-                            <option value="A">CAT A</option>
-                            <option value="B">CAT B</option>
-                            <option value="C">CAT C</option>
-                            <option value="D">CAT D</option>
-                            <option value="E">CAT E</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div style={{ display: "flex", gap: "8px", alignItems: "flex-end" }}>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Half-Width (m)</label>
-                          <input type="number" style={inputStyle} value={oasParams.halfWidth} onChange={e => setOasParams({...oasParams, halfWidth: +e.target.value})} disabled={oasParams.isStandard} />
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>GP Wheel/Ant (m)</label>
-                          <input type="number" step="0.1" style={inputStyle} value={oasParams.antennaHeight} onChange={e => setOasParams({...oasParams, antennaHeight: +e.target.value})} disabled={oasParams.isStandard} />
-                        </div>
-                        <label style={{ flex: 0.8, fontSize: "11px", display: "flex", alignItems: "center", gap: "4px", fontWeight: "bold", paddingBottom: "8px" }}>
-                          <input type="checkbox" checked={oasParams.isStandard} onChange={e => setOasParams({...oasParams, isStandard: e.target.checked})} /> STD
-                        </label>
-                      </div>
-                    </div>
-
-                    {/* 3. OAS EXTENSION */}
-                    <div style={{ padding: "10px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
-                      <strong style={{ fontSize: "12px", color: "#0b1b3d", display: "block", marginBottom: "8px", borderBottom: "1px solid #eee", paddingBottom: "4px" }}>OAS EXTENSION</strong>
-                      
-                      <div style={{ display: "flex", gap: "10px", marginBottom: "10px", flexWrap: "wrap" }}>
-                        <label style={{ fontSize: "11px", display: "flex", alignItems: "center", gap: "4px" }}>
-                          <input type="checkbox" checked={oasParams.extend300m} onChange={e => setOasParams({...oasParams, extend300m: e.target.checked})} /> Extend 300m on THR
-                        </label>
-                        <label style={{ fontSize: "11px", display: "flex", alignItems: "center", gap: "4px" }}>
-                          <input type="checkbox" checked={oasParams.extendToIf} onChange={e => setOasParams({...oasParams, extendToIf: e.target.checked})} /> Extend to IF (Not FAP)
-                        </label>
-                        <label style={{ fontSize: "11px", display: "flex", alignItems: "center", gap: "4px" }}>
-                          <input type="checkbox" checked={oasParams.rdhCorrection} onChange={e => setOasParams({...oasParams, rdhCorrection: e.target.checked})} /> RDH Correction
-                        </label>
-                      </div>
-
-                      <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>FAP Pos (NM)</label>
-                          <input type="number" step="0.1" style={inputStyle} value={oasParams.fapPos} onChange={e => setOasParams({...oasParams, fapPos: +e.target.value})} />
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>FAP Alt (ft)</label>
-                          <input type="number" style={inputStyle} value={oasParams.fapAlt} onChange={e => setOasParams({...oasParams, fapAlt: +e.target.value})} />
-                        </div>
-                      </div>
-
-                      {oasParams.extendToIf && (
-                        <div style={{ display: "flex", gap: "8px", backgroundColor: "#f8f9fa", padding: "6px", borderRadius: "4px" }}>
-                          <div style={{ flex: 1 }}>
-                            <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>IF Pos (NM)</label>
-                            <input type="number" step="0.1" style={inputStyle} value={oasParams.ifPos} onChange={e => setOasParams({...oasParams, ifPos: +e.target.value})} />
+                      {/* 1. NAVIGATION AID DATA */}
+                      <div style={{ padding: "10px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
+                        <strong style={{ fontSize: "12px", color: "#0b1b3d", display: "block", marginBottom: "8px", borderBottom: "1px solid #eee", paddingBottom: "4px" }}>NAVIGATION AID DATA</strong>
+                        
+                        <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+                          <div style={{ flex: 1.5 }}>
+                            <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Approach Cat</label>
+                            <select style={inputStyle} value={oasParams.appCat} onChange={e => setOasParams({...oasParams, appCat: e.target.value})}>
+                              <option value="ILS CAT I">ILS CAT I</option>
+                              <option value="ILS CAT II">ILS CAT II</option>
+                              <option value="ILS CAT III">ILS CAT III</option>
+                              <option value="SBAS APV">SBAS APV</option>
+                              <option value="SBAS CAT I">SBAS CAT I</option>
+                            </select>
                           </div>
                           <div style={{ flex: 1 }}>
-                            <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Interm. Alt (ft)</label>
-                            <input type="number" style={inputStyle} value={oasParams.ifAlt} onChange={e => setOasParams({...oasParams, ifAlt: +e.target.value})} />
+                            <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>GP/VPA (°)</label>
+                            <input type="number" step="0.1" style={inputStyle} value={oasParams.glidePath} onChange={e => setOasParams({...oasParams, glidePath: +e.target.value})} />
                           </div>
                         </div>
-                      )}
-                    </div>
 
-                  </div>
+                        <div style={{ display: "flex", gap: "8px" }}>
+                          <div style={{ flex: 1 }}>
+                            <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>RDH (m)</label>
+                            <input type="number" style={inputStyle} value={oasParams.rdh} onChange={e => setOasParams({...oasParams, rdh: +e.target.value})} />
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>LOC-THR Dist (m)</label>
+                            <input type="number" style={inputStyle} value={oasParams.locThrDist} onChange={e => setOasParams({...oasParams, locThrDist: +e.target.value})} />
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Course W. (m)</label>
+                            <input type="number" style={inputStyle} value={oasParams.courseWidth} onChange={e => setOasParams({...oasParams, courseWidth: +e.target.value})} />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 2. AIRCRAFT DATA */}
+                      <div style={{ padding: "10px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
+                        <strong style={{ fontSize: "12px", color: "#0b1b3d", display: "block", marginBottom: "8px", borderBottom: "1px solid #eee", paddingBottom: "4px" }}>AIRCRAFT DATA</strong>
+                        
+                        <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+                          <div style={{ flex: 1 }}>
+                            <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>M/App CG (%)</label>
+                            <input type="number" step="0.1" style={inputStyle} value={oasParams.missedAppCG} onChange={e => setOasParams({...oasParams, missedAppCG: +e.target.value})} />
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Aircraft CAT</label>
+                            <select style={inputStyle} value={oasParams.acCategory} onChange={e => setOasParams({...oasParams, acCategory: e.target.value})}>
+                              <option value="A">CAT A</option>
+                              <option value="B">CAT B</option>
+                              <option value="C">CAT C</option>
+                              <option value="D">CAT D</option>
+                              <option value="E">CAT E</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div style={{ display: "flex", gap: "8px", alignItems: "flex-end" }}>
+                          <div style={{ flex: 1 }}>
+                            <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Wing Semi Span (m)</label>
+                            <input type="number" style={inputStyle} value={oasParams.wingSemiSpan} onChange={e => setOasParams({...oasParams, wingSemiSpan: +e.target.value})} disabled={oasParams.isStandard} />
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>GP Wheel/Ant (m)</label>
+                            <input type="number" step="0.1" style={inputStyle} value={oasParams.antennaHeight} onChange={e => setOasParams({...oasParams, antennaHeight: +e.target.value})} disabled={oasParams.isStandard} />
+                          </div>
+                          <label style={{ flex: 0.8, fontSize: "11px", display: "flex", alignItems: "center", gap: "4px", fontWeight: "bold", paddingBottom: "8px" }}>
+                            <input type="checkbox" checked={oasParams.isStandard} onChange={e => setOasParams({...oasParams, isStandard: e.target.checked})} /> STD
+                          </label>
+                        </div>
+                      </div>
+
+                    </div>
                 )}
 
                 {/* ── APV BARO-VNAV OAS FIELDS (Doc 8168 Part III §3.4) ── */}
