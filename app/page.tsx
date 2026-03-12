@@ -1926,19 +1926,17 @@ const handleDownloadLogs = async () => {
                 <label style={labelStyle}>Surface Family</label>
                 <select style={inputStyle} value={family} onChange={e => setFamily(e.target.value)}>
                   <option value="OLS">OLS (Annex 14)</option>
-                  {/* --- <option value="OAS">ILS OAS (Doc 8168 §1.4.8)</option>
-                  <option value="APV_BARO">APV Baro-VNAV OAS (Doc 8168 §3.4)</option> --- */}
                   <option value="RNAV">RNAV / RNP Procedure</option>
                   <option value="VSS">VSS (Visual Segment)</option>
-                  <option value="OAS">OAS</option>
+                  <option value="OAS">OAS (In progress)</option>
                   <option value="OFZ">OFZ / OES</option>
                   <option value="NAVAID">Navaid Restrictive</option>
                   <option value="CUSTOM">Custom Surface</option>
                   <option value="HELIPORT">Heliport OLS</option>
                 </select>
 
-                {/* --- ONLY SHOW T1, T2, and ARP for Aeroplane OLS and OFZ --- */}
-                {(family === "OLS" || family === "OFZ" || family === "VSS") && (
+                {/* --- ONLY SHOW T1, T2, and ARP for Aeroplane OLS, OFZ, VSS, and OAS --- */}
+                {(family === "OLS" || family === "OFZ" || family === "VSS" || family === "OAS") && (
                   <>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <label style={labelStyle}>Threshold 1 (Lat / Lon / Alt)</label>
