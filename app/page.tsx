@@ -50,7 +50,7 @@ export default function Home() {
   const [showTools, setShowTools] = useState(true); // Toggle the widget visibility
   const [activeTool, setActiveTool] = useState<"none" | "ruler" | "point">("none");
   const [toolTip, setToolTip] = useState(""); // Instructions (e.g. "Click Start Point")
-
+  const [arcCode, setArcCode] = useState<string>("Auto"); // "Auto", "1", "2", "3", or "4"
   // --- Missing RNAV State ---
   const [rnavParams, setRnavParams] = useState({
     mode: "Advanced RNP",
@@ -1438,6 +1438,7 @@ const handleDownloadLogs = async () => {
         vss_params: family === "VSS" ? vssParams : null,
         oas_params: family === "OAS" ? oasParams : null,
         adg: family === "OFZ" ? adg : null,
+        arc_code: arcCode === "Auto" ? null : parseInt(arcCode),
         rnav_params: family === "RNAV" ? {
             mode: rnavMode,
             alt_unit: altUnit,
@@ -1991,13 +1992,27 @@ const handleDownloadLogs = async () => {
                 {/* --- STANDARD OLS SETTINGS --- */}
                 {family === "OLS" && (
                   <>
-                    <label style={labelStyle}>Runway Type / Regulation Set</label>
-                    <select style={inputStyle} value={runwayType} onChange={e => setRunwayType(e.target.value)}>
-                      <option value="non_instrument">Non-Instrument</option>
-                      <option value="non_precision">Non-Precision Approach</option>
-                      <option value="precision">Precision Approach</option>
-                      <option value="custom">⚙️ Custom Parameters</option>
-                    </select>
+                  <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={labelStyle}>Runway Type / Regulation Set</label>
+                      <select style={inputStyle} value={runwayType} onChange={e => setRunwayType(e.target.value)}>
+                        <option value="non_instrument">Non-Instrument</option>
+                        <option value="non_precision">Non-Precision Approach</option>
+                        <option value="precision">Precision Approach</option>
+                        <option value="custom">⚙️ Custom Parameters</option>
+                      </select>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={labelStyle}>ARC Override</label>
+                      <select style={inputStyle} value={arcCode} onChange={e => setArcCode(e.target.value)}>
+                        <option value="Auto">Auto (By Distance)</option>
+                        <option value="1">Code 1</option>
+                        <option value="2">Code 2</option>
+                        <option value="3">Code 3</option>
+                        <option value="4">Code 4</option>
+                      </select>
+                    </div>
+                  </div>
 
                     {/* --- NEW: CUSTOM OLS CONFIGURATOR --- */}
                     {runwayType === "custom" && (
@@ -3185,9 +3200,6 @@ const handleDownloadLogs = async () => {
                           value={logEndDate} 
                           onChange={e => setLogEndDate(e.target.value)} 
                         />
-                      </div>
-                      <div style={{ display: "flex", gap: "10px", alignItems: "flex-end" }}>
-                      
                       </div>
                     </div>
                     <button 
