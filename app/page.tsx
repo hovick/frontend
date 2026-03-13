@@ -1057,6 +1057,15 @@ export default function Home() {
     setSavedSurfaces(prev => prev.filter(s => s.id !== surfaceId));
   };
 
+  // --- HELPER: Safely extract first [lon, lat] from any geometry entry (coords OR quads) ---
+  const getFirstCoord = (geometry: any[]): [number, number] | null => {
+    if (!geometry || geometry.length === 0) return null;
+    const geo = geometry[0];
+    if (geo.coords && geo.coords.length >= 2) return [geo.coords[0], geo.coords[1]];
+    if (geo.quads && geo.quads.length > 0 && geo.quads[0].length >= 2) return [geo.quads[0][0], geo.quads[0][1]];
+    return null;
+  };
+
   // --- THE FIX: Add explicitOffset parameter ---
   const handleDrawSurface = (surfaceInput: any | any[], explicitOffset?: number, shouldZoom: boolean = true) => {
     if (!viewerRef.current) return;
@@ -1549,9 +1558,9 @@ const handleDownloadLogs = async () => {
       if (viewerRef.current && data.geometry) {
           // 1. Fetch EGM96 offset
           let newOffset = geoidOffset;
-          if (data.geometry.length > 0 && data.geometry[0].coords.length >= 2) {
-              const coords = data.geometry[0].coords;
-              newOffset = await autoFetchGeoidOffset(coords[1], coords[0]);
+          const firstCoord = getFirstCoord(data.geometry);
+          if (firstCoord) {
+              newOffset = await autoFetchGeoidOffset(firstCoord[1], firstCoord[0]);
           }
 
           // 2. Let our master function draw it, apply the offset, and zoom the camera!
@@ -2737,8 +2746,8 @@ const handleDownloadLogs = async () => {
 
                                 let newOffset = geoidOffset;
                                 if (data.surfaces.length > 0 && data.surfaces[0].geometry.length > 0) {
-                                  const coords = data.surfaces[0].geometry[0].coords;
-                                  newOffset = await autoFetchGeoidOffset(coords[1], coords[0]);
+                                  const firstCoord = getFirstCoord(data.surfaces[0].geometry);
+                                  if (firstCoord) newOffset = await autoFetchGeoidOffset(firstCoord[1], firstCoord[0]);
                                 }
 
                                 // Draw the surfaces
@@ -2773,8 +2782,8 @@ const handleDownloadLogs = async () => {
                       
                       let newOffset = geoidOffset;
                       if (airportSurfaces.length > 0 && airportSurfaces[0].geometry.length > 0) {
-                         const coords = airportSurfaces[0].geometry[0].coords;
-                         newOffset = await autoFetchGeoidOffset(coords[1], coords[0]);
+                         const firstCoord = getFirstCoord(airportSurfaces[0].geometry);
+                         if (firstCoord) newOffset = await autoFetchGeoidOffset(firstCoord[1], firstCoord[0]);
                       }
 
                       // Pass the offset directly!
@@ -3087,9 +3096,9 @@ const handleDownloadLogs = async () => {
                             onClick={async () => {
                               // Auto-fetch offset before drawing from dashboard
                               let newOffset = geoidOffset;
-                              if (s.geometry && s.geometry.length > 0 && s.geometry[0].coords.length >= 2) {
-                                const coords = s.geometry[0].coords;
-                                newOffset = await autoFetchGeoidOffset(coords[1], coords[0]);
+                              if (s.geometry && s.geometry.length > 0) {
+                                const firstCoord = getFirstCoord(s.geometry);
+                                if (firstCoord) newOffset = await autoFetchGeoidOffset(firstCoord[1], firstCoord[0]);
                               }
                               handleDrawSurface([s], newOffset);
                             }}
