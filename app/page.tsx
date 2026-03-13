@@ -1928,7 +1928,7 @@ const handleDownloadLogs = async () => {
                   <option value="OLS">OLS (Annex 14)</option>
                   <option value="RNAV">RNAV / RNP Procedure</option>
                   <option value="VSS">VSS (Visual Segment)</option>
-                  <option value="OAS">OAS (In progress)</option>
+                  <option value="OAS">OAS (ILS Obstacle Assessment)</option>
                   <option value="OFZ">OFZ / OES</option>
                   <option value="NAVAID">Navaid Restrictive</option>
                   <option value="CUSTOM">Custom Surface</option>
@@ -1938,6 +1938,11 @@ const handleDownloadLogs = async () => {
                 {/* --- ONLY SHOW T1, T2, and ARP for Aeroplane OLS, OFZ, VSS, and OAS --- */}
                 {(family === "OLS" || family === "OFZ" || family === "VSS" || family === "OAS") && (
                   <>
+                    {family === "OAS" && (
+                      <div style={{ fontSize: "11px", color: "#555", backgroundColor: "#e8f4fd", padding: "6px 8px", borderRadius: "4px", border: "1px solid #b3d9f7", marginBottom: "6px" }}>
+                        <strong>T1</strong> = ILS Approach Threshold (origin). <strong>T2</strong> = Runway Stop-End. The OAS coordinate system derives approach bearing and runway length from T1→T2.
+                      </div>
+                    )}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <label style={labelStyle}>Threshold 1 (Lat / Lon / Alt)</label>
                       <button style={{...activeTabBtn, padding: "2px 6px", fontSize: "10px"}} onClick={() => getCenterFromMap(setT1, t1)}>📍 Map</button>
