@@ -1955,7 +1955,7 @@ const handleDownloadLogs = async () => {
                   <option value="RNAV">RNAV / RNP Procedure</option>
                   <option value="VSS">VSS (Visual Segment)</option>
                   <option value="OAS">OAS (ILS Obstacle Assessment)</option>
-                  <option value="APV_BARO">OAS (APV Baro-VNAV)</option>
+                  <option value="APV_BARO">OAS (APV Baro-VNAV) - In progress</option>
                   <option value="OFZ">OFZ / OES</option>
                   <option value="NAVAID">Navaid Restrictive</option>
                   <option value="CUSTOM">Custom Surface</option>
@@ -1963,7 +1963,7 @@ const handleDownloadLogs = async () => {
                 </select>
 
                 {/* --- ONLY SHOW T1, T2, and ARP for Aeroplane OLS, OFZ, VSS, and OAS --- */}
-                {(family === "OLS" || family === "OFZ" || family === "VSS" || family === "OAS") && (
+                {(family === "OLS" || family === "OFZ" || family === "VSS" || family === "OAS" || family === "APV_BARO") && (
                   <>
                     {family === "OAS" && (
                       <div style={{ fontSize: "11px", color: "#555", backgroundColor: "#e8f4fd", padding: "6px 8px", borderRadius: "4px", border: "1px solid #b3d9f7", marginBottom: "6px" }}>
