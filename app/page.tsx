@@ -2360,7 +2360,7 @@ const handleDownloadLogs = async () => {
 
                       <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
                         <div style={{ flex: 1 }}>
-                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Height at FAP (m)</label>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>FAP Height (m)</label>
                           <input type="number" style={inputStyle} value={apvBaroParams.heightFap} onChange={e => setApvBaroParams({...apvBaroParams, heightFap: +e.target.value})} />
                         </div>
                         <div style={{ flex: 1 }}>
@@ -2375,7 +2375,7 @@ const handleDownloadLogs = async () => {
 
                       <div style={{ display: "flex", gap: "8px" }}>
                         <div style={{ flex: 1 }}>
-                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Acft Category</label>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Acft Cat</label>
                           <select style={inputStyle} value={apvBaroParams.acftCategory} onChange={e => setApvBaroParams({...apvBaroParams, acftCategory: e.target.value})}>
                             <option value="A">CAT A</option>
                             <option value="B">CAT B</option>
@@ -2391,6 +2391,8 @@ const handleDownloadLogs = async () => {
                           <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>MAPt Dist (m)</label>
                           <input type="number" style={inputStyle} value={apvBaroParams.maptDist} onChange={e => setApvBaroParams({...apvBaroParams, maptDist: +e.target.value})} />
                         </div>
+                      </div>
+                      <div style={{ display: "flex", gap: "8px" }}>
                         <div style={{ flex: 1 }}>
                           <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Height at FAP (m)</label>
                           <input type="number" step="0.1" style={inputStyle} value={apvParams.heightFap} onChange={e => setApvParams({...apvParams, heightFap: +e.target.value})} />
