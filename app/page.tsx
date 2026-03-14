@@ -46,6 +46,18 @@ export default function Home() {
   // YOUR Global Default Token (The one currently in useEffect)
   const DEFAULT_ION_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIwOTZmOGMwZC1kNTlkLTRkYWUtYWUxZC0wMzBlOWVlNmM3N2QiLCJpZCI6ODM2NDQsImlhdCI6MTY0NTY5NTMxN30.qUC3Y6wM0_bcbb73TLGH87Azql1ZDX5gM_7relGRRSg';
   const [editIonToken, setEditIonToken] = useState(""); // --- NEW ---
+  // --- APV Baro-VNAV State ---
+  const [apvBaroParams, setApvBaroParams] = useState({
+    acftCategory: "A",
+    vpaDeg: 3.0,
+    rdh: 15.0,
+    maGradientPct: 2.5,
+    heightFap: 1000.0,
+    deltaH: 50.0,
+    aerodromeElevFt: 100.0,
+    fafDist: 10000, // Distance from threshold to FAF in meters
+    maptDist: 1000  // Distance from threshold to MAPt in meters
+  });
   // --- QUICK TOOLS STATE ---
   const [showTools, setShowTools] = useState(true); // Toggle the widget visibility
   const [activeTool, setActiveTool] = useState<"none" | "ruler" | "point">("none");
@@ -295,6 +307,8 @@ export default function Home() {
     maptLat: 10.4309, maptLon: -75.5134,
     maGradPct: 2.5,        // missed approach gradient (%)
     acftCat: "C",          // "AB", "C", "D"
+    heightFap: 1000.0,  // <-- ADD THIS
+    deltaH: 50.0,       // <-- ADD THIS
   });
 
   const clearTools = () => {
@@ -1488,6 +1502,8 @@ const handleDownloadLogs = async () => {
             mapt_lat: apvParams.maptLat, mapt_lon: apvParams.maptLon,
             ma_gradient_pct: apvParams.maGradPct,
             acft_category: apvParams.acftCat,
+            height_fap: apvParams.heightFap, // <-- ADD THIS
+            delta_h: apvParams.deltaH       // <-- ADD THIS
         } : null,
         custom_coords: family === "CUSTOM" ? customPoints : undefined,
             // --- NEW: Custom OLS Payload Mapper ---
@@ -1939,6 +1955,7 @@ const handleDownloadLogs = async () => {
                   <option value="RNAV">RNAV / RNP Procedure</option>
                   <option value="VSS">VSS (Visual Segment)</option>
                   <option value="OAS">OAS (ILS Obstacle Assessment)</option>
+                  <option value="APV_BARO">OAS (APV Baro-VNAV)</option>
                   <option value="OFZ">OFZ / OES</option>
                   <option value="NAVAID">Navaid Restrictive</option>
                   <option value="CUSTOM">Custom Surface</option>
@@ -2319,64 +2336,70 @@ const handleDownloadLogs = async () => {
                 )}
 
                 {/* ── APV BARO-VNAV OAS FIELDS (Doc 8168 Part III §3.4) ── */}
+                {/* --- APV BARO-VNAV CONFIGURATOR --- */}
                 {family === "APV_BARO" && (
-                  <div style={{ backgroundColor: "#e9ecef", padding: "10px", borderRadius: "4px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <div style={{ fontSize: "11px", color: "#555", backgroundColor: "#fff3cd", padding: "6px 8px", borderRadius: "4px", border: "1px solid #ffc107" }}>
-                      APV/Baro-VNAV OAS — Doc 8168 Vol II Part III §3.4. Generates FAS, Ground Plane and Z (missed approach) surfaces. Lateral bounds = LNAV primary ±463 m + secondary.
-                    </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "10px", padding: "12px", backgroundColor: "#e9ecef", borderRadius: "6px", border: "1px solid #ccc" }}>
+                    
+                    <div style={{ padding: "10px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
+                      <strong style={{ fontSize: "12px", color: "#0b1b3d", display: "block", marginBottom: "8px", borderBottom: "1px solid #eee", paddingBottom: "4px" }}>APV BARO-VNAV DATA</strong>
+                      
+                      <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>VPA (°)</label>
+                          <input type="number" step="0.1" style={inputStyle} value={apvBaroParams.vpaDeg} onChange={e => setApvBaroParams({...apvBaroParams, vpaDeg: +e.target.value})} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>RDH (m)</label>
+                          <input type="number" step="0.1" style={inputStyle} value={apvBaroParams.rdh} onChange={e => setApvBaroParams({...apvBaroParams, rdh: +e.target.value})} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>MACG (%)</label>
+                          <input type="number" step="0.1" style={inputStyle} value={apvBaroParams.maGradientPct} onChange={e => setApvBaroParams({...apvBaroParams, maGradientPct: +e.target.value})} />
+                        </div>
+                      </div>
 
-                    <label style={{...labelStyle, color: "#4169E1"}}>Threshold (Lat / Lon / Alt m)</label>
-                    <div style={rowStyle}>
-                      <input style={numInputStyle} type="number" step="0.000001" value={apvParams.thrLat} onChange={e => setApvParams({...apvParams, thrLat: +e.target.value})} placeholder="Thr Lat" />
-                      <input style={numInputStyle} type="number" step="0.000001" value={apvParams.thrLon} onChange={e => setApvParams({...apvParams, thrLon: +e.target.value})} placeholder="Thr Lon" />
-                      <input style={numInputStyle} type="number" value={apvParams.thrAlt} onChange={e => setApvParams({...apvParams, thrAlt: +e.target.value})} placeholder="Thr Alt (m)" />
-                    </div>
+                      <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Height at FAP (m)</label>
+                          <input type="number" style={inputStyle} value={apvBaroParams.heightFap} onChange={e => setApvBaroParams({...apvBaroParams, heightFap: +e.target.value})} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Delta H (m)</label>
+                          <input type="number" style={inputStyle} value={apvBaroParams.deltaH} onChange={e => setApvBaroParams({...apvBaroParams, deltaH: +e.target.value})} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Aero Elev (ft)</label>
+                          <input type="number" style={inputStyle} value={apvBaroParams.aerodromeElevFt} onChange={e => setApvBaroParams({...apvBaroParams, aerodromeElevFt: +e.target.value})} />
+                        </div>
+                      </div>
 
-                    <div style={rowStyle}>
-                      <div style={{flex:1}}>
-                        <label style={labelStyle}>Final Appr Track TO Thr (°)</label>
-                        <input style={inputStyle} type="number" value={apvParams.bearing} onChange={e => setApvParams({...apvParams, bearing: +e.target.value})} />
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Acft Category</label>
+                          <select style={inputStyle} value={apvBaroParams.acftCategory} onChange={e => setApvBaroParams({...apvBaroParams, acftCategory: e.target.value})}>
+                            <option value="A">CAT A</option>
+                            <option value="B">CAT B</option>
+                            <option value="C">CAT C</option>
+                            <option value="D">CAT D</option>
+                          </select>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>FAF Dist (m)</label>
+                          <input type="number" style={inputStyle} value={apvBaroParams.fafDist} onChange={e => setApvBaroParams({...apvBaroParams, fafDist: +e.target.value})} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>MAPt Dist (m)</label>
+                          <input type="number" style={inputStyle} value={apvBaroParams.maptDist} onChange={e => setApvBaroParams({...apvBaroParams, maptDist: +e.target.value})} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Height at FAP (m)</label>
+                          <input type="number" step="0.1" style={inputStyle} value={apvParams.heightFap} onChange={e => setApvParams({...apvParams, heightFap: +e.target.value})} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Delta H (m)</label>
+                          <input type="number" step="0.1" style={inputStyle} value={apvParams.deltaH} onChange={e => setApvParams({...apvParams, deltaH: +e.target.value})} />
+                        </div>
                       </div>
-                      <div style={{flex:1}}>
-                        <label style={labelStyle}>VPA (°) — 2.5–3.5</label>
-                        <input style={inputStyle} type="number" step="0.1" min="2.5" max="3.5" value={apvParams.vpaDeg} onChange={e => setApvParams({...apvParams, vpaDeg: +e.target.value})} />
-                      </div>
-                      <div style={{flex:1}}>
-                        <label style={labelStyle}>RDH (m)</label>
-                        <input style={inputStyle} type="number" value={apvParams.rdh} onChange={e => setApvParams({...apvParams, rdh: +e.target.value})} />
-                      </div>
-                    </div>
-
-                    <div style={rowStyle}>
-                      <div style={{flex:1}}>
-                        <label style={labelStyle}>Aerodrome Elev (ft) — for Hi</label>
-                        <input style={inputStyle} type="number" value={apvParams.aeroElftFt} onChange={e => setApvParams({...apvParams, aeroElftFt: +e.target.value})} />
-                      </div>
-                      <div style={{flex:1}}>
-                        <label style={labelStyle}>MA Gradient (%)</label>
-                        <input style={inputStyle} type="number" step="0.1" value={apvParams.maGradPct} onChange={e => setApvParams({...apvParams, maGradPct: +e.target.value})} />
-                      </div>
-                      <div style={{flex:1}}>
-                        <label style={labelStyle}>Aircraft Category</label>
-                        <select style={inputStyle} value={apvParams.acftCat} onChange={e => setApvParams({...apvParams, acftCat: e.target.value})}>
-                          <option value="AB">A/B (Xz = −900 m)</option>
-                          <option value="C">C (Xz = −1100 m)</option>
-                          <option value="D">D (Xz = −1400 m)</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <label style={{...labelStyle, color: "#4169E1", marginTop:"4px"}}>FAF (Lat / Lon / Alt m)</label>
-                    <div style={rowStyle}>
-                      <input style={numInputStyle} type="number" step="0.000001" value={apvParams.fafLat} onChange={e => setApvParams({...apvParams, fafLat: +e.target.value})} placeholder="FAF Lat" />
-                      <input style={numInputStyle} type="number" step="0.000001" value={apvParams.fafLon} onChange={e => setApvParams({...apvParams, fafLon: +e.target.value})} placeholder="FAF Lon" />
-                      <input style={numInputStyle} type="number" value={apvParams.fafAlt} onChange={e => setApvParams({...apvParams, fafAlt: +e.target.value})} placeholder="FAF Alt (m)" />
-                    </div>
-
-                    <label style={{...labelStyle, color: "#FF8C00", marginTop:"4px"}}>MAPt (Lat / Lon) — Z surface terminus</label>
-                    <div style={rowStyle}>
-                      <input style={numInputStyle} type="number" step="0.000001" value={apvParams.maptLat} onChange={e => setApvParams({...apvParams, maptLat: +e.target.value})} placeholder="MAPt Lat" />
-                      <input style={numInputStyle} type="number" step="0.000001" value={apvParams.maptLon} onChange={e => setApvParams({...apvParams, maptLon: +e.target.value})} placeholder="MAPt Lon" />
                     </div>
                   </div>
                 )}
