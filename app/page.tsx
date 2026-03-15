@@ -2269,9 +2269,9 @@ const handleDownloadLogs = async () => {
                             <select style={inputStyle} value={oasParams.appCat} onChange={e => setOasParams({...oasParams, appCat: e.target.value})}>
                               <option value="ILS CAT I">ILS CAT I</option>
                               <option value="ILS CAT II">ILS CAT II</option>
-                              <option value="ILS CAT III">ILS CAT III</option>
-                              <option value="SBAS APV">SBAS APV</option>
-                              <option value="SBAS CAT I">SBAS CAT I</option>
+                              <option value="ILS CAT II (Autopilot)">ILS CAT II (Autopilot)</option>
+                              <option value="APV SBAS I">APV SBAS I</option>
+                              <option value="APV SBAS II">APV SBAS II</option>
                             </select>
                           </div>
                           <div style={{ flex: 1 }}>
