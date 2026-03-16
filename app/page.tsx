@@ -1526,41 +1526,47 @@ const handleDownloadLogs = async () => {
                 inner_app_len: cOls.in_app_len, inner_app_hw: cOls.in_app_hw, inner_app_slope: cOls.in_app_slope / 100, inner_app_offset: cOls.in_app_offset
             } : undefined
     };
+    
     if (family === "CUSTOM") {
             const lines = customPoints.split("\n");
-            const coords: any[] = [];
+            const polygons: any[] = []; // Changed to store whole polygons
             
             lines.forEach(line => {
-                // Remove whitespace and ignore empty lines
                 const cleanLine = line.trim();
                 if (!cleanLine) return;
 
                 const parts = cleanLine.split(",").map(s => s.trim());
                 
-                // VALIDATION: We need at least Name + 1 point (4 parts)
-                // And the remaining parts must be multiples of 3 (Lat, Lon, Alt)
-                if (parts.length < 4 || (parts.length - 1) % 3 !== 0) {
+                // VALIDATION: We need at least Name + 3 points (10 parts)
+                if (parts.length < 10 || (parts.length - 1) % 3 !== 0) {
                     console.warn(`Skipping invalid line: ${line}`);
                     return;
                 }
 
-                const surfaceId = parts[0]; // First item is the Name
+                const surfaceId = parts[0]; 
                 
-                // Loop through the rest in chunks of 3
+                // Keep the points grouped in an array for this specific polygon line
+                const polyCoords = [];
                 for (let i = 1; i < parts.length; i += 3) {
-                    coords.push({ 
-                        id: surfaceId, 
-                        lat: parseFloat(parts[i]), 
-                        lon: parseFloat(parts[i+1]), 
-                        alt: parseFloat(parts[i+2]) 
-                    });
+                    polyCoords.push(
+                        parseFloat(parts[i]),     // Lat
+                        parseFloat(parts[i+1]),   // Lon
+                        parseFloat(parts[i+2])    // Alt
+                    );
                 }
+                
+                // Push the entire polygon object
+                polygons.push({ 
+                    id: surfaceId, 
+                    coords: polyCoords
+                });
             });
 
-            if (coords.length < 3) return alert("Please enter at least 3 points for a valid polygon.");
+            if (polygons.length === 0) return alert("Please enter valid polygon coordinates.");
             
-            bodyData = { ...bodyData, custom_coords: coords };
+            bodyData = { ...bodyData, custom_coords: polygons };
       }
+
     setIsCreating(true); // START LOADING
     try {
       const res = await fetch(`${API_BASE}/create-surface`, {
