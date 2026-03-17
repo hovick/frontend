@@ -1443,6 +1443,9 @@ const handleDownloadLogs = async () => {
   };
 
  const handleDefine = async () => {
+    if (!airportName.trim() || !surfName.trim()) {
+        return alert("Please enter both an Airport Name and a Surface Name before creating.");
+    }
     let bodyData: any = {
         airport_name: airportName,
         name: surfName,
