@@ -1846,11 +1846,11 @@ const handleDownloadLogs = async () => {
           }}>
             {/* VISUALIZATION TOGGLES */}
             <div style={{ display: "flex", flexDirection: "column", gap: "5px", marginBottom: "15px" }}>
-              <label style={{ fontSize: "12px", display: "flex", gap: "5px", alignItems: "center" }}>
+              <label style={{ fontSize: "12px", display: "flex", gap: "5px", alignItems: "center", color: "#000" }}>
                 <input type="checkbox" checked={isXRayMode} onChange={e => setIsXRayMode(e.target.checked)} />
                 X-Ray Mode (See surfaces through terrain)
               </label>
-              <label style={{ fontSize: "12px", display: "flex", gap: "5px", alignItems: "center" }}>
+              <label style={{ fontSize: "12px", display: "flex", gap: "5px", alignItems: "center", color: "#000" }}>
                 <input type="checkbox" checked={isGenericMode} onChange={e => setIsGenericMode(e.target.checked)} />
                 Activate Generic Color Mode (Blueprint)
               </label>
@@ -2820,7 +2820,7 @@ const handleDownloadLogs = async () => {
                               console.error("Could not load airport geometry or token.");
                             }
                           }}
-                          style={{ padding: "8px", borderBottom: "1px solid #eee", cursor: "pointer", fontSize: "12px" }}
+                          style={{ padding: "8px", borderBottom: "1px solid #eee", cursor: "pointer", fontSize: "12px", color: "#000" }}
                         >
                           <strong>{s.airport_name}</strong>
                         </div>
