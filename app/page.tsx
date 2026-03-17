@@ -10,8 +10,22 @@ export default function Home() {
   // --- STYLES ---
   const sidebarStyle: React.CSSProperties = { position: "absolute", top: "20px", left: "20px", width: "350px", padding: "20px", backgroundColor: "rgba(255,255,255,0.95)", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", display: "flex", flexDirection: "column", maxHeight: "90vh", overflowY: "auto", zIndex: 10 };
   const rowStyle: React.CSSProperties = { display: "flex", gap: "8px" };
-  const numInputStyle: React.CSSProperties = { flex: 1, minWidth: 0, padding: "8px", border: "1px solid #ccc", borderRadius: "4px", fontSize: "12px", backgroundColor: "#ffffff" };
-  const inputStyle: React.CSSProperties = { padding: "8px", border: "1px solid #ccc", borderRadius: "4px", fontSize: "14px", width: "100%", backgroundColor: "#ffffff", color: "#333" };
+  const numInputStyle: React.CSSProperties = { 
+    flex: 1, minWidth: 0, padding: "8px", border: "1px solid #ccc", borderRadius: "4px", 
+    fontSize: "16px", // <-- Changed to 16px (Explanation below)
+    backgroundColor: "#ffffff", 
+    color: "#000000", 
+    WebkitTextFillColor: "#000000", 
+    opacity: 1 
+  };
+  const inputStyle: React.CSSProperties = { 
+      padding: "8px", border: "1px solid #ccc", borderRadius: "4px", width: "100%", 
+      fontSize: "16px", // <-- Changed to 16px
+      backgroundColor: "#ffffff", 
+      color: "#000000", 
+      WebkitTextFillColor: "#000000", 
+      opacity: 1 
+  };
   const labelStyle: React.CSSProperties = { fontSize: "12px", fontWeight: "bold", color: "#444", marginTop: "5px" };
   const activeTabBtn: React.CSSProperties = { flex: 1, padding: "10px", backgroundColor: "#0b1b3d", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" };
   const inactiveTabBtn: React.CSSProperties = { flex: 1, padding: "10px", backgroundColor: "#ddd", color: "#555", border: "none", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" };
