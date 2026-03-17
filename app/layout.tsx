@@ -5,7 +5,6 @@ export const viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  userScalable: false, // This stops mobile browsers from auto-zooming
 }
 import type { Metadata } from "next";
 // 1. Add the import at the top
