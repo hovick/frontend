@@ -101,6 +101,17 @@ export default function Home() {
     wingSemiSpan: 30,
     antennaHeight: 6.0
   });
+  // --- Wind Spiral State ---
+  const [wsParams, setWsParams] = useState({
+    ias: 205,
+    altitude_ft: 800,
+    bank_angle: 15,
+    wind_speed: 30,
+    ad_elev_ft: 0,
+    temp_ref_c: 15,
+    turn_direction: "R",
+    inbound_bearing: 90
+  });
   // Data for the tools
   const [rulerPts, setRulerPts] = useState<Cesium.Cartesian3[]>([]);
   const [measureResult, setMeasureResult] = useState<{ m: number, nm: number } | null>(null);
@@ -1470,6 +1481,16 @@ const handleDownloadLogs = async () => {
         oas_params: family === "OAS" ? oasParams : null,
         adg: family === "OFZ" ? adg : null,
         arc_code: arcCode === "Auto" ? null : parseInt(arcCode),
+        wind_spiral_params: family === "WIND_SPIRAL" ? {
+            ias: wsParams.ias,
+            altitude_ft: wsParams.altitude_ft,
+            bank_angle: wsParams.bank_angle,
+            wind_speed: wsParams.wind_speed,
+            ad_elev_ft: wsParams.ad_elev_ft,
+            temp_ref_c: wsParams.temp_ref_c,
+            turn_direction: wsParams.turn_direction,
+            inbound_bearing: wsParams.inbound_bearing
+        } : null,
         rnav_params: family === "RNAV" ? {
             mode: rnavMode,
             alt_unit: altUnit,
@@ -1983,6 +2004,7 @@ const handleDownloadLogs = async () => {
                   <option value="NAVAID">Navaid Restrictive</option>
                   <option value="CUSTOM">Custom Surface</option>
                   <option value="HELIPORT">Heliport OLS</option>
+                  <option value="WIND_SPIRAL">PANS-OPS Wind Spiral</option>
                 </select>
 
                 {/* --- ONLY SHOW T1, T2, and ARP for Aeroplane OLS, OFZ, VSS, and OAS --- */}
@@ -2664,6 +2686,73 @@ const handleDownloadLogs = async () => {
                         </div>
                       </>
                     )}
+                  </div>
+                )}
+
+                {/* --- PANS-OPS WIND SPIRAL CONFIGURATOR --- */}
+                {family === "WIND_SPIRAL" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "10px", padding: "12px", backgroundColor: "#e9ecef", borderRadius: "6px", border: "1px solid #ccc" }}>
+                    
+                    <div style={{ padding: "10px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
+                      <strong style={{ fontSize: "12px", color: "#0b1b3d", display: "block", marginBottom: "8px", borderBottom: "1px solid #eee", paddingBottom: "4px" }}>TURN ORIGIN (START OF TURN)</strong>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                        <label style={labelStyle}>Start Point (Lat / Lon / Alt)</label>
+                        <button style={{...activeTabBtn, padding: "2px 6px", fontSize: "10px"}} onClick={() => getCenterFromMap(setT1, t1)}>📍 Map</button>
+                      </div>
+                      <div style={rowStyle}>
+                        <input style={numInputStyle} type="number" value={t1.lat} onChange={e => setT1({...t1, lat: +e.target.value})} placeholder="Lat" />
+                        <input style={numInputStyle} type="number" value={t1.lon} onChange={e => setT1({...t1, lon: +e.target.value})} placeholder="Lon" />
+                        <input style={numInputStyle} type="number" value={t1.alt} onChange={e => setT1({...t1, alt: +e.target.value})} placeholder="Alt (m)" />
+                      </div>
+                      
+                      <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
+                        <div style={{ flex: 1.5 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Inbound Bearing (°)</label>
+                          <input type="number" style={inputStyle} value={wsParams.inbound_bearing} onChange={e => setWsParams({...wsParams, inbound_bearing: +e.target.value})} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Turn Direction</label>
+                          <select style={inputStyle} value={wsParams.turn_direction} onChange={e => setWsParams({...wsParams, turn_direction: e.target.value})}>
+                            <option value="R">Right (R)</option>
+                            <option value="L">Left (L)</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ padding: "10px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
+                      <strong style={{ fontSize: "12px", color: "#0b1b3d", display: "block", marginBottom: "8px", borderBottom: "1px solid #eee", paddingBottom: "4px" }}>AIRCRAFT & FLIGHT DYNAMICS</strong>
+                      
+                      <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>IAS (kt)</label>
+                          <input type="number" style={inputStyle} value={wsParams.ias} onChange={e => setWsParams({...wsParams, ias: +e.target.value})} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Altitude (ft)</label>
+                          <input type="number" style={inputStyle} value={wsParams.altitude_ft} onChange={e => setWsParams({...wsParams, altitude_ft: +e.target.value})} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Bank Angle (°)</label>
+                          <input type="number" step="0.1" style={inputStyle} value={wsParams.bank_angle} onChange={e => setWsParams({...wsParams, bank_angle: +e.target.value})} />
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Wind Speed (kt)</label>
+                          <input type="number" style={inputStyle} value={wsParams.wind_speed} onChange={e => setWsParams({...wsParams, wind_speed: +e.target.value})} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>AD Elev (ft)</label>
+                          <input type="number" style={inputStyle} value={wsParams.ad_elev_ft} onChange={e => setWsParams({...wsParams, ad_elev_ft: +e.target.value})} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Temp Ref (°C)</label>
+                          <input type="number" style={inputStyle} value={wsParams.temp_ref_c} onChange={e => setWsParams({...wsParams, temp_ref_c: +e.target.value})} />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
 
