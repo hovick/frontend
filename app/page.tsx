@@ -112,6 +112,17 @@ export default function Home() {
     turn_direction: "R",
     inbound_bearing: 90
   });
+  // --- Holding / Reversal State ---
+  const [holdingParams, setHoldingParams] = useState({
+    type: "HOLDING", // "HOLDING", "RACETRACK", "BASE_TURN", "PROC_TURN_45"
+    ias: 200,
+    alt_ft: 5000,
+    time_min: 1.0,
+    inbound_brg: 90,
+    turn_dir: "R",
+    ad_elev_ft: 0,
+    temp_ref_c: 15
+  });
   // Data for the tools
   const [rulerPts, setRulerPts] = useState<Cesium.Cartesian3[]>([]);
   const [measureResult, setMeasureResult] = useState<{ m: number, nm: number } | null>(null);
@@ -1491,6 +1502,16 @@ const handleDownloadLogs = async () => {
             turn_direction: wsParams.turn_direction,
             inbound_bearing: wsParams.inbound_bearing
         } : null,
+        holding_params: family === "HOLDING" ? {
+            type: holdingParams.type,
+            ias: holdingParams.ias,
+            alt_ft: holdingParams.alt_ft,
+            time_min: holdingParams.time_min,
+            inbound_brg: holdingParams.inbound_brg,
+            turn_dir: holdingParams.turn_dir,
+            ad_elev_ft: holdingParams.ad_elev_ft,
+            temp_ref_c: holdingParams.temp_ref_c
+        } : null,
         rnav_params: family === "RNAV" ? {
             mode: rnavMode,
             alt_unit: altUnit,
@@ -2004,7 +2025,7 @@ const handleDownloadLogs = async () => {
                   <option value="NAVAID">Navaid Restrictive</option>
                   <option value="CUSTOM">Custom Surface</option>
                   <option value="HELIPORT">Heliport OLS</option>
-                  <option value="WIND_SPIRAL">PANS-OPS Wind Spiral</option>
+                  <option value="HOLDING">Holding / Reversal (PANS-OPS)</option>
                 </select>
 
                 {/* --- ONLY SHOW T1, T2, and ARP for Aeroplane OLS, OFZ, VSS, and OAS --- */}
@@ -2686,6 +2707,78 @@ const handleDownloadLogs = async () => {
                         </div>
                       </>
                     )}
+                  </div>
+                )}
+                {/* --- HOLDING & REVERSAL CONFIGURATOR --- */}
+                {family === "HOLDING" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "10px", padding: "12px", backgroundColor: "#e9ecef", borderRadius: "6px", border: "1px solid #ccc" }}>
+                    
+                    <div style={{ padding: "10px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
+                      <strong style={{ fontSize: "12px", color: "#0b1b3d", display: "block", marginBottom: "8px", borderBottom: "1px solid #eee", paddingBottom: "4px" }}>PROCEDURE DEFINITION</strong>
+                      
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                        <label style={labelStyle}>Fix / Station (Lat / Lon / Alt)</label>
+                        <button style={{...activeTabBtn, padding: "2px 6px", fontSize: "10px"}} onClick={() => getCenterFromMap(setT1, t1)}>📍 Map</button>
+                      </div>
+                      <div style={rowStyle}>
+                        <input style={numInputStyle} type="number" value={t1.lat} onChange={e => setT1({...t1, lat: +e.target.value})} placeholder="Lat" />
+                        <input style={numInputStyle} type="number" value={t1.lon} onChange={e => setT1({...t1, lon: +e.target.value})} placeholder="Lon" />
+                        <input style={numInputStyle} type="number" value={t1.alt} onChange={e => setT1({...t1, alt: +e.target.value})} placeholder="Alt (m)" />
+                      </div>
+
+                      <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
+                        <div style={{ flex: 1.5 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Procedure Type</label>
+                          <select style={inputStyle} value={holdingParams.type} onChange={e => setHoldingParams({...holdingParams, type: e.target.value})}>
+                            <option value="HOLDING">Holding Pattern</option>
+                            <option value="RACETRACK">Racetrack</option>
+                            <option value="BASE_TURN">Base Turn</option>
+                            <option value="PROC_TURN_45">45°/180° Proc Turn</option>
+                          </select>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Inbound Brg (°)</label>
+                          <input type="number" style={inputStyle} value={holdingParams.inbound_brg} onChange={e => setHoldingParams({...holdingParams, inbound_brg: +e.target.value})} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Turn Dir</label>
+                          <select style={inputStyle} value={holdingParams.turn_dir} onChange={e => setHoldingParams({...holdingParams, turn_dir: e.target.value})}>
+                            <option value="R">Right</option>
+                            <option value="L">Left</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ padding: "10px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
+                      <strong style={{ fontSize: "12px", color: "#0b1b3d", display: "block", marginBottom: "8px", borderBottom: "1px solid #eee", paddingBottom: "4px" }}>FLIGHT PARAMETERS</strong>
+                      
+                      <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>IAS (kt)</label>
+                          <input type="number" style={inputStyle} value={holdingParams.ias} onChange={e => setHoldingParams({...holdingParams, ias: +e.target.value})} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Altitude (ft)</label>
+                          <input type="number" style={inputStyle} value={holdingParams.alt_ft} onChange={e => setHoldingParams({...holdingParams, alt_ft: +e.target.value})} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Time (min)</label>
+                          <input type="number" step="0.5" style={inputStyle} value={holdingParams.time_min} onChange={e => setHoldingParams({...holdingParams, time_min: +e.target.value})} />
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>AD Elev (ft)</label>
+                          <input type="number" style={inputStyle} value={holdingParams.ad_elev_ft} onChange={e => setHoldingParams({...holdingParams, ad_elev_ft: +e.target.value})} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Temp Ref (°C)</label>
+                          <input type="number" style={inputStyle} value={holdingParams.temp_ref_c} onChange={e => setHoldingParams({...holdingParams, temp_ref_c: +e.target.value})} />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
 
