@@ -2017,15 +2017,14 @@ const handleDownloadLogs = async () => {
                 <label style={labelStyle}>Surface Family</label>
                 <select style={inputStyle} value={family} onChange={e => setFamily(e.target.value)}>
                   <option value="OLS">OLS (Annex 14)</option>
-                  <option value="RNAV">RNAV / RNP Procedure</option>
-                  <option value="VSS">VSS (Visual Segment)</option>
-                  <option value="OAS">OAS (ILS Obstacle Assessment)</option>
+                  <option value="RNAV">RNAV / RNP APCH</option>
+                  <option value="VSS">VSS</option>
+                  <option value="OAS">OAS (ILS)</option>
                   <option value="APV_BARO">OAS (APV Baro-VNAV) - In progress</option>
                   <option value="OFZ">OFZ / OES</option>
-                  <option value="NAVAID">Navaid Restrictive</option>
-                  <option value="CUSTOM">Custom Surface</option>
+                  <option value="NAVAID">Navaid BRA</option>
+                  <option value="CUSTOM">Import custom Surfaces</option>
                   <option value="HELIPORT">Heliport OLS</option>
-                  <option value="HOLDING">Holding / Reversal (PANS-OPS)</option>
                 </select>
 
                 {/* --- ONLY SHOW T1, T2, and ARP for Aeroplane OLS, OFZ, VSS, and OAS --- */}
