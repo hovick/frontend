@@ -1753,7 +1753,7 @@ const handleDownloadLogs = async () => {
           {/* --- QUICK TOOLS WIDGET (TOP RIGHT) --- */}
       <div style={{
         position: "absolute",
-        top: "50px",
+        top: "70px",
         right: "20px",
         display: "flex",
         flexDirection: "column",
@@ -1897,7 +1897,7 @@ const handleDownloadLogs = async () => {
               </label>
               <label style={{ fontSize: "12px", display: "flex", gap: "5px", alignItems: "center", color: "#000" }}>
                 <input type="checkbox" checked={isGenericMode} onChange={e => setIsGenericMode(e.target.checked)} />
-                Activate Generic Color Mode (Blueprint)
+                Generic Color Surfaces
               </label>
               {/* --- NEW: 3D Buildings Checkbox --- */}
               <label 
@@ -1920,7 +1920,7 @@ const handleDownloadLogs = async () => {
                   // Physically disable the box for free users
                   disabled={!user?.is_premium} 
                 />
-                Show 3D Buildings {!user?.is_premium && <span style={{color: "gold"}}>★</span>}
+                3D Buildings {!user?.is_premium && <span style={{color: "gold"}}>★</span>}
               </label>
             </div>
 
@@ -2079,7 +2079,7 @@ const handleDownloadLogs = async () => {
                   <>
                   <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
                     <div style={{ flex: 1 }}>
-                      <label style={labelStyle}>Runway Type / Regulation Set</label>
+                      <label style={labelStyle}>Runway Type</label>
                       <select style={inputStyle} value={runwayType} onChange={e => setRunwayType(e.target.value)}>
                         <option value="non_instrument">Non-Instrument</option>
                         <option value="non_precision">Non-Precision Approach</option>
@@ -2090,7 +2090,7 @@ const handleDownloadLogs = async () => {
                     <div style={{ flex: 1 }}>
                       <label style={labelStyle}>ARC Override</label>
                       <select style={inputStyle} value={arcCode} onChange={e => setArcCode(e.target.value)}>
-                        <option value="Auto">Auto (By Distance)</option>
+                        <option value="Auto">Auto (By Dist.)</option>
                         <option value="1">Code 1</option>
                         <option value="2">Code 2</option>
                         <option value="3">Code 3</option>
@@ -2354,7 +2354,7 @@ const handleDownloadLogs = async () => {
                             <input type="number" style={inputStyle} value={oasParams.rdh} onChange={e => setOasParams({...oasParams, rdh: +e.target.value})} />
                           </div>
                           <div style={{ flex: 1 }}>
-                            <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>LOC-THR Dist (m)</label>
+                            <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>LOC-THR (m)</label>
                             <input type="number" style={inputStyle} value={oasParams.locThrDist} onChange={e => setOasParams({...oasParams, locThrDist: +e.target.value})} />
                           </div>
                           <div style={{ flex: 1 }}>
@@ -2656,11 +2656,11 @@ const handleDownloadLogs = async () => {
                     <div style={{ display: "flex", gap: "15px", marginTop: "4px", backgroundColor: "#ffffff", padding: "8px", borderRadius: "4px", border: "1px solid #ddd" }}>
                       <label style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "5px", color: "#0b1b3d", fontWeight: "bold" }}>
                         <input type="checkbox" checked={vssParams.drawVSS} onChange={e => setVssParams({...vssParams, drawVSS: e.target.checked})} />
-                        Draw VSS (Top)
+                        Draw VSS
                       </label>
                       <label style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "5px", color: "#0b1b3d", fontWeight: "bold" }}>
                         <input type="checkbox" checked={vssParams.drawOCS} onChange={e => setVssParams({...vssParams, drawOCS: e.target.checked})} />
-                        Draw OCS (Floor)
+                        Draw OCS
                       </label>
                     </div>
                   </div>
