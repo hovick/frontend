@@ -245,7 +245,7 @@ export default function Home() {
   // --- HELPER: Auto-fetch Geoid Offset ---
   const autoFetchGeoidOffset = async (lat: number, lon: number) => {
     try {
-      const res = await fetch(`${API_BASE}/geoid-offset?lat=${lat}&lon=${lon}`);
+      const res = await fetch(`${API_BASE}/geoid-offset?lat=${lat}&lon=${lon}&t=${Date.now()}`);
       const data = await res.json();
       if (data.offset !== undefined) {
         setGeoidOffset(data.offset);
@@ -462,7 +462,10 @@ export default function Home() {
   const getAuthHeaders = (): Record<string, string> => {
     const token = localStorage.getItem("aero_token");
     const headers: Record<string, string> = {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0"
     };
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
@@ -1308,7 +1311,7 @@ export default function Home() {
   const handleSearchPublicSurfaces = async (query: string) => {
     setPubSurfQuery(query);
     try {
-        const res = await fetch(`${API_BASE}/search/public-surfaces?q=${query}`);
+        const res = await fetch(`${API_BASE}/search/public-surfaces?q=${query}&t=${Date.now()}`);
         if (res.ok) {
             const data = await res.json();
             setPubSurfResults(data); // Removed the slice, the backend now limits to 10 safely
@@ -1650,7 +1653,7 @@ const handleDownloadLogs = async () => {
 
           // 3. Save to memory
           if (!user || !user.is_premium) {
-              setSavedSurfaces([data]);
+              setSavedSurfaces(prev => [...prev, data]); 
               setSelectedAnalysisAirport(data.airport_name);
               setSelectedAnalysisOwner(0);
           } else {
@@ -3014,8 +3017,8 @@ const handleDownloadLogs = async () => {
                 <label style={labelStyle}>Or select from your saved airports</label>
                 <select 
                   style={inputStyle} 
-                  value={selectedAnalysisOwner === user?.id ? selectedAnalysisAirport : ""} 
-                  onChange={async e => { // <-- 1. Mark as async
+                  value={savedSurfaces.some(s => s.airport_name === selectedAnalysisAirport) ? selectedAnalysisAirport : ""} 
+                  onChange={async e => {
                     const chosenAirport = e.target.value;
                     setSelectedAnalysisAirport(chosenAirport);
                     setSelectedAnalysisOwner(user?.id || 0);
