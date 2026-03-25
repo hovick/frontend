@@ -1639,7 +1639,7 @@ const handleDownloadLogs = async () => {
 
       const data = await res.json();
       if (data.error) return alert(data.error); // Catch DB limits
-
+      
       if (viewerRef.current && data.geometry) {
           // 1. Fetch EGM96 offset
           let newOffset = geoidOffset;
@@ -1648,43 +1648,22 @@ const handleDownloadLogs = async () => {
               newOffset = await autoFetchGeoidOffset(firstCoord[1], firstCoord[0]);
           }
 
-          // 2. Draw it on the globe
+          // 2. Let our master function draw it, apply the offset, and zoom the camera!
           handleDrawSurface([data], newOffset);
 
-          // 3. Guests: save locally only and stop here
+          // 3. Save to memory
           if (!user || !user.is_premium) {
-              setSavedSurfaces(prev => [...prev, data]);
+              setSavedSurfaces(prev => [...prev, data]); 
               setSelectedAnalysisAirport(data.airport_name);
               setSelectedAnalysisOwner(0);
-              return; // Stop here — guests don't save to the backend
-          }
-
-          // 4. Logged-in premium users: persist to database
-          // Using a nested try/catch so an Edge/network failure shows a clear message
-          // rather than failing silently
-          try {
-              const saveRes = await fetch(`${API_BASE}/surfaces`, {
-                  method: "POST",
-                  headers: getAuthHeaders(),
-                  body: JSON.stringify(data),
-              });
-
-              if (!saveRes.ok) {
-                  const errorData = await saveRes.json();
-                  throw new Error(errorData.detail || "Failed to save surface to database.");
-              }
-
-              const savedData = await saveRes.json();
-              setSavedSurfaces(prev => [...prev, savedData]);
-          } catch (saveErr: any) {
-              console.error("Save error:", saveErr);
-              alert(`Could not save surface: ${saveErr.message}. Please check your connection or browser settings.`);
+          } else {
+              setSavedSurfaces(prev => [...prev, data]);
           }
       }
     } catch (error) {
-      alert("An error occurred while creating the surface.");
+    alert("An error occurred while creating the surface.");
     } finally {
-        setIsCreating(false); // STOP LOADING (always runs)
+        setIsCreating(false); // STOP LOADING (Always runs)
     }
   };
 
