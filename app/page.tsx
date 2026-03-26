@@ -1631,75 +1631,49 @@ const handleDownloadLogs = async () => {
 
     setIsCreating(true); // START LOADING
     try {
-      const res = await fetch(`${API_BASE}/create-surface`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify(bodyData),
-      });
+        // --- STEP 1: CALCULATE AND SAVE ---
+        // This single call creates the geometry AND saves it to Supabase (if logged in)
+        const res = await fetch(`${API_BASE}/create-surface`, {
+            method: "POST",
+            headers: getAuthHeaders(),
+            body: JSON.stringify(bodyData),
+        });
 
-      const data = await res.json();
-      if (data.error) return alert(data.error); // Catch DB limits
-      
-      if (viewerRef.current && data.geometry) {
-          // 1. Fetch EGM96 offset
-          let newOffset = geoidOffset;
-          const firstCoord = getFirstCoord(data.geometry);
-          if (firstCoord) {
-              newOffset = await autoFetchGeoidOffset(firstCoord[1], firstCoord[0]);
-          }
+        // --- STEP 2: CHECK FOR ERRORS IMMEDIATELY ---
+        if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(`Server Status ${res.status}: ${errorText}`);
+        }
 
-          // 2. Let our master function draw it, apply the offset, and zoom the camera!
-          handleDrawSurface([data], newOffset);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error); // Catch DB limits
 
-          // 3. Save to memory
-          if (!user || !user.is_premium) {
-              // Use prev => [...prev, data] so guest surfaces stack instead of overwriting!
-              setSavedSurfaces(prev => [...prev, data]); 
-              setSelectedAnalysisAirport(data.airport_name);
-              setSelectedAnalysisOwner(0);
-              alert("Guest surface saved to temporary memory!");
-              return; // Stop here! Guests don't save to the backend.
-          }
-          // 2. If the user IS logged in, send to the database FIRST
-          try {
-              console.log("Attempting to save surface. Payload:", data);
-              
-              const res = await fetch(`${API_BASE}/surfaces`, {
-                  method: "POST",
-                  headers: getAuthHeaders(),
-                  body: JSON.stringify(data), // Using 'data' instead of surfacePayload
-              });
+        // --- STEP 3: UPDATE THE UI AND MAP ---
+        if (viewerRef.current && data.geometry) {
+            // Fetch EGM96 offset
+            let newOffset = geoidOffset;
+            const firstCoord = getFirstCoord(data.geometry);
+            if (firstCoord) {
+                newOffset = await autoFetchGeoidOffset(firstCoord[1], firstCoord[0]);
+            }
+            handleDrawSurface([data], newOffset);
+            setSavedSurfaces(prev => [...prev, data]);
+            setSelectedAnalysisAirport(data.airport_name);
+            setSelectedAnalysisOwner(0);
+            
+            alert("Surface created and saved successfully!");
+        }
 
-              if (!res.ok) {
-                  const errorText = await res.text();
-                  throw new Error(`Server Status ${res.status}: ${errorText}`);
-              }
-
-              // Safely read the raw text first to prevent Chrome crashes
-              const textResponse = await res.text();
-              let savedData = null;
-              if (textResponse) {
-                  try { savedData = JSON.parse(textResponse); } 
-                  catch (e) { console.warn("Backend response was not JSON, but save was successful."); }
-              }
-
-              // If the backend returned the created surface object, use it. Otherwise, use our local 'data'.
-              const finalSurface = (savedData && savedData.name) ? savedData : data;
-              
-              // ONLY UPDATE THE UI IF EVERYTHING SUCCEEDS
-              setSavedSurfaces(prev => [...prev, finalSurface]);
-              alert("Surface saved successfully to your account!");
-
-          } catch (err: any) {
-              // This will now print the EXACT reason Edge is failing
-              console.error("Save error:", err);
-              alert(`Could not save surface. Reason: ${err.message || "Network Error or Request Blocked"}`);
-          }
-      }
     } catch (err: any) {
-        // This will now print the EXACT reason Edge is failing
-        console.error("Save error:", err);
-        alert(`Could not save surface. Reason: ${err.message || "Network Error or Request Blocked"}`);
+        console.error("Save error details:", err);
+        
+        if (err.message.includes("404")) {
+            alert("Error 404: The system couldn't find the 'Save' route. Ensure your API_BASE is correct.");
+        } else {
+            alert(`Could not save surface. Reason: ${err.message || "Network Error"}`);
+        }
+    } finally {
+        setIsCreating(false);
     }
   };
 
