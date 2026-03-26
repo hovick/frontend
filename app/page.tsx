@@ -1653,17 +1653,53 @@ const handleDownloadLogs = async () => {
 
           // 3. Save to memory
           if (!user || !user.is_premium) {
+              // Use prev => [...prev, data] so guest surfaces stack instead of overwriting!
               setSavedSurfaces(prev => [...prev, data]); 
               setSelectedAnalysisAirport(data.airport_name);
               setSelectedAnalysisOwner(0);
-          } else {
-              setSavedSurfaces(prev => [...prev, data]);
+              alert("Guest surface saved to temporary memory!");
+              return; // Stop here! Guests don't save to the backend.
+          }
+          // 2. If the user IS logged in, send to the database FIRST
+          try {
+              console.log("Attempting to save surface. Payload:", data);
+              
+              const res = await fetch(`${API_BASE}/surfaces`, {
+                  method: "POST",
+                  headers: getAuthHeaders(),
+                  body: JSON.stringify(data), // Using 'data' instead of surfacePayload
+              });
+
+              if (!res.ok) {
+                  const errorText = await res.text();
+                  throw new Error(`Server Status ${res.status}: ${errorText}`);
+              }
+
+              // Safely read the raw text first to prevent Chrome crashes
+              const textResponse = await res.text();
+              let savedData = null;
+              if (textResponse) {
+                  try { savedData = JSON.parse(textResponse); } 
+                  catch (e) { console.warn("Backend response was not JSON, but save was successful."); }
+              }
+
+              // If the backend returned the created surface object, use it. Otherwise, use our local 'data'.
+              const finalSurface = (savedData && savedData.name) ? savedData : data;
+              
+              // ONLY UPDATE THE UI IF EVERYTHING SUCCEEDS
+              setSavedSurfaces(prev => [...prev, finalSurface]);
+              alert("Surface saved successfully to your account!");
+
+          } catch (err: any) {
+              // This will now print the EXACT reason Edge is failing
+              console.error("Save error:", err);
+              alert(`Could not save surface. Reason: ${err.message || "Network Error or Request Blocked"}`);
           }
       }
-    } catch (error) {
-    alert("An error occurred while creating the surface.");
-    } finally {
-        setIsCreating(false); // STOP LOADING (Always runs)
+    } catch (err: any) {
+        // This will now print the EXACT reason Edge is failing
+        console.error("Save error:", err);
+        alert(`Could not save surface. Reason: ${err.message || "Network Error or Request Blocked"}`);
     }
   };
 
