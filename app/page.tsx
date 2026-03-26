@@ -163,7 +163,6 @@ export default function Home() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
-  const [registerAsPro, setRegisterAsPro] = useState(false);
   const cesiumContainer = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Cesium.Viewer | null>(null);
   const [mounted, setMounted] = useState(false);
