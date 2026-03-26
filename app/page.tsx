@@ -508,6 +508,7 @@ export default function Home() {
       formData.append("password", passwordInput);
 
       try {
+        // --- 1. VERIFY PASSWORD & GET TOKEN ---
         const res = await fetch(`${API_BASE}/login`, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -517,20 +518,27 @@ export default function Home() {
         if (data.detail || !data.access_token) return alert(`Login Error: ${data.detail || "Invalid credentials"}`);
         
         localStorage.setItem("aero_token", data.access_token);
+        
+        // --- 2. GET PROFILE & INSTANTLY CLOSE LOGIN WINDOW ---
         const res2 = await fetch(`${API_BASE}/users/me`, {
             headers: { "Authorization": `Bearer ${data.access_token}` }
         });
         const userData = await res2.json();
+        
         setUser(userData);
         setLoginInput("");
         setPasswordInput("");
-        setShowAccountPanel(false);
-        // Fetch surfaces without reloading
-        const surfRes = await fetch(`${API_BASE}/get-surfaces`, {
+        setShowAccountPanel(false); // UI Updates instantly!
+
+        // --- 3. FETCH HEAVY 3D DATA IN THE BACKGROUND ---
+        // Notice we REMOVED 'await' here so it doesn't freeze the screen
+        fetch(`${API_BASE}/get-surfaces`, {
             headers: { "Authorization": `Bearer ${data.access_token}` }
-        });
-        const surfs = await surfRes.json();
-        setSavedSurfaces(surfs);
+        })
+        .then(surfRes => surfRes.json())
+        .then(surfs => setSavedSurfaces(surfs))
+        .catch(err => console.error("Background fetch failed:", err));
+
       } catch (err) {
         alert("Network error: Could not reach the server.");
       }
@@ -1631,39 +1639,56 @@ const handleDownloadLogs = async () => {
 
     setIsCreating(true); // START LOADING
     try {
-      const res = await fetch(`${API_BASE}/create-surface`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify(bodyData),
-      });
+        // --- STEP 1: CALCULATE AND SAVE ---
+        // This single call creates the geometry AND saves it to Supabase (if logged in)
+        const res = await fetch(`${API_BASE}/create-surface`, {
+            method: "POST",
+            headers: getAuthHeaders(),
+            body: JSON.stringify(bodyData),
+        });
 
-      const data = await res.json();
-      if (data.error) return alert(data.error); // Catch DB limits
-      
-      if (viewerRef.current && data.geometry) {
-          // 1. Fetch EGM96 offset
-          let newOffset = geoidOffset;
-          const firstCoord = getFirstCoord(data.geometry);
-          if (firstCoord) {
-              newOffset = await autoFetchGeoidOffset(firstCoord[1], firstCoord[0]);
-          }
+        // --- STEP 2: CHECK FOR ERRORS IMMEDIATELY ---
+        if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(`Server Status ${res.status}: ${errorText}`);
+        }
 
-          // 2. Let our master function draw it, apply the offset, and zoom the camera!
-          handleDrawSurface([data], newOffset);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error); // Catch DB limits
 
-          // 3. Save to memory
-          if (!user || !user.is_premium) {
-              setSavedSurfaces(prev => [...prev, data]); 
-              setSelectedAnalysisAirport(data.airport_name);
-              setSelectedAnalysisOwner(0);
-          } else {
-              setSavedSurfaces(prev => [...prev, data]);
-          }
-      }
-    } catch (error) {
-    alert("An error occurred while creating the surface.");
+        // --- STEP 3: UPDATE THE UI AND MAP ---
+        if (viewerRef.current && data.geometry) {
+            // Fetch EGM96 offset
+            let newOffset = geoidOffset;
+            const firstCoord = getFirstCoord(data.geometry);
+            if (firstCoord) {
+                newOffset = await autoFetchGeoidOffset(firstCoord[1], firstCoord[0]);
+            }
+
+            // Draw it on the map
+            handleDrawSurface([data], newOffset);
+
+            // Update your "Saved Surfaces" list in the sidebar
+            setSavedSurfaces(prev => [...prev, data]);
+            setSelectedAnalysisAirport(data.airport_name);
+            setSelectedAnalysisOwner(0);
+            
+            alert("Surface created and saved successfully!");
+        }
+
+    } catch (err: any) {
+        // --- THIS IS THE ONLY CATCH YOU NEED ---
+        console.error("Save error details:", err);
+        
+        if (err.message.includes("404")) {
+            alert("Error 404: The system couldn't find the 'Save' route. Ensure your API_BASE is correct.");
+        } else {
+            alert(`Could not save surface. Reason: ${err.message || "Network Error"}`);
+        }
     } finally {
-        setIsCreating(false); // STOP LOADING (Always runs)
+        // --- THE FIX FOR "LONG THINKING" ---
+        // This ensures the spinner STOPS even if an error occurs
+        setIsCreating(false);
     }
   };
 
