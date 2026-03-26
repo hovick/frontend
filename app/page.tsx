@@ -154,6 +154,7 @@ export default function Home() {
   const [loginInput, setLoginInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [showAccountPanel, setShowAccountPanel] = useState(true); // Default to open so they see they need to login
   const [expandedSurfaceId, setExpandedSurfaceId] = useState<string | null>(null);
   
@@ -476,6 +477,10 @@ export default function Home() {
   const handleAuth = async () => {
     if (!loginInput || !passwordInput) return alert("Enter username and password");
     
+    // --- THE LOCK: Prevent double-clicks! ---
+    if (isLoggingIn) return; 
+    setIsLoggingIn(true); // Lock the button
+
     if (isRegistering) {
       try {
         const res = await fetch(`${API_BASE}/register`, {
@@ -484,42 +489,43 @@ export default function Home() {
           body: JSON.stringify({ 
             username: loginInput, 
             password: passwordInput, 
-            email: registerEmail, // --- NEW ---
+            email: registerEmail,
             is_premium: false 
           })
         });
         
         const data = await res.json();
-        
         if (!res.ok) {
-          // This will now print the EXACT error FastAPI is throwing
-          return alert(`Registration Error: ${data.detail || "Server failed"}`); 
+          alert(`Registration Error: ${data.detail || "Server failed"}`); 
+        } else {
+          setIsRegistering(false);
+          alert("Registration successful! Please log in.");
         }
-        
-        setIsRegistering(false);
-        alert("Registration successful! Please log in.");
       } catch (err) {
         alert("Network error: Could not reach the server.");
+      } finally {
+        setIsLoggingIn(false); // Unlock the button
       }
     } else {
-      // OAuth2 requires URL Encoded Form Data for login
       const formData = new URLSearchParams();
       formData.append("username", loginInput);
       formData.append("password", passwordInput);
 
       try {
-        // --- 1. VERIFY PASSWORD & GET TOKEN ---
         const res = await fetch(`${API_BASE}/login`, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: formData
         });
         const data = await res.json();
-        if (data.detail || !data.access_token) return alert(`Login Error: ${data.detail || "Invalid credentials"}`);
+        
+        if (data.detail || !data.access_token) {
+           setIsLoggingIn(false); // Unlock if bad password
+           return alert(`Login Error: ${data.detail || "Invalid credentials"}`);
+        }
         
         localStorage.setItem("aero_token", data.access_token);
         
-        // --- 2. GET PROFILE & INSTANTLY CLOSE LOGIN WINDOW ---
         const res2 = await fetch(`${API_BASE}/users/me`, {
             headers: { "Authorization": `Bearer ${data.access_token}` }
         });
@@ -528,10 +534,12 @@ export default function Home() {
         setUser(userData);
         setLoginInput("");
         setPasswordInput("");
-        setShowAccountPanel(false); // UI Updates instantly!
+        
+        // Unlock and close the panel instantly!
+        setIsLoggingIn(false); 
+        setShowAccountPanel(false); 
 
-        // --- 3. FETCH HEAVY 3D DATA IN THE BACKGROUND ---
-        // Notice we REMOVED 'await' here so it doesn't freeze the screen
+        // Fetch heavy 3D data quietly in the background
         fetch(`${API_BASE}/get-surfaces`, {
             headers: { "Authorization": `Bearer ${data.access_token}` }
         })
@@ -541,6 +549,7 @@ export default function Home() {
 
       } catch (err) {
         alert("Network error: Could not reach the server.");
+        setIsLoggingIn(false); // Unlock if server crashes
       }
     }
   };
@@ -3650,8 +3659,18 @@ const handleDownloadLogs = async () => {
                       <input style={{...inputStyle, padding: "6px"}} value={loginInput} onChange={e => setLoginInput(e.target.value)} placeholder="Username" />
                       <input type="password" style={{...inputStyle, padding: "6px"}} value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="Password" />
 
-                      <button style={{...activeTabBtn, padding: "8px", backgroundColor: isRegistering ? "#28a745" : "#007bff"}} onClick={handleAuth}>
-                        {isRegistering ? "Sign Up" : "Log In"}
+                      <button 
+                        disabled={isLoggingIn}
+                        style={{
+                          ...activeTabBtn, 
+                          padding: "8px", 
+                          backgroundColor: isRegistering ? "#28a745" : "#007bff",
+                          opacity: isLoggingIn ? 0.6 : 1,
+                          cursor: isLoggingIn ? "wait" : "pointer"
+                        }} 
+                        onClick={handleAuth}
+                      >
+                        {isLoggingIn ? "⏳ Processing..." : (isRegistering ? "Sign Up" : "Log In")}
                       </button>
                       
                       <button style={{ backgroundColor: "transparent", border: "none", color: "#007bff", fontSize: "11px", cursor: "pointer", marginTop: "5px" }} onClick={() => setIsRegistering(!isRegistering)}>
