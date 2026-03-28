@@ -278,10 +278,11 @@ export default function Home() {
   // Custom Overrides (NM by default for XTT/ATT, Meters for SW?)
   // Let's assume standard units: NM for XTT/ATT, NM or M for SW? 
   // PANS-OPS tables usually give km or NM. Let's use NM to be safe and consistent.
-  const [rnavOverrides, setRnavOverrides] = useState({
+  const[rnavOverrides, setRnavOverrides] = useState({
     if_xtt: 1.0, if_att: 0.8, if_sw: 2.5,
     faf_xtt: 0.3, faf_att: 0.24, faf_sw: 1.45,
-    mapt_xtt: 0.3, mapt_att: 0.24, mapt_sw: 0.95
+    mapt_xtt: 0.3, mapt_att: 0.24, mapt_sw: 0.95,
+    mapt_soc: "" // Distance in NM from MAPt to SOC
   });
 
   // --- Heliport Specific State ---
@@ -1548,6 +1549,7 @@ const handleDownloadLogs = async () => {
             if_xtt: rnavOverrides.if_xtt, if_att: rnavOverrides.if_att, if_sw: rnavOverrides.if_sw,
             faf_xtt: rnavOverrides.faf_xtt, faf_att: rnavOverrides.faf_att, faf_sw: rnavOverrides.faf_sw,
             mapt_xtt: rnavOverrides.mapt_xtt, mapt_att: rnavOverrides.mapt_att, mapt_sw: rnavOverrides.mapt_sw,
+            mapt_soc: rnavOverrides.mapt_soc ? Number(rnavOverrides.mapt_soc) : null,
         } : null,
         navaid_params: family === "NAVAID" ? {
             n_type: navType,
@@ -2656,6 +2658,17 @@ const handleDownloadLogs = async () => {
                                 <input style={{...numInputStyle, padding:"2px"}} type="number" value={rnavOverrides.mapt_xtt} onChange={e => setRnavOverrides({...rnavOverrides, mapt_xtt: +e.target.value})} />
                                 <input style={{...numInputStyle, padding:"2px"}} type="number" value={rnavOverrides.mapt_att} onChange={e => setRnavOverrides({...rnavOverrides, mapt_att: +e.target.value})} />
                                 <input style={{...numInputStyle, padding:"2px"}} type="number" value={rnavOverrides.mapt_sw} onChange={e => setRnavOverrides({...rnavOverrides, mapt_sw: +e.target.value})} />
+                            </div>
+                            
+                            <div style={{display:"flex", gap:"5px", marginTop:"5px", borderTop:"1px solid #eee", paddingTop:"5px", alignItems:"center"}}>
+                                <span style={{flex:1, fontSize:"11px"}}>MAPt to SOC (NM)</span>
+                                <input 
+                                    style={{...numInputStyle, padding:"4px", flex: 2}} 
+                                    type="number" 
+                                    placeholder="Auto-calculated by VTAS" 
+                                    value={rnavOverrides.mapt_soc} 
+                                    onChange={e => setRnavOverrides({...rnavOverrides, mapt_soc: e.target.value})} 
+                                />
                             </div>
                         </div>
                     )}
