@@ -84,7 +84,7 @@ export default function Home() {
     if_lat: 0, if_lon: 0,
     faf_lat: 0, faf_lon: 0, faf_alt: 0,
     mapt_lat: 0, mapt_lon: 0, mapt_alt: 0,
-    ma_end_lat: 0, ma_end_lon: 0, ma_end_alt: 0,
+    ma_end_lat: 0, ma_end_lon: 0,
     acft_cat: "C"
   });
   // --- OAS (Obstacle Assessment Surface) State - ICAO Standard ---
@@ -1542,7 +1542,7 @@ const handleDownloadLogs = async () => {
             if_lat: rnavParams.if_lat, if_lon: rnavParams.if_lon,
             faf_lat: rnavParams.faf_lat, faf_lon: rnavParams.faf_lon, faf_alt: rnavParams.faf_alt,
             mapt_lat: rnavParams.mapt_lat, mapt_lon: rnavParams.mapt_lon, mapt_alt: rnavParams.mapt_alt,
-            ma_end_lat: rnavParams.ma_end_lat, ma_end_lon: rnavParams.ma_end_lon, ma_end_alt: rnavParams.ma_end_alt,
+            ma_end_lat: rnavParams.ma_end_lat, ma_end_lon: rnavParams.ma_end_lon,
             acft_cat: rnavParams.acft_cat,
             
             use_custom_values: useCustomRnav,
@@ -2063,7 +2063,7 @@ const handleDownloadLogs = async () => {
                   <option value="RNAV">RNAV / RNP APCH</option>
                   <option value="VSS">VSS</option>
                   <option value="OAS">OAS (ILS)</option>
-                  <option value="APV_BARO">OAS (APV Baro-VNAV) - In progress</option>
+                  <option value="APV_BARO">OAS (APV Baro-VNAV)</option>
                   <option value="OFZ">OFZ / OES</option>
                   <option value="NAVAID">Navaid BRA</option>
                   <option value="CUSTOM">Import custom Surfaces</option>
@@ -2612,7 +2612,6 @@ const handleDownloadLogs = async () => {
                         <div style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
                           <input type="number" placeholder="Lat" style={inputStyle} value={rnavParams.ma_end_lat || ""} onChange={e => setRnavParams({...rnavParams, ma_end_lat: +e.target.value})} />
                           <input type="number" placeholder="Lon" style={inputStyle} value={rnavParams.ma_end_lon || ""} onChange={e => setRnavParams({...rnavParams, ma_end_lon: +e.target.value})} />
-                          <input type="number" placeholder="Alt" style={inputStyle} value={rnavParams.ma_end_alt || ""} onChange={e => setRnavParams({...rnavParams, ma_end_alt: +e.target.value})} title={`Altitude in ${rnavParams.alt_unit}`} />
                           <button 
                             onClick={(e) => {
                               e.stopPropagation(); 
