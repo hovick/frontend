@@ -78,12 +78,14 @@ export default function Home() {
   const [toolTip, setToolTip] = useState(""); // Instructions (e.g. "Click Start Point")
   const [arcCode, setArcCode] = useState<string>("Auto"); // "Auto", "1", "2", "3", or "4"
   // --- Missing RNAV State ---
-  const [rnavParams, setRnavParams] = useState({
+  const[rnavParams, setRnavParams] = useState({
     mode: "Advanced RNP",
     alt_unit: "m",
     if_lat: 0, if_lon: 0,
     faf_lat: 0, faf_lon: 0, faf_alt: 0,
-    mapt_lat: 0, mapt_lon: 0, mapt_alt: 0
+    mapt_lat: 0, mapt_lon: 0, mapt_alt: 0,
+    ma_end_lat: 0, ma_end_lon: 0, ma_end_alt: 0,
+    acft_cat: "C"
   });
   // --- OAS (Obstacle Assessment Surface) State - ICAO Standard ---
   const [oasParams, setOasParams] = useState({
@@ -182,7 +184,7 @@ export default function Home() {
   const [exaggeration, setExaggeration] = useState(1);
   const [geoidOffset, setGeoidOffset] = useState(0);
   // --- RNAV Map Cursor Selector ---
-  const [selectingRnavPoint, setSelectingRnavPoint] = useState<"IF" | "FAF" | "MAPT" | null>(null);
+  const [selectingRnavPoint, setSelectingRnavPoint] = useState<"IF" | "FAF" | "MAPT" | "MA_END" | null>(null);
 
   useEffect(() => {
     // Only turn on the map listener if the user clicked a target button
@@ -202,6 +204,7 @@ export default function Home() {
           if (selectingRnavPoint === "IF") return { ...prev, if_lat: lat, if_lon: lon };
           if (selectingRnavPoint === "FAF") return { ...prev, faf_lat: lat, faf_lon: lon };
           if (selectingRnavPoint === "MAPT") return { ...prev, mapt_lat: lat, mapt_lon: lon };
+          if (selectingRnavPoint === "MA_END") return { ...prev, ma_end_lat: lat, ma_end_lon: lon };
           return prev;
         });
 
@@ -1538,6 +1541,8 @@ const handleDownloadLogs = async () => {
             if_lat: rnavParams.if_lat, if_lon: rnavParams.if_lon,
             faf_lat: rnavParams.faf_lat, faf_lon: rnavParams.faf_lon, faf_alt: rnavParams.faf_alt,
             mapt_lat: rnavParams.mapt_lat, mapt_lon: rnavParams.mapt_lon, mapt_alt: rnavParams.mapt_alt,
+            ma_end_lat: rnavParams.ma_end_lat, ma_end_lon: rnavParams.ma_end_lon, ma_end_alt: rnavParams.ma_end_alt,
+            acft_cat: rnavParams.acft_cat,
             
             use_custom_values: useCustomRnav,
             if_xtt: rnavOverrides.if_xtt, if_att: rnavOverrides.if_att, if_sw: rnavOverrides.if_sw,
@@ -2526,6 +2531,15 @@ const handleDownloadLogs = async () => {
                               <option value="ft">Feet</option>
                             </select>
                         </div>
+                        <div style={{flex:0.5}}>
+                            <label style={labelStyle}>Acft Cat</label>
+                            <select style={inputStyle} value={rnavParams.acft_cat} onChange={e => setRnavParams({...rnavParams, acft_cat: e.target.value})}>
+                              <option value="A">CAT A</option>
+                              <option value="B">CAT B</option>
+                              <option value="C">CAT C</option>
+                              <option value="D">CAT D</option>
+                            </select>
+                        </div>
                     </div>
 
                     {/* --- IF / FAF / MAPt Coordinates with Map Targets --- */}
@@ -2586,6 +2600,26 @@ const handleDownloadLogs = async () => {
                             title="Select on map"
                           >
                             {selectingRnavPoint === "MAPT" ? "❌" : "🎯"}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Missed Approach End Point */}
+                      <div style={{ padding: "8px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
+                        <strong style={{ fontSize: "11px", color: "#0b1b3d" }}>Missed Approach End Point</strong>
+                        <div style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
+                          <input type="number" placeholder="Lat" style={inputStyle} value={rnavParams.ma_end_lat || ""} onChange={e => setRnavParams({...rnavParams, ma_end_lat: +e.target.value})} />
+                          <input type="number" placeholder="Lon" style={inputStyle} value={rnavParams.ma_end_lon || ""} onChange={e => setRnavParams({...rnavParams, ma_end_lon: +e.target.value})} />
+                          <input type="number" placeholder="Alt" style={inputStyle} value={rnavParams.ma_end_alt || ""} onChange={e => setRnavParams({...rnavParams, ma_end_alt: +e.target.value})} title={`Altitude in ${rnavParams.alt_unit}`} />
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation(); 
+                              setSelectingRnavPoint(selectingRnavPoint === "MA_END" ? null : "MA_END");
+                            }} 
+                            style={{ padding: "0 8px", backgroundColor: selectingRnavPoint === "MA_END" ? "#dc3545" : "#e9ecef", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", fontSize: "14px" }} 
+                            title="Select on map"
+                          >
+                            {selectingRnavPoint === "MA_END" ? "❌" : "🎯"}
                           </button>
                         </div>
                       </div>
