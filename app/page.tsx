@@ -1482,10 +1482,10 @@ const handleDownloadLogs = async () => {
 
     // --- 8. TRIGGER DOWNLOAD ---
     // --- NEW: SAVE TO AUDIT LOG (Fire and Forget) ---
-    if (user?.is_premium) {
+    if (selectedAnalysisOwner !== 0) {
       fetch(`${API_BASE}/audit-log`, {
         method: "POST",
-        headers: getAuthHeaders(),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           airport_name: selectedAnalysisAirport,
           owner_id: selectedAnalysisOwner,
@@ -1498,6 +1498,7 @@ const handleDownloadLogs = async () => {
         })
       }).catch(err => console.error("Failed to save audit log", err));
     }
+    
     doc.save(`AeroCheck_Report_${Date.now()}.pdf`);
   };
 
@@ -2060,7 +2061,7 @@ const handleDownloadLogs = async () => {
                 <label style={labelStyle}>Surface Family</label>
                 <select style={inputStyle} value={family} onChange={e => setFamily(e.target.value)}>
                   <option value="OLS">OLS (Annex 14)</option>
-                  <option value="RNAV">RNAV / RNP APCH</option>
+                  <option value="RNAV">RNAV / RNP APCH (Straight MA only)</option>
                   <option value="VSS">VSS</option>
                   <option value="OAS">OAS (ILS)</option>
                   <option value="APV_BARO">OAS (APV Baro-VNAV)</option>
