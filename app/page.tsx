@@ -81,6 +81,10 @@ export default function Home() {
   const[rnavParams, setRnavParams] = useState({
     mode: "Advanced RNP",
     alt_unit: "m",
+    use_if: true,
+    use_faf: true,
+    use_mapt: true,
+    use_ma_end: true,
     if_lat: 0, if_lon: 0,
     faf_lat: 0, faf_lon: 0, faf_alt: 0,
     mapt_lat: 0, mapt_lon: 0, mapt_alt: 0,
@@ -1506,6 +1510,18 @@ const handleDownloadLogs = async () => {
     if (!airportName.trim() || !surfName.trim()) {
         return alert("Please enter both an Airport Name and a Surface Name before creating.");
     }
+    if (family === "RNAV") {
+        const r = rnavParams;
+        if (r.use_if && r.use_faf && r.if_lat === r.faf_lat && r.if_lon === r.faf_lon) {
+            return alert("IF and FAF cannot be the exact same location.");
+        }
+        if (r.use_faf && r.use_mapt && r.faf_lat === r.mapt_lat && r.faf_lon === r.mapt_lon) {
+            return alert("FAF and MAPt cannot be the exact same location.");
+        }
+        if (r.use_mapt && r.use_ma_end && r.mapt_lat === r.ma_end_lat && r.mapt_lon === r.ma_end_lon) {
+            return alert("MAPt and Missed Approach End cannot be the exact same location.");
+        }
+    }
     let bodyData: any = {
         airport_name: airportName,
         name: surfName,
@@ -1539,6 +1555,10 @@ const handleDownloadLogs = async () => {
         rnav_params: family === "RNAV" ? {
             mode: rnavMode,
             alt_unit: altUnit,
+            use_if: rnavParams.use_if,
+            use_faf: rnavParams.use_faf,
+            use_mapt: rnavParams.use_mapt,
+            use_ma_end: rnavParams.use_ma_end,
             // --- THE FIX: Use rnavParams instead of the hardcoded Colombia states ---
             if_lat: rnavParams.if_lat, if_lon: rnavParams.if_lon,
             faf_lat: rnavParams.faf_lat, faf_lon: rnavParams.faf_lon, faf_alt: rnavParams.faf_alt,
@@ -2549,81 +2569,73 @@ const handleDownloadLogs = async () => {
                     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                       
                       {/* Intermediate Fix (IF) */}
-                      <div style={{ padding: "8px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
-                        <strong style={{ fontSize: "11px", color: "#0b1b3d" }}>Intermediate Fix (IF)</strong>
-                        <div style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
-                          <input type="number" placeholder="Lat" style={inputStyle} value={rnavParams.if_lat || ""} onChange={e => setRnavParams({...rnavParams, if_lat: +e.target.value})} />
-                          <input type="number" placeholder="Lon" style={inputStyle} value={rnavParams.if_lon || ""} onChange={e => setRnavParams({...rnavParams, if_lon: +e.target.value})} />
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation(); // <-- The Shield against the Colombia Bug
-                              setSelectingRnavPoint(selectingRnavPoint === "IF" ? null : "IF");
-                            }} 
-                            style={{ padding: "0 8px", backgroundColor: selectingRnavPoint === "IF" ? "#dc3545" : "#e9ecef", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", fontSize: "14px" }} 
-                            title="Select on map"
-                          >
-                            {selectingRnavPoint === "IF" ? "❌" : "🎯"}
-                          </button>
+                      <div style={{ padding: "8px", backgroundColor: rnavParams.use_if ? "#ffffff" : "#f5f5f5", borderRadius: "4px", border: "1px solid #ddd" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <input type="checkbox" checked={rnavParams.use_if} onChange={e => setRnavParams({...rnavParams, use_if: e.target.checked})} />
+                          <strong style={{ fontSize: "11px", color: rnavParams.use_if ? "#0b1b3d" : "#999" }}>Intermediate Fix (IF)</strong>
                         </div>
+                        {rnavParams.use_if && (
+                          <div style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
+                            <input type="number" placeholder="Lat" style={inputStyle} value={rnavParams.if_lat || ""} onChange={e => setRnavParams({...rnavParams, if_lat: +e.target.value})} />
+                            <input type="number" placeholder="Lon" style={inputStyle} value={rnavParams.if_lon || ""} onChange={e => setRnavParams({...rnavParams, if_lon: +e.target.value})} />
+                            <button onClick={(e) => { e.stopPropagation(); setSelectingRnavPoint(selectingRnavPoint === "IF" ? null : "IF"); }} style={{ padding: "0 8px", backgroundColor: selectingRnavPoint === "IF" ? "#dc3545" : "#e9ecef", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", fontSize: "14px" }} title="Select on map">
+                              {selectingRnavPoint === "IF" ? "❌" : "🎯"}
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       {/* Final Approach Fix (FAF) */}
-                      <div style={{ padding: "8px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
-                        <strong style={{ fontSize: "11px", color: "#0b1b3d" }}>Final Approach Fix (FAF)</strong>
-                        <div style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
-                          <input type="number" placeholder="Lat" style={inputStyle} value={rnavParams.faf_lat || ""} onChange={e => setRnavParams({...rnavParams, faf_lat: +e.target.value})} />
-                          <input type="number" placeholder="Lon" style={inputStyle} value={rnavParams.faf_lon || ""} onChange={e => setRnavParams({...rnavParams, faf_lon: +e.target.value})} />
-                          <input type="number" placeholder="Alt" style={inputStyle} value={rnavParams.faf_alt || ""} onChange={e => setRnavParams({...rnavParams, faf_alt: +e.target.value})} title={`Altitude in ${rnavParams.alt_unit}`} />
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation(); 
-                              setSelectingRnavPoint(selectingRnavPoint === "FAF" ? null : "FAF");
-                            }} 
-                            style={{ padding: "0 8px", backgroundColor: selectingRnavPoint === "FAF" ? "#dc3545" : "#e9ecef", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", fontSize: "14px" }} 
-                            title="Select on map"
-                          >
-                            {selectingRnavPoint === "FAF" ? "❌" : "🎯"}
-                          </button>
+                      <div style={{ padding: "8px", backgroundColor: rnavParams.use_faf ? "#ffffff" : "#f5f5f5", borderRadius: "4px", border: "1px solid #ddd" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <input type="checkbox" checked={rnavParams.use_faf} onChange={e => setRnavParams({...rnavParams, use_faf: e.target.checked})} />
+                          <strong style={{ fontSize: "11px", color: rnavParams.use_faf ? "#0b1b3d" : "#999" }}>Final Approach Fix (FAF)</strong>
                         </div>
+                        {rnavParams.use_faf && (
+                          <div style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
+                            <input type="number" placeholder="Lat" style={inputStyle} value={rnavParams.faf_lat || ""} onChange={e => setRnavParams({...rnavParams, faf_lat: +e.target.value})} />
+                            <input type="number" placeholder="Lon" style={inputStyle} value={rnavParams.faf_lon || ""} onChange={e => setRnavParams({...rnavParams, faf_lon: +e.target.value})} />
+                            <input type="number" placeholder="Alt" style={inputStyle} value={rnavParams.faf_alt || ""} onChange={e => setRnavParams({...rnavParams, faf_alt: +e.target.value})} title={`Altitude in ${rnavParams.alt_unit}`} />
+                            <button onClick={(e) => { e.stopPropagation(); setSelectingRnavPoint(selectingRnavPoint === "FAF" ? null : "FAF"); }} style={{ padding: "0 8px", backgroundColor: selectingRnavPoint === "FAF" ? "#dc3545" : "#e9ecef", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", fontSize: "14px" }} title="Select on map">
+                              {selectingRnavPoint === "FAF" ? "❌" : "🎯"}
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       {/* Missed Approach Point (MAPt) */}
-                      <div style={{ padding: "8px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
-                        <strong style={{ fontSize: "11px", color: "#0b1b3d" }}>Missed Approach Point (MAPt)</strong>
-                        <div style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
-                          <input type="number" placeholder="Lat" style={inputStyle} value={rnavParams.mapt_lat || ""} onChange={e => setRnavParams({...rnavParams, mapt_lat: +e.target.value})} />
-                          <input type="number" placeholder="Lon" style={inputStyle} value={rnavParams.mapt_lon || ""} onChange={e => setRnavParams({...rnavParams, mapt_lon: +e.target.value})} />
-                          <input type="number" placeholder="Alt" style={inputStyle} value={rnavParams.mapt_alt || ""} onChange={e => setRnavParams({...rnavParams, mapt_alt: +e.target.value})} title={`Altitude in ${rnavParams.alt_unit}`} />
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation(); 
-                              setSelectingRnavPoint(selectingRnavPoint === "MAPT" ? null : "MAPT");
-                            }} 
-                            style={{ padding: "0 8px", backgroundColor: selectingRnavPoint === "MAPT" ? "#dc3545" : "#e9ecef", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", fontSize: "14px" }} 
-                            title="Select on map"
-                          >
-                            {selectingRnavPoint === "MAPT" ? "❌" : "🎯"}
-                          </button>
+                      <div style={{ padding: "8px", backgroundColor: rnavParams.use_mapt ? "#ffffff" : "#f5f5f5", borderRadius: "4px", border: "1px solid #ddd" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <input type="checkbox" checked={rnavParams.use_mapt} onChange={e => setRnavParams({...rnavParams, use_mapt: e.target.checked})} />
+                          <strong style={{ fontSize: "11px", color: rnavParams.use_mapt ? "#0b1b3d" : "#999" }}>Missed Approach Point (MAPt)</strong>
                         </div>
+                        {rnavParams.use_mapt && (
+                          <div style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
+                            <input type="number" placeholder="Lat" style={inputStyle} value={rnavParams.mapt_lat || ""} onChange={e => setRnavParams({...rnavParams, mapt_lat: +e.target.value})} />
+                            <input type="number" placeholder="Lon" style={inputStyle} value={rnavParams.mapt_lon || ""} onChange={e => setRnavParams({...rnavParams, mapt_lon: +e.target.value})} />
+                            <input type="number" placeholder="Alt" style={inputStyle} value={rnavParams.mapt_alt || ""} onChange={e => setRnavParams({...rnavParams, mapt_alt: +e.target.value})} title={`Altitude in ${rnavParams.alt_unit}`} />
+                            <button onClick={(e) => { e.stopPropagation(); setSelectingRnavPoint(selectingRnavPoint === "MAPT" ? null : "MAPT"); }} style={{ padding: "0 8px", backgroundColor: selectingRnavPoint === "MAPT" ? "#dc3545" : "#e9ecef", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", fontSize: "14px" }} title="Select on map">
+                              {selectingRnavPoint === "MAPT" ? "❌" : "🎯"}
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       {/* Missed Approach End Point */}
-                      <div style={{ padding: "8px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
-                        <strong style={{ fontSize: "11px", color: "#0b1b3d" }}>Missed Approach End Point</strong>
-                        <div style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
-                          <input type="number" placeholder="Lat" style={inputStyle} value={rnavParams.ma_end_lat || ""} onChange={e => setRnavParams({...rnavParams, ma_end_lat: +e.target.value})} />
-                          <input type="number" placeholder="Lon" style={inputStyle} value={rnavParams.ma_end_lon || ""} onChange={e => setRnavParams({...rnavParams, ma_end_lon: +e.target.value})} />
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation(); 
-                              setSelectingRnavPoint(selectingRnavPoint === "MA_END" ? null : "MA_END");
-                            }} 
-                            style={{ padding: "0 8px", backgroundColor: selectingRnavPoint === "MA_END" ? "#dc3545" : "#e9ecef", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", fontSize: "14px" }} 
-                            title="Select on map"
-                          >
-                            {selectingRnavPoint === "MA_END" ? "❌" : "🎯"}
-                          </button>
+                      <div style={{ padding: "8px", backgroundColor: rnavParams.use_ma_end ? "#ffffff" : "#f5f5f5", borderRadius: "4px", border: "1px solid #ddd" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <input type="checkbox" checked={rnavParams.use_ma_end} onChange={e => setRnavParams({...rnavParams, use_ma_end: e.target.checked})} />
+                          <strong style={{ fontSize: "11px", color: rnavParams.use_ma_end ? "#0b1b3d" : "#999" }}>Missed Approach End Point</strong>
                         </div>
+                        {rnavParams.use_ma_end && (
+                          <div style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
+                            <input type="number" placeholder="Lat" style={inputStyle} value={rnavParams.ma_end_lat || ""} onChange={e => setRnavParams({...rnavParams, ma_end_lat: +e.target.value})} />
+                            <input type="number" placeholder="Lon" style={inputStyle} value={rnavParams.ma_end_lon || ""} onChange={e => setRnavParams({...rnavParams, ma_end_lon: +e.target.value})} />
+                            <button onClick={(e) => { e.stopPropagation(); setSelectingRnavPoint(selectingRnavPoint === "MA_END" ? null : "MA_END"); }} style={{ padding: "0 8px", backgroundColor: selectingRnavPoint === "MA_END" ? "#dc3545" : "#e9ecef", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", fontSize: "14px" }} title="Select on map">
+                              {selectingRnavPoint === "MA_END" ? "❌" : "🎯"}
+                            </button>
+                          </div>
+                        )}
                       </div>
                       
                     </div>
