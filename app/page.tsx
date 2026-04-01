@@ -2757,6 +2757,9 @@ const handleDownloadLogs = async () => {
                         <option value="DF">DF (Direction Finder)</option>
                         <option value="DME">DME</option>
                         <option value="NDB">NDB</option>
+                        <option value="GBAS_GRR">GBAS GRR</option>
+                        <option value="GBAS_VDB">GBAS VDB</option>
+                        <option value="VDB_MS">VDB MS</option>
                       </optgroup>
                       <optgroup label="Directional">
                         <option value="ILS_LLZ_SF">ILS LLZ (Single Frequency)</option>
