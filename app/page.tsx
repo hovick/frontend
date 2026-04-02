@@ -841,18 +841,54 @@ export default function Home() {
   };
 
   // --- BATCH FILE UPLOAD HELPER ---
-  const handleBatchFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBatchFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        const text = event.target?.result as string;
-        setBatchInput(text); // Automatically dumps file content into the textarea
-    };
-    reader.readAsText(file);
+
+    const name = file.name.toLowerCase();
+    
+    // For standard CSV/TXT, parse locally in the browser
+    if (name.endsWith(".txt") || name.endsWith(".csv")) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            setBatchInput(event.target?.result as string);
+        };
+        reader.readAsText(file);
+    } else {
+        // For complex files (GeoJSON/AIXM/KML), send to the backend parser
+        const formData = new FormData();
+        formData.append("file", file);
+
+        setIsAnalyzingBatch(true); // Show loading state
+        try {
+            const res = await fetch(`${API_BASE}/import/geometry`, {
+                method: "POST",
+                headers: { "Authorization": getAuthHeaders()["Authorization"] || "" },
+                body: formData
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || "Import failed");
+
+            // Filter out Polygons! Obstacles must be exactly 4 parts: "ID, Lat, Lon, Alt"
+            const parsedLines = data.result.split('\n');
+            const obstacleLines = parsedLines.filter((line: string) => {
+                return line.trim().split(',').length === 4;
+            });
+
+            if (obstacleLines.length === 0 && parsedLines.length > 0) {
+                alert("File processed, but no standalone Points/Obstacles were found. Polygons cannot be used as obstacles.");
+            } else {
+                setBatchInput(obstacleLines.join('\n'));
+            }
+        } catch (err: any) {
+            alert(`Batch Import Error: ${err.message}`);
+        } finally {
+            setIsAnalyzingBatch(false);
+        }
+    }
   };
 
-  // --- BATCH ANALYSIS LOGIC ---
   // --- BATCH ANALYSIS LOGIC ---
   const handleBatchAnalyze = async () => {
     if (!selectedAnalysisAirport) return alert("Please select a target airport first!");
@@ -2967,7 +3003,7 @@ const handleDownloadLogs = async () => {
                     <label style={{...labelStyle, color: "#d4af37"}}>★ Premium Feature: Batch CSV Upload</label>
                     <input 
                         type="file" 
-                        accept=".csv,.txt,.kml,.dxf"
+                        accept=".csv,.txt,.kml,.dxf,.geojson,.json,.aixm,.xml"
                         onChange={handleFileUpload} 
                         style={inputStyle} 
                         disabled={!user?.is_premium}
@@ -3234,7 +3270,7 @@ const handleDownloadLogs = async () => {
                       {/* FILE UPLOAD BUTTON */}
                       <input
                           type="file"
-                          accept=".csv,.txt"
+                          accept=".csv,.txt,.geojson,.json,.aixm,.xml,.kml"
                           onChange={handleBatchFileUpload}
                           disabled={!user?.is_premium}
                           style={{ fontSize: "11px", maxWidth: "160px" }}
