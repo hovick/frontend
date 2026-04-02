@@ -810,7 +810,14 @@ export default function Home() {
     }
 
     // New Server-Side Import for KML/DXF
-    if (name.endsWith(".kml") || name.endsWith(".dxf")) {
+    if (
+        name.endsWith(".kml") || 
+        name.endsWith(".dxf") || 
+        name.endsWith(".geojson") || 
+        name.endsWith(".json") || 
+        name.endsWith(".aixm") || 
+        name.endsWith(".xml")
+    ) {
         const formData = new FormData();
         formData.append("file", file);
 
