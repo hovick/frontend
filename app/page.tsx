@@ -3296,7 +3296,8 @@ const handleDownloadLogs = async () => {
                         disabled={!user?.is_premium}
                         onClick={() => handleExport('kml')}
                       >
-                        Download .KML
+                        
+                        ⭳ .KML
                       </button>
                       
                       <button 
@@ -3304,26 +3305,26 @@ const handleDownloadLogs = async () => {
                         disabled={!user?.is_premium}
                         onClick={() => handleExport('dxf')}
                       >
-                        Download .DXF
+                        ⭳ .DXF
                       </button>
 
                       {/* --- NEW BUTTONS --- */}
                       <button 
-                        style={{ ...activeTabBtn, backgroundColor: user?.is_premium ? "#28a745" : "#ccc", fontSize: "12px", flex: "1 1 45%" }}
+                        style={{ ...activeTabBtn, backgroundColor: user?.is_premium ? "#0b1b3d" : "#ccc", fontSize: "12px", flex: "1 1 45%" }}
                         disabled={!user?.is_premium}
                         onClick={() => handleExport('geojson')}
                         title="Universal format for QGIS, ArcGIS, Mapbox"
                       >
-                        Download GeoJSON
+                        ⭳ .GeoJSON
                       </button>
 
                       <button 
-                        style={{ ...activeTabBtn, backgroundColor: user?.is_premium ? "#8b0000" : "#ccc", fontSize: "12px", flex: "1 1 45%" }}
+                        style={{ ...activeTabBtn, backgroundColor: user?.is_premium ? "#0b1b3d" : "#ccc", fontSize: "12px", flex: "1 1 45%" }}
                         disabled={!user?.is_premium}
                         onClick={() => handleExport('aixm')}
                         title="Aeronautical Information Exchange Model (SWIM)"
                       >
-                        Download AIXM 5.1
+                        ⭳ AIXM 5.1
                       </button>
                     </div>
                     
