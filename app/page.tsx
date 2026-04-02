@@ -783,14 +783,27 @@ export default function Home() {
       handler = new Cesium.ScreenSpaceEventHandler(viewerRef.current.scene.canvas);
 
       handler.setInputAction((click: any) => {
-        const cartesian = viewerRef.current?.camera.pickEllipsoid(click.position);
+        // 1. Try to pick the actual 3D terrain/building height first!
+        let cartesian = viewerRef.current?.scene.pickPosition(click.position);
+        
+        // 2. If we clicked the sky or missed the terrain, fallback to the base ellipsoid
+        if (!cartesian && viewerRef.current) {
+          cartesian = viewerRef.current.camera.pickEllipsoid(click.position);
+        }
+
         if (cartesian) {
           const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
           const lat = Cesium.Math.toDegrees(cartographic.latitude);
           const lon = Cesium.Math.toDegrees(cartographic.longitude);
+          const alt = cartographic.height; // Now we get the ACTUAL terrain height
 
-          // Update the input boxes
-          setObsPos(prev => ({ ...prev, lat: parseFloat(lat.toFixed(6)), lon: parseFloat(lon.toFixed(6)) }));
+          // Update the input boxes, setting altitude to the clicked terrain altitude + a small base offset if desired, but exactly terrain is best!
+          setObsPos(prev => ({ 
+            ...prev, 
+            lat: parseFloat(lat.toFixed(6)), 
+            lon: parseFloat(lon.toFixed(6)),
+            alt: parseFloat((alt > -500 ? alt : 50).toFixed(2)) // Fallback to 50 only if weird negative sea depth
+          }));
 
           // Draw a visual marker for the obstacle
           viewerRef.current?.entities.removeById('obs-marker');
