@@ -1345,7 +1345,7 @@ export default function Home() {
     }
   };
 
-  const handleExport = async (format: 'kml' | 'dxf') => {
+  const handleExport = async (format: 'kml' | 'dxf' | 'geojson' | 'aixm') => {
     // FIXED: Dynamically use the 'format' variable in the URL
     const res = await fetch(`${API_BASE}/export/${format}?airport_name=${encodeURIComponent(selectedAnalysisAirport)}`, {
       headers: getAuthHeaders()
@@ -3290,9 +3290,9 @@ const handleDownloadLogs = async () => {
                       ★ Premium Export Tools
                     </label>
                     
-                    <div style={rowStyle}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                       <button 
-                        style={{ ...activeTabBtn, backgroundColor: user?.is_premium ? "#0b1b3d" : "#ccc", fontSize: "12px" }}
+                        style={{ ...activeTabBtn, backgroundColor: user?.is_premium ? "#0b1b3d" : "#ccc", fontSize: "12px", flex: "1 1 45%" }}
                         disabled={!user?.is_premium}
                         onClick={() => handleExport('kml')}
                       >
@@ -3300,11 +3300,30 @@ const handleDownloadLogs = async () => {
                       </button>
                       
                       <button 
-                        style={{ ...activeTabBtn, backgroundColor: user?.is_premium ? "#0b1b3d" : "#ccc", fontSize: "12px" }}
+                        style={{ ...activeTabBtn, backgroundColor: user?.is_premium ? "#0b1b3d" : "#ccc", fontSize: "12px", flex: "1 1 45%" }}
                         disabled={!user?.is_premium}
                         onClick={() => handleExport('dxf')}
                       >
                         Download .DXF
+                      </button>
+
+                      {/* --- NEW BUTTONS --- */}
+                      <button 
+                        style={{ ...activeTabBtn, backgroundColor: user?.is_premium ? "#28a745" : "#ccc", fontSize: "12px", flex: "1 1 45%" }}
+                        disabled={!user?.is_premium}
+                        onClick={() => handleExport('geojson')}
+                        title="Universal format for QGIS, ArcGIS, Mapbox"
+                      >
+                        Download GeoJSON
+                      </button>
+
+                      <button 
+                        style={{ ...activeTabBtn, backgroundColor: user?.is_premium ? "#8b0000" : "#ccc", fontSize: "12px", flex: "1 1 45%" }}
+                        disabled={!user?.is_premium}
+                        onClick={() => handleExport('aixm')}
+                        title="Aeronautical Information Exchange Model (SWIM)"
+                      >
+                        Download AIXM 5.1
                       </button>
                     </div>
                     
