@@ -3094,340 +3094,220 @@ export default function Home() {
 
           {/* --- ANALYZE TAB --- */}
           {activeTab === "analyze" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                
+                {/* --- GOOGLE 3D TILES TOGGLE --- */}
+                {(currentOwnerToken || (user?.is_premium && user?.ion_token)) && (
+                  <label style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "8px", color: theme.text, cursor: "pointer", padding: "0 4px", fontWeight: 600 }}>
+                    <input 
+                      type="checkbox" 
+                      checked={showGoogleTiles} 
+                      onChange={e => {
+                        const isChecked = e.target.checked;
+                        setShowGoogleTiles(isChecked);
+                        if (isChecked) {
+                            const tokenToUse = currentOwnerToken || user?.ion_token || DEFAULT_ION_TOKEN;
+                            Cesium.Ion.defaultAccessToken = tokenToUse;
+                        }
+                      }} 
+                      style={{ cursor: "pointer", width: "16px", height: "16px", accentColor: theme.navy }}
+                    />
+                    Enable Google Photorealistic 3D Tiles
+                  </label>
+                )}
 
-              {/* --- UPDATED: Show Checkbox if User has Token OR Airport Owner has Token --- */}
-              {(currentOwnerToken || (user?.is_premium && user?.ion_token)) && (
-                <label style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "5px", color: "#333", cursor: "pointer", marginLeft: "15px" }}>
-                  <input
-                    type="checkbox"
-                    checked={showGoogleTiles}
-                    onChange={e => {
-                      const isChecked = e.target.checked;
-                      setShowGoogleTiles(isChecked);
-
-                      // If checking the box, ensure we are using the correct token
-                      if (isChecked) {
-                        // Priority: Specific Airport Owner Token -> My Personal Token -> Default
-                        const tokenToUse = currentOwnerToken || user?.ion_token || DEFAULT_ION_TOKEN;
-                        Cesium.Ion.defaultAccessToken = tokenToUse;
-                      }
-                    }}
+                {/* 1. PUBLIC PREMIUM SURFACES SEARCH */}
+                <div style={{ backgroundColor: theme.bgOff, padding: "16px", borderRadius: theme.radiusSm, border: `1px solid ${theme.border}`, position: "relative", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+                  <label style={{...labelStyle, marginTop: 0, color: theme.navy, display: "flex", alignItems: "center", gap: "6px"}}>
+                    <span style={{ fontSize: "14px" }}>🔍</span> Search Verified Surfaces
+                  </label>
+                  <p style={{fontSize: "11px", color: theme.textMuted, marginBottom: "12px", lineHeight: 1.4}}>
+                    Search official airspaces authorized by Civil Aviation Authorities.
+                  </p>
+                  <input 
+                    style={{...inputStyle, padding: "10px 12px", fontSize: "14px"}} 
+                    value={pubSurfQuery}
+                    onChange={e => handleSearchPublicSurfaces(e.target.value)}
+                    onFocus={e => { if (pubSurfResults.length === 0) handleSearchPublicSurfaces(e.target.value); }}
+                    onBlur={() => { setTimeout(() => setPubSurfResults([]), 200); }}
+                    placeholder="Type airport name or ICAO..."
                   />
-                  Google 3D Tiles
-                </label>
-              )}
-
-              {/* 1. PUBLIC PREMIUM SURFACES SEARCH */}
-              <div style={{ backgroundColor: "#f8f9fa", padding: "10px", borderRadius: "4px", border: "1px solid #ddd", position: "relative" }}>
-                <label style={{ ...labelStyle, color: "#0b1b3d", display: "block", marginBottom: "5px" }}>
-                  Search Verified Surfaces (CAA surfaces)
-                </label>
-                <input
-                  style={inputStyle}
-                  value={pubSurfQuery}
-                  onChange={e => handleSearchPublicSurfaces(e.target.value)}
-                  onFocus={e => {
-                    // Only fetch if the dropdown isn't already showing
-                    if (pubSurfResults.length === 0) {
-                      handleSearchPublicSurfaces(e.target.value);
-                    }
-                  }}
-                  onBlur={() => {
-                    // Delay the hide by 200ms so the user can click the dropdown item
-                    setTimeout(() => setPubSurfResults([]), 200);
-                  }}
-                  placeholder="Click to see available airports or type..."
-                />
-                {/* SEARCH RESULTS AUTOCOMPLETE */}
-                {pubSurfResults.length > 0 && (
-                  <div style={{ position: "absolute", top: "100%", left: 0, right: 0, backgroundColor: "white", border: "1px solid #ccc", zIndex: 100, maxHeight: "200px", overflowY: "auto", boxShadow: "0 4px 8px rgba(0,0,0,0.1)" }}>
-                    {pubSurfResults.map((s: any, idx) => (
-                      <div
-                        key={idx}
-                        onClick={async () => {
-                          setSelectedAnalysisAirport(s.airport_name);
-                          setSelectedAnalysisOwner(s.owner_id);
-                          setPubSurfQuery(s.airport_name);
-                          setPubSurfResults([]);
-
-                          try {
-                            // Fetch Surfaces + The Owner's Custom Token
-                            const res = await fetch(`${API_BASE}/airports/${s.owner_id}/${encodeURIComponent(s.airport_name)}`);
-                            if (res.ok) {
-                              const data = await res.json();
-
-                              // --- THE TOKEN SWAP ---
-                              if (data.ion_token) {
-                                console.log("Switching to CAA Custom data...");
-                                Cesium.Ion.defaultAccessToken = data.ion_token;
-                                setCurrentOwnerToken(data.ion_token); // --- NEW: Save to state! ---
-                              } else {
-                                console.log("Using Default Altitude Nexus Data.");
-                                Cesium.Ion.defaultAccessToken = DEFAULT_ION_TOKEN;
-                                setCurrentOwnerToken(null); // Reset if no custom token
-                              }
-
-                              // If 3D Buildings are currently ON, we must reload them to use the new token!
-                              if (showBuildings && viewerRef.current) {
-                                // 1. Remove existing buildings
-                                if (buildingsRef.current) {
-                                  viewerRef.current.scene.primitives.remove(buildingsRef.current);
-                                  buildingsRef.current = null;
+                  {/* SEARCH RESULTS AUTOCOMPLETE */}
+                  {pubSurfResults.length > 0 && (
+                    <div style={{ position: "absolute", top: "100%", left: 0, right: 0, backgroundColor: theme.bg, border: `1px solid ${theme.border}`, zIndex: 100, maxHeight: "220px", overflowY: "auto", boxShadow: theme.shadowHover, borderRadius: theme.radiusSm, marginTop: "4px" }}>
+                      {pubSurfResults.map((s: any, idx) => (
+                        <div key={idx} onClick={async () => {
+                            setSelectedAnalysisAirport(s.airport_name); setSelectedAnalysisOwner(s.owner_id); setPubSurfQuery(s.airport_name); setPubSurfResults([]); 
+                            try {
+                              const res = await fetch(`${API_BASE}/airports/${s.owner_id}/${encodeURIComponent(s.airport_name)}`);
+                              if (res.ok) {
+                                const data = await res.json();
+                                if (data.ion_token) { Cesium.Ion.defaultAccessToken = data.ion_token; setCurrentOwnerToken(data.ion_token); } 
+                                else { Cesium.Ion.defaultAccessToken = DEFAULT_ION_TOKEN; setCurrentOwnerToken(null); }
+                                if (showBuildings && viewerRef.current) {
+                                  if (buildingsRef.current) { viewerRef.current.scene.primitives.remove(buildingsRef.current); buildingsRef.current = null; }
+                                  try { const buildings = await Cesium.createOsmBuildingsAsync(); viewerRef.current.scene.primitives.add(buildings); buildingsRef.current = buildings; } catch (err) {}
                                 }
-                                // 2. Re-fetch with new token
-                                try {
-                                  const buildings = await Cesium.createOsmBuildingsAsync();
-                                  viewerRef.current.scene.primitives.add(buildings);
-                                  buildingsRef.current = buildings;
-                                } catch (err) { console.error("Failed to reload buildings with new data", err); }
+                                let newOffset = geoidOffset;
+                                if (data.surfaces.length > 0 && data.surfaces[0].geometry.length > 0) {
+                                  const firstCoord = getFirstCoord(data.surfaces[0].geometry);
+                                  if (firstCoord) newOffset = await autoFetchGeoidOffset(firstCoord[1], firstCoord[0]);
+                                }
+                                handleDrawSurface(data.surfaces, newOffset);
                               }
+                            } catch (err) {}
+                          }}
+                          style={{ padding: "12px", borderBottom: `1px solid ${theme.border}`, cursor: "pointer", fontSize: "13px", color: theme.text, transition: "background 0.2s" }}
+                          onMouseEnter={e => e.currentTarget.style.backgroundColor = theme.lightBlue}
+                          onMouseLeave={e => e.currentTarget.style.backgroundColor = "transparent"}
+                        >
+                          <strong>{s.airport_name}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-                              let newOffset = geoidOffset;
-                              if (data.surfaces.length > 0 && data.surfaces[0].geometry.length > 0) {
-                                const firstCoord = getFirstCoord(data.surfaces[0].geometry);
-                                if (firstCoord) newOffset = await autoFetchGeoidOffset(firstCoord[1], firstCoord[0]);
-                              }
-
-                              // Draw the surfaces
-                              handleDrawSurface(data.surfaces, newOffset);
-                            }
-                          } catch (err) {
-                            console.error("Could not load airport geometry or token.");
-                          }
-                        }}
-                        style={{ padding: "8px", borderBottom: "1px solid #eee", cursor: "pointer", fontSize: "12px", color: "#000" }}
-                      >
-                        <strong>{s.airport_name}</strong>
-                      </div>
+                {/* 2. MY SURFACES DROPDOWN */}
+                <div style={{ padding: "0 4px" }}>
+                  <label style={labelStyle}>Or Select Personal Workspace</label>
+                  <select 
+                    style={{...inputStyle, cursor: "pointer"}} 
+                    value={savedSurfaces.some(s => s.airport_name === selectedAnalysisAirport) ? selectedAnalysisAirport : ""} 
+                    onChange={async e => {
+                      const chosenAirport = e.target.value; setSelectedAnalysisAirport(chosenAirport); setSelectedAnalysisOwner(user?.id || 0); setPubSurfQuery(""); 
+                      if (chosenAirport) {
+                        const airportSurfaces = savedSurfaces.filter(s => s.airport_name === chosenAirport);
+                        let newOffset = geoidOffset;
+                        if (airportSurfaces.length > 0 && airportSurfaces[0].geometry.length > 0) {
+                          const firstCoord = getFirstCoord(airportSurfaces[0].geometry);
+                          if (firstCoord) newOffset = await autoFetchGeoidOffset(firstCoord[1], firstCoord[0]);
+                        }
+                        handleDrawSurface(airportSurfaces, newOffset);
+                      } else { if (viewerRef.current) viewerRef.current.entities.removeAll(); }
+                    }}
+                  >
+                    <option value="">Select your airport...</option>
+                    {Array.from(new Set(savedSurfaces.map(s => s.airport_name))).map(airport => (
+                      <option key={airport} value={airport}>{airport}</option>
                     ))}
+                  </select>
+                </div>
+                
+                <hr style={{ borderTop: `1px solid ${theme.border}`, margin: "4px 0" }}/>
+                
+                {/* 3. SINGLE OBSTACLE ANALYSIS */}
+                <div style={{ padding: "0 4px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <label style={labelStyle}>Target Obstacle (Lat/Lon/Alt)</label>
+                    <span style={{ fontSize: "10px", color: theme.textMuted, fontStyle: "italic", fontWeight: 600 }}>🖱️ Click map to pick</span>
+                  </div>
+                  <div style={rowStyle}>
+                    <input style={numInputStyle} type="number" value={obsPos.lat} onChange={e => setObsPos({...obsPos, lat: +e.target.value})} placeholder="Lat" />
+                    <input style={numInputStyle} type="number" value={obsPos.lon} onChange={e => setObsPos({...obsPos, lon: +e.target.value})} placeholder="Lon" />
+                    <input style={numInputStyle} type="number" value={obsPos.alt} onChange={e => setObsPos({...obsPos, alt: +e.target.value})} placeholder="Alt (m)" />
+                  </div>
+                </div>
+
+                <button 
+                  style={{ ...createBtnStyle, marginTop: "8px", opacity: isAnalyzing ? 0.7 : 1, cursor: isAnalyzing ? "wait" : "pointer" }}
+                  disabled={isAnalyzing}
+                  onClick={async () => {
+                    if (!selectedAnalysisAirport) return alert("Please select an airport first!");
+                    setIsAnalyzing(true); setAnalysisResult(null);
+                    try {
+                      const isGuestAirport = selectedAnalysisOwner === 0;
+                      const guestPayload = isGuestAirport ? savedSurfaces.filter(s => s.airport_name === selectedAnalysisAirport).map(s => ({name: s.name, geometry: s.geometry})) : null;
+                      const res = await fetch(`${API_BASE}/analyze`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lat: obsPos.lat, lon: obsPos.lon, alt: obsPos.alt, airport_name: selectedAnalysisAirport, owner_id: selectedAnalysisOwner, guest_surfaces: guestPayload }) });
+                      const result = await res.json();
+                      if (result.error) return alert(result.error);
+                      setAnalysisResult(result);
+                    } catch (err) { alert("Analysis failed."); } 
+                    finally { setIsAnalyzing(false); }
+                  }}
+                >
+                  {isAnalyzing ? "⚙️ Processing..." : "Run Analysis"}
+                </button>
+
+                {/* --- ANALYSIS RESULTS UI & PDF EXPORT --- */}
+                {analysisResult && (
+                  <div style={{ backgroundColor: analysisResult.penetration ? "#fff5f5" : "#f0fdf4", padding: "16px", borderRadius: theme.radiusSm, border: `1px solid ${analysisResult.penetration ? "#fed7d7" : "#bbf7d0"}`, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                    <h4 style={{ margin: "0 0 12px 0", color: analysisResult.penetration ? "#c53030" : "#15803d", fontSize: "15px", display: "flex", alignItems: "center", gap: "6px" }}>
+                      {analysisResult.penetration ? "❌ VIOLATION DETECTED" : "✅ OBSTACLE CLEAR"}
+                    </h4>
+                    <div style={{ fontSize: "12px", color: theme.text, lineHeight: 1.6, marginBottom: "16px" }}>
+                      <p style={{ margin: 0 }}><strong>Limiting Surface:</strong> {analysisResult.limiting_surface}</p>
+                      <p style={{ margin: 0 }}><strong>Margin:</strong> {analysisResult.margin} m</p>
+                    </div>
+                    <button 
+                      style={{ width: "100%", padding: "12px", backgroundColor: theme.navy, color: "white", border: "none", borderRadius: theme.radiusSm, fontWeight: "bold", cursor: "pointer", transition: "background 0.2s", fontSize: "13px" }} 
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = theme.navyHover}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = theme.navy}
+                      onClick={generatePDF}
+                    >
+                      ⤓ Download Official Report (PDF)
+                    </button>
                   </div>
                 )}
-              </div>
 
-              {/* 2. MY SURFACES DROPDOWN */}
-              <label style={labelStyle}>Or select from your saved airports</label>
-              <select
-                style={inputStyle}
-                value={savedSurfaces.some(s => s.airport_name === selectedAnalysisAirport) ? selectedAnalysisAirport : ""}
-                onChange={async e => {
-                  const chosenAirport = e.target.value;
-                  setSelectedAnalysisAirport(chosenAirport);
-                  setSelectedAnalysisOwner(user?.id || 0);
-                  setPubSurfQuery("");
-
-                  if (chosenAirport) {
-                    const airportSurfaces = savedSurfaces.filter(s => s.airport_name === chosenAirport);
-
-                    let newOffset = geoidOffset;
-                    if (airportSurfaces.length > 0 && airportSurfaces[0].geometry.length > 0) {
-                      const firstCoord = getFirstCoord(airportSurfaces[0].geometry);
-                      if (firstCoord) newOffset = await autoFetchGeoidOffset(firstCoord[1], firstCoord[0]);
-                    }
-
-                    // Pass the offset directly!
-                    handleDrawSurface(airportSurfaces, newOffset);
-                  } else {
-                    if (viewerRef.current) viewerRef.current.entities.removeAll();
-                  }
-                }}
-              >
-                <option value="">Select your airport...</option>
-                {Array.from(new Set(savedSurfaces.map(s => s.airport_name))).map(airport => (
-                  <option key={airport} value={airport}>{airport}</option>
-                ))}
-              </select>
-
-              <hr style={{ borderTop: "1px solid #eee", width: "100%" }} />
-              <label style={labelStyle}>Obstacle (Lat / Lon / Alt)</label>
-              <div style={rowStyle}>
-                <input style={numInputStyle} type="number" value={obsPos.lat} onChange={e => setObsPos({ ...obsPos, lat: +e.target.value })} />
-                <input style={numInputStyle} type="number" value={obsPos.lon} onChange={e => setObsPos({ ...obsPos, lon: +e.target.value })} />
-                <input style={numInputStyle} type="number" value={obsPos.alt} onChange={e => setObsPos({ ...obsPos, alt: +e.target.value })} />
-              </div>
-
-              <button
-                style={{ ...createBtnStyle, backgroundColor: "#0b1b3d", opacity: isAnalyzing ? 0.7 : 1, cursor: isAnalyzing ? "wait" : "pointer" }}
-                disabled={isAnalyzing}
-                onClick={async () => {
-                  if (!selectedAnalysisAirport) return alert("Please select an airport first!");
-
-                  // Clear previous results while loading
-                  setIsAnalyzing(true); // START LOADING
-                  setAnalysisResult(null);
-                  try {
-                    const isGuestAirport = selectedAnalysisOwner === 0;
-                    const guestPayload = isGuestAirport
-                      ? savedSurfaces.filter(s => s.airport_name === selectedAnalysisAirport).map(s => ({ name: s.name, geometry: s.geometry }))
-                      : null;
-
-                    const res = await fetch(`${API_BASE}/analyze`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        lat: obsPos.lat,
-                        lon: obsPos.lon,
-                        alt: obsPos.alt,
-                        airport_name: selectedAnalysisAirport,
-                        owner_id: selectedAnalysisOwner,
-                        guest_surfaces: guestPayload // --- NEW ---
-                      }),
-                    });
-
-                    const result = await res.json();
-                    if (result.error) return alert(result.error);
-
-                    // Save result to state instead of an alert!
-                    setAnalysisResult(result);
-                  } catch (err) {
-                    alert("Analysis failed.");
-                  } finally {
-                    setIsAnalyzing(false); // STOP LOADING
-                  }
-                }}
-              >
-                {isAnalyzing ? "⚙️ Processing Geometry..." : "Run Analysis"}
-              </button>
-
-              {/* --- NEW: ANALYSIS RESULTS UI & PDF EXPORT --- */}
-              {analysisResult && (
-                <div style={{ backgroundColor: analysisResult.penetration ? "#f8d7da" : "#d4edda", padding: "15px", borderRadius: "6px", border: `1px solid ${analysisResult.penetration ? "#f5c6cb" : "#c3e6cb"}`, marginTop: "10px" }}>
-                  <h4 style={{ margin: "0 0 10px 0", color: analysisResult.penetration ? "#721c24" : "#155724" }}>
-                    {analysisResult.penetration ? "❌ VIOLATION DETECTED" : "✅ OBSTACLE CLEAR"}
-                  </h4>
-
-                  <p style={{ fontSize: "12px", color: "#333", margin: "0 0 5px 0" }}>
-                    <strong>Limiting Surface:</strong> {analysisResult.limiting_surface}
-                  </p>
-                  <p style={{ fontSize: "12px", color: "#333", margin: "0 0 15px 0" }}>
-                    <strong>Margin:</strong> {analysisResult.margin} m
-                  </p>
-
-                  <button
-                    style={{ ...activeTabBtn, width: "100%", backgroundColor: "#343a40", fontSize: "13px" }}
-                    onClick={generatePDF}
-                  >
-                    📄 Download Official Report (PDF)
-                  </button>
-                </div>
-              )}
-
-              {/* --- PREMIUM: BATCH OBSTACLE UPLOAD --- */}
-              <div style={{ backgroundColor: "#e8f0fe", padding: "10px", borderRadius: "4px", marginTop: "15px", border: "1px solid #cce5ff", opacity: user?.is_premium ? 1 : 0.6 }}>
-
-                {/* TITLE & FILE UPLOAD ROW */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                  <label style={{ ...labelStyle, color: "#0b1b3d", margin: 0, display: "flex", alignItems: "center" }}>
-                    ★ Batch Upload
-                    {/* Tooltip Icon */}
-                    <span
-                      title="Accepted Format: ID, Lat, Lon, Alt (comma-separated).&#10;Example: Crane_1, 51.47, -0.45, 120"
-                      style={{ cursor: "help", marginLeft: "8px", backgroundColor: "#0b1b3d", color: "white", borderRadius: "50%", width: "16px", height: "16px", display: "inline-flex", justifyContent: "center", alignItems: "center", fontSize: "11px", fontWeight: "bold" }}
-                    >
-                      ?
-                    </span>
-                  </label>
-
-                  {/* FILE UPLOAD BUTTON */}
-                  <input
-                    type="file"
-                    accept=".csv,.txt,.geojson,.json,.aixm,.xml,.kml"
-                    onChange={handleBatchFileUpload}
-                    disabled={!user?.is_premium}
-                    style={{ fontSize: "11px", maxWidth: "160px" }}
+                {/* --- PREMIUM: BATCH UPLOAD --- */}
+                <div style={{ backgroundColor: theme.bgOff, padding: "16px", borderRadius: theme.radiusSm, border: `1px solid ${theme.border}`, opacity: user?.is_premium ? 1 : 0.6 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                      <label style={{...labelStyle, color: "#d4af37", margin: 0}}>★ Batch Obstacle Upload</label>
+                      <input type="file" accept=".csv,.txt,.geojson,.json,.aixm,.xml,.kml" onChange={handleBatchFileUpload} disabled={!user?.is_premium} style={{ fontSize: "11px", maxWidth: "160px" }} />
+                  </div>
+                  <p style={{fontSize: "11px", color: theme.textMuted, margin: "0 0 10px 0", lineHeight: 1.4}}>Upload GeoJSON, AIXM, KML or CSV to analyse multiple targets instantly.</p>
+                  
+                  <textarea 
+                    style={{ ...inputStyle, height: "100px", fontFamily: "monospace", fontSize: "12px", lineHeight: "1.4", resize: "vertical" }} 
+                    placeholder={`Crane_1, 51.47, -0.45, 120\nBuilding_A, 51.472, -0.44, 95\n...`}
+                    value={batchInput} onChange={e => setBatchInput(e.target.value)} disabled={!user?.is_premium}
                   />
-                </div>
-
-                <textarea
-                  style={{ ...inputStyle, height: "100px", fontFamily: "monospace", fontSize: "12px" }}
-                  placeholder={`Crane_1, 51.47, -0.45, 120\nBuilding_A, 51.472, -0.44, 95\n...`}
-                  value={batchInput}
-                  onChange={e => setBatchInput(e.target.value)}
-                  disabled={!user?.is_premium}
-                />
-
-                <div style={{ ...rowStyle, marginTop: "10px" }}>
-                  <button
-                    style={{ ...activeTabBtn, backgroundColor: user?.is_premium ? "#0b1b3d" : "#ccc", fontSize: "12px", opacity: isAnalyzingBatch ? 0.7 : 1 }}
-                    disabled={!user?.is_premium || isAnalyzingBatch}
-                    onClick={handleBatchAnalyze}
-                  >
-                    {isAnalyzingBatch ? "⏳ Processing..." : "Run Batch Analysis"}
-                  </button>
-
-                  <button
-                    style={{ ...activeTabBtn, backgroundColor: user?.is_premium && batchResults.length > 0 ? "#0b1b3d" : "#ccc", fontSize: "12px" }}
-                    disabled={!user?.is_premium || batchResults.length === 0}
-                    onClick={downloadBatchCSV}
-                  >
-                    Download Results (.CSV)
-                  </button>
-
-                  {/* --- NEW: PDF REPORT EXPORT --- */}
-                  <button
-                    style={{ ...activeTabBtn, backgroundColor: user?.is_premium && batchResults.length > 0 ? "#8b0000" : "#ccc", fontSize: "12px" }}
-                    disabled={!user?.is_premium || batchResults.length === 0}
-                    onClick={generateBatchPDF}
-                  >
-                    📄 Official Results PDF
-                  </button>
-                </div>
-
-                {!user?.is_premium && (
-                  <p style={{ color: "red", fontSize: "11px", marginTop: "8px", textAlign: "center" }}>
-                    Upgrade to Premium to analyze hundreds of obstacles instantly.
-                  </p>
-                )}
-              </div>
-
-              {/* --- PREMIUM EXPORT PANEL --- */}
-              {selectedAnalysisAirport && (
-                <div style={{ backgroundColor: "#fff3cd", padding: "10px", borderRadius: "4px", marginBottom: "15px", border: "1px solid #ffeeba" }}>
-                  <label style={{ ...labelStyle, color: "#856404", marginBottom: "8px", display: "block" }}>
-                    ★ Premium Export Tools
-                  </label>
-
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                    <button
-                      style={{ ...activeTabBtn, backgroundColor: user?.is_premium ? "#0b1b3d" : "#ccc", fontSize: "12px", flex: "1 1 45%" }}
-                      disabled={!user?.is_premium}
-                      onClick={() => handleExport('kml')}
+                  
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px" }}>
+                    <button 
+                      style={{ width: "100%", padding: "12px", backgroundColor: user?.is_premium ? theme.blue : "#cbd5e1", color: "white", border: "none", borderRadius: theme.radiusSm, fontWeight: "bold", cursor: user?.is_premium ? "pointer" : "not-allowed", transition: "background 0.2s" }} 
+                      disabled={!user?.is_premium || isAnalyzingBatch} 
+                      onClick={handleBatchAnalyze}
                     >
-
-                      ⭳ .KML
+                      {isAnalyzingBatch ? "⏳ Processing Batch..." : "Run Batch Analysis"}
                     </button>
-
-                    <button
-                      style={{ ...activeTabBtn, backgroundColor: user?.is_premium ? "#0b1b3d" : "#ccc", fontSize: "12px", flex: "1 1 45%" }}
-                      disabled={!user?.is_premium}
-                      onClick={() => handleExport('dxf')}
-                    >
-                      ⭳ .DXF
-                    </button>
-
-                    {/* --- NEW BUTTONS --- */}
-                    <button
-                      style={{ ...activeTabBtn, backgroundColor: user?.is_premium ? "#0b1b3d" : "#ccc", fontSize: "12px", flex: "1 1 45%" }}
-                      disabled={!user?.is_premium}
-                      onClick={() => handleExport('geojson')}
-                      title="Universal format for QGIS, ArcGIS, Mapbox"
-                    >
-                      ⭳ .GeoJSON
-                    </button>
-
-                    <button
-                      style={{ ...activeTabBtn, backgroundColor: user?.is_premium ? "#0b1b3d" : "#ccc", fontSize: "12px", flex: "1 1 45%" }}
-                      disabled={!user?.is_premium}
-                      onClick={() => handleExport('aixm')}
-                      title="Aeronautical Information Exchange Model (SWIM)"
-                    >
-                      ⭳ AIXM 5.1
-                    </button>
+                    
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button 
+                        style={{ flex: 1, padding: "10px", backgroundColor: user?.is_premium && batchResults.length > 0 ? theme.navy : "#cbd5e1", color: "white", border: "none", borderRadius: theme.radiusSm, fontWeight: 600, fontSize: "12px", cursor: user?.is_premium && batchResults.length > 0 ? "pointer" : "not-allowed", transition: "background 0.2s" }} 
+                        disabled={!user?.is_premium || batchResults.length === 0} 
+                        onClick={downloadBatchCSV}
+                      >
+                        ⤓ .CSV Results
+                      </button>
+                      <button 
+                        style={{ flex: 1, padding: "10px", backgroundColor: user?.is_premium && batchResults.length > 0 ? "#b91c1c" : "#cbd5e1", color: "white", border: "none", borderRadius: theme.radiusSm, fontWeight: 600, fontSize: "12px", cursor: user?.is_premium && batchResults.length > 0 ? "pointer" : "not-allowed", transition: "background 0.2s" }} 
+                        disabled={!user?.is_premium || batchResults.length === 0} 
+                        onClick={generateBatchPDF}
+                      >
+                        ⤓ PDF Report
+                      </button>
+                    </div>
                   </div>
+                </div>
 
-                  {!user?.is_premium && (
-                    <p style={{ color: "red", fontSize: "11px", marginTop: "8px", textAlign: "center" }}>
-                      Log in to a Premium account to unlock 3D exports.
+                {/* --- PREMIUM EXPORT PANEL --- */}
+                {selectedAnalysisAirport && (
+                  <div style={{ backgroundColor: "#fefcbf", padding: "16px", borderRadius: theme.radiusSm, border: "1px solid #fbd38d" }}>
+                    <label style={{...labelStyle, color: "#975a16", margin: "0 0 10px 0"}}>★ Premium Export Tools</label>
+                    <p style={{fontSize: "11px", color: "#975a16", margin: "0 0 12px 0", lineHeight: 1.4}}>Download this generated airspace into your native GIS tools.</p>
+                    
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                      <button style={{ flex: "1 1 45%", padding: "10px", backgroundColor: user?.is_premium ? theme.navy : "#cbd5e1", color: "white", border: "none", borderRadius: theme.radiusSm, fontWeight: 600, fontSize: "12px", cursor: user?.is_premium ? "pointer" : "not-allowed", transition: "background 0.2s" }} disabled={!user?.is_premium} onClick={() => handleExport('kml')}>⭳ .KML</button>
+                      <button style={{ flex: "1 1 45%", padding: "10px", backgroundColor: user?.is_premium ? theme.navy : "#cbd5e1", color: "white", border: "none", borderRadius: theme.radiusSm, fontWeight: 600, fontSize: "12px", cursor: user?.is_premium ? "pointer" : "not-allowed", transition: "background 0.2s" }} disabled={!user?.is_premium} onClick={() => handleExport('dxf')}>⭳ .DXF</button>
+                      <button style={{ flex: "1 1 45%", padding: "10px", backgroundColor: user?.is_premium ? "#15803d" : "#cbd5e1", color: "white", border: "none", borderRadius: theme.radiusSm, fontWeight: 600, fontSize: "12px", cursor: user?.is_premium ? "pointer" : "not-allowed", transition: "background 0.2s" }} disabled={!user?.is_premium} onClick={() => handleExport('geojson')}>⭳ GeoJSON</button>
+                      <button style={{ flex: "1 1 45%", padding: "10px", backgroundColor: user?.is_premium ? "#b91c1c" : "#cbd5e1", color: "white", border: "none", borderRadius: theme.radiusSm, fontWeight: 600, fontSize: "12px", cursor: user?.is_premium ? "pointer" : "not-allowed", transition: "background 0.2s" }} disabled={!user?.is_premium} onClick={() => handleExport('aixm')}>⭳ AIXM 5.1</button>
+                    </div>
+                    
+                    {!user?.is_premium && (
+                      <p style={{ color: "#c53030", fontSize: "11px", marginTop: "10px", textAlign: "center", fontWeight: "bold" }}>
+                        Log in to a Premium account to unlock 3D exports.
                     </p>
                   )}
                 </div>
@@ -3437,220 +3317,141 @@ export default function Home() {
 
           {/* --- DASHBOARD TAB --- */}
           {activeTab === "dashboard" && (() => {
-            const uniqueAirportsCount = new Set(savedSurfaces.map(s => s.airport_name)).size;
-            const maxAirports = user ? user.max_airports : 0; // --- NEW: Dynamic from DB! ---
-
-            return (
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
-                  <label style={{ ...labelStyle, margin: 0 }}>
-                    My Saved Airspaces
-                  </label>
-
-                  <span style={{ fontSize: "12px", fontWeight: "bold", color: user?.is_premium ? "#0b1b3d" : "#666" }}>
-                    Storage: {uniqueAirportsCount} / {maxAirports} Airports
+              const uniqueAirportsCount = new Set(savedSurfaces.map(s => s.airport_name)).size;
+              const maxAirports = user ? user.max_airports : 0; 
+              
+              return (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 4px", borderBottom: `1px solid ${theme.border}`, paddingBottom: "10px" }}>
+                  <label style={{...labelStyle, margin: 0, fontSize: "14px", color: theme.navy}}>Saved Airspaces</label>
+                  <span style={{ fontSize: "11px", fontWeight: 700, color: user?.is_premium ? theme.navy : theme.textMuted, backgroundColor: theme.bgOff, padding: "4px 8px", borderRadius: "12px", border: `1px solid ${theme.border}` }}>
+                    Storage: {uniqueAirportsCount} / {maxAirports}
                   </span>
                 </div>
 
-                {/* --- PREMIUM: MANAGE AIRPORT SETTINGS --- */}
                 {user?.is_premium && uniqueAirportsCount > 0 && (
-                  <div style={{ backgroundColor: "#e8f0fe", padding: "10px", borderRadius: "4px", marginBottom: "15px", border: "1px solid #cce5ff" }}>
-                    <label style={{ ...labelStyle, margin: 0, color: "#0b1b3d", display: "block", marginBottom: "5px" }}>
-                      ⚙️ Manage Airport Settings
-                    </label>
-                    <select
-                      style={inputStyle}
-                      value={manageAptSelect}
-                      onChange={e => {
-                        const apt = e.target.value;
-                        setManageAptSelect(apt);
-                        setManageAptName(apt);
-                        // Find if this airport is currently public
-                        const surf = savedSurfaces.find(s => s.airport_name === apt);
-                        setManageAptPublic(surf?.is_public ?? true);
-                      }}
-                    >
+                  <div style={{ backgroundColor: theme.lightBlue, padding: "16px", borderRadius: theme.radiusSm, border: "1px solid #cce5ff", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+                    <label style={{...labelStyle, margin: 0, color: theme.navy, marginBottom: "12px"}}>⚙️ Manage Visibility</label>
+                    <select style={{...inputStyle, cursor: "pointer"}} value={manageAptSelect} onChange={e => {
+                        const apt = e.target.value; setManageAptSelect(apt); setManageAptName(apt);
+                        const surf = savedSurfaces.find(s => s.airport_name === apt); setManageAptPublic(surf?.is_public ?? true);
+                      }}>
                       <option value="">Select an airport to edit...</option>
-                      {Array.from(new Set(savedSurfaces.map(s => s.airport_name))).map(a => (
-                        <option key={a} value={a}>{a}</option>
-                      ))}
+                      {Array.from(new Set(savedSurfaces.map(s => s.airport_name))).map(a => <option key={a} value={a}>{a}</option>)}
                     </select>
 
                     {manageAptSelect && (
-                      <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                        <input
-                          style={inputStyle}
-                          value={manageAptName}
-                          onChange={e => setManageAptName(e.target.value)}
-                          placeholder="New Airport Name"
-                        />
-                        <label style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "5px" }}>
-                          <input
-                            type="checkbox"
-                            checked={manageAptPublic}
-                            onChange={e => setManageAptPublic(e.target.checked)}
-                          />
+                      <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "12px", borderTop: "1px dashed #b3d9f7", paddingTop: "12px" }}>
+                        <input style={inputStyle} value={manageAptName} onChange={e => setManageAptName(e.target.value)} placeholder="Rename Airport" />
+                        <label style={{ fontSize: "13px", display: "flex", alignItems: "center", gap: "8px", color: theme.text, cursor: "pointer", fontWeight: 600 }}>
+                          <input type="checkbox" checked={manageAptPublic} onChange={e => setManageAptPublic(e.target.checked)} style={{cursor:"pointer", width: "16px", height: "16px", accentColor: theme.navy}}/>
                           Public (Visible in CAA Verified Search)
                         </label>
-                        <button
-                          style={{ ...activeTabBtn, backgroundColor: "#0b1b3d", padding: "6px 12px", fontSize: "12px" }}
+                        <button 
+                          style={{ padding: "12px", backgroundColor: theme.navy, color: "white", border: "none", borderRadius: theme.radiusSm, fontWeight: "bold", cursor: "pointer", transition: "background 0.2s" }}
+                          onMouseEnter={e => e.currentTarget.style.backgroundColor = theme.navyHover}
+                          onMouseLeave={e => e.currentTarget.style.backgroundColor = theme.navy}
                           onClick={async () => {
                             if (!manageAptName) return alert("Name cannot be empty.");
-                            const res = await fetch(`${API_BASE}/airports/${encodeURIComponent(manageAptSelect)}`, {
-                              method: "PUT",
-                              headers: getAuthHeaders(),
-                              body: JSON.stringify({ new_name: manageAptName, is_public: manageAptPublic })
-                            });
+                            const res = await fetch(`${API_BASE}/airports/${encodeURIComponent(manageAptSelect)}`, { method: "PUT", headers: getAuthHeaders(), body: JSON.stringify({ new_name: manageAptName, is_public: manageAptPublic }) });
                             if (res.ok) {
                               alert("Airport updated successfully!");
-                              // Instantly update the local UI state without needing to refresh
-                              setSavedSurfaces(prev => prev.map(s =>
-                                s.airport_name === manageAptSelect
-                                  ? { ...s, airport_name: manageAptName, is_public: manageAptPublic }
-                                  : s
-                              ));
-                              setManageAptSelect(manageAptName); // Update dropdown reference
-                            } else {
-                              const err = await res.json();
-                              alert(`Error: ${err.detail || "Failed to update"}`);
-                            }
-                          }}
-                        >
-                          Save Changes
-                        </button>
+                              setSavedSurfaces(prev => prev.map(s => s.airport_name === manageAptSelect ? { ...s, airport_name: manageAptName, is_public: manageAptPublic } : s ));
+                              setManageAptSelect(manageAptName); 
+                            } else { const err = await res.json(); alert(`Error: ${err.detail || "Failed to update"}`); }
+                          }}> Save Changes </button>
                       </div>
                     )}
                   </div>
                 )}
 
                 {!user ? (
-                  <p style={{ fontSize: "12px", color: "#dc3545", backgroundColor: "#f8d7da", padding: "10px", borderRadius: "4px" }}>
-                    Please sign in to manage your saved surfaces.
-                  </p>
+                  <div style={{ backgroundColor: "#fff5f5", border: "1px solid #fed7d7", padding: "20px", borderRadius: theme.radiusSm, textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+                    <p style={{ fontSize: "13px", color: "#c53030", margin: 0, fontWeight: 600 }}>Please log in to manage your saved surfaces.</p>
+                  </div>
                 ) : savedSurfaces.length === 0 ? (
-                  <p style={{ fontSize: "12px", color: "#666", textAlign: "center", padding: "20px" }}>
-                    You haven't saved any surfaces yet. Go to the Define tab to create one!
-                  </p>
+                  <div style={{ padding: "40px 20px", textAlign: "center", border: `2px dashed ${theme.border}`, borderRadius: theme.radiusSm, backgroundColor: theme.bgOff }}>
+                    <span style={{fontSize: "24px", display: "block", marginBottom: "10px", color: "#cbd5e1"}}>📂</span>
+                    <p style={{ fontSize: "13px", color: theme.textMuted, margin: 0, fontWeight: 500 }}>You haven't saved any surfaces yet. Go to the Define tab to create one!</p>
+                  </div>
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "60vh", overflowY: "auto" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxHeight: "55vh", overflowY: "auto", paddingRight: "4px" }}>
                     {savedSurfaces.map(s => (
-                      <div key={s.id} style={{ padding: "12px", backgroundColor: "#f8f9fa", border: "1px solid #ddd", borderRadius: "6px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                          <strong style={{ fontSize: "13px", color: "#333" }}>
+                      <div key={s.id} style={{ padding: "16px", backgroundColor: theme.bgOff, border: `1px solid ${theme.border}`, borderRadius: theme.radiusSm, boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
+                          <strong style={{ fontSize: "14px", color: theme.navy, lineHeight: 1.3 }}>
                             {s.airport_name ? `${s.airport_name} - ` : ""}{s.name}
                           </strong>
-                          <span style={{ fontSize: "10px", backgroundColor: "#e9ecef", padding: "2px 6px", borderRadius: "10px", color: "#555" }}>
+                          <span style={{ fontSize: "10px", backgroundColor: theme.bg, border: `1px solid ${theme.border}`, padding: "4px 8px", borderRadius: "12px", color: theme.textMuted, fontWeight: 700, letterSpacing: "0.5px" }}>
                             {s.family}
                           </span>
                         </div>
-
-                        <div style={{ fontSize: "11px", color: "#666", margin: "8px 0" }}>
+                        <div style={{ fontSize: "12px", color: theme.textMuted, margin: "0 0 12px 0", fontStyle: "italic" }}>
                           Contains {s.geometry.length} 3D geometric meshes.
                         </div>
-
-                        {/* --- DASHBOARD CARD ACTIONS --- */}
-                        <div style={{ ...rowStyle, marginTop: "8px" }}>
-                          <button
-                            style={{ ...activeTabBtn, backgroundColor: "#0053ac", fontSize: "11px", padding: "6px" }}
+                        <div style={{...rowStyle, borderTop: `1px solid ${theme.border}`, paddingTop: "12px"}}>
+                          <button style={{ flex: 1, padding: "10px", backgroundColor: theme.blue, color: "white", border: "none", borderRadius: theme.radiusSm, fontSize: "12px", fontWeight: "bold", cursor: "pointer", transition: "background 0.2s" }} 
+                            onMouseEnter={e => e.currentTarget.style.backgroundColor = theme.blueHover}
+                            onMouseLeave={e => e.currentTarget.style.backgroundColor = theme.blue}
                             onClick={async () => {
-                              // Auto-fetch offset before drawing from dashboard
-                              let newOffset = geoidOffset;
-                              if (s.geometry && s.geometry.length > 0) {
-                                const firstCoord = getFirstCoord(s.geometry);
-                                if (firstCoord) newOffset = await autoFetchGeoidOffset(firstCoord[1], firstCoord[0]);
-                              }
-                              handleDrawSurface([s], newOffset);
-                            }}
-                          >
-                            🗺️ Draw
+                              let newOffset = geoidOffset; if (s.geometry && s.geometry.length > 0) { const firstCoord = getFirstCoord(s.geometry); if (firstCoord) newOffset = await autoFetchGeoidOffset(firstCoord[1], firstCoord[0]); } handleDrawSurface([s], newOffset);
+                            }}> 🗺️ Draw </button>
+                          <button style={{ flex: 1, padding: "10px", backgroundColor: "#64748b", color: "white", border: "none", borderRadius: theme.radiusSm, fontSize: "12px", fontWeight: "bold", cursor: "pointer", transition: "background 0.2s" }} 
+                            onMouseEnter={e => e.currentTarget.style.backgroundColor = "#475569"}
+                            onMouseLeave={e => e.currentTarget.style.backgroundColor = "#64748b"}
+                            onClick={() => setExpandedSurfaceId(expandedSurfaceId === s.id ? null : s.id)}>
+                            {expandedSurfaceId === s.id ? "▲ Close" : "▼ Layers"}
                           </button>
-
-                          {/* NEW: Edit/Expand Button */}
-                          <button
-                            style={{ ...activeTabBtn, backgroundColor: "#6c757d", fontSize: "11px", padding: "6px" }}
-                            onClick={() => setExpandedSurfaceId(expandedSurfaceId === s.id ? null : s.id)}
-                          >
-                            {expandedSurfaceId === s.id ? "▲ Close" : "▼ Components"}
-                          </button>
-
-                          <button
-                            style={{ ...activeTabBtn, backgroundColor: "#ae2936", flex: 0.4, fontSize: "11px", padding: "6px" }}
-                            onClick={() => handleDeleteSurface(s.id)}
-                          >
-                            🗑️ All
-                          </button>
+                          <button style={{ flex: 0.4, padding: "10px", backgroundColor: "#ef4444", color: "white", border: "none", borderRadius: theme.radiusSm, fontSize: "12px", fontWeight: "bold", cursor: "pointer", transition: "background 0.2s" }} 
+                            onMouseEnter={e => e.currentTarget.style.backgroundColor = "#dc2626"}
+                            onMouseLeave={e => e.currentTarget.style.backgroundColor = "#ef4444"}
+                            onClick={() => handleDeleteSurface(s.id)}> 🗑️ </button>
                         </div>
-
-                        {/* --- EXPANDED COMPONENT LIST --- */}
                         {expandedSurfaceId === s.id && (
-                          <div style={{ marginTop: "10px", padding: "5px", backgroundColor: "#fff", border: "1px solid #eee", borderRadius: "4px" }}>
-                            <small style={{ fontWeight: "bold", color: "#555" }}>Individual Layers:</small>
-                            <ul style={{ listStyle: "none", padding: 0, margin: "5px 0 0 0" }}>
-                              {s.geometry.map((geo: any, idx: number) => (
-                                <li key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #f0f0f0", padding: "4px 0", fontSize: "11px" }}>
-                                  <span style={{ color: "#333" }}>{geo.name}</span>
-                                  <button
-                                    onClick={() => handleDeleteComponent(s.id, geo.name)}
-                                    style={{ border: "none", background: "none", color: "red", cursor: "pointer", fontWeight: "bold" }}
-                                    title="Delete this layer only"
-                                  >
-                                    ✖
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
+                            <div style={{ marginTop: "12px", padding: "12px", backgroundColor: theme.bg, border: `1px solid ${theme.border}`, borderRadius: theme.radiusSm }}>
+                                <small style={{ fontWeight: "bold", color: theme.textMuted, textTransform: "uppercase", fontSize: "10px", letterSpacing: "0.5px" }}>Individual Layers:</small>
+                                <ul style={{ listStyle: "none", padding: 0, margin: "8px 0 0 0" }}>
+                                    {s.geometry.map((geo: any, idx: number) => (
+                                        <li key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: idx === s.geometry.length - 1 ? "none" : `1px solid ${theme.border}`, padding: "8px 0", fontSize: "12px" }}>
+                                            <span style={{ color: theme.text, fontWeight: 500 }}>{geo.name}</span>
+                                            <button onClick={() => handleDeleteComponent(s.id, geo.name)} style={{ border: "none", background: "none", color: "#dc3545", cursor: "pointer", fontWeight: "bold", padding: "4px 8px", borderRadius: "4px", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.backgroundColor = "#fee2e2"} onMouseLeave={e => e.currentTarget.style.backgroundColor = "transparent"} title="Delete layer"> ✖ </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
                         )}
                       </div>
                     ))}
                   </div>
                 )}
-
-                {/* FIXED: Check against uniqueAirportsCount */}
+                
                 {!user?.is_premium && uniqueAirportsCount >= 1 && (
-                  <div style={{ backgroundColor: "#fff3cd", padding: "10px", borderRadius: "4px", border: "1px solid #ffeeba", marginTop: "10px" }}>
-                    <p style={{ color: "#856404", fontSize: "11px", margin: 0, textAlign: "center" }}>
-                      <strong>Free Tier Limit Reached.</strong><br />
+                  <div style={{ backgroundColor: "#fefcbf", padding: "12px", borderRadius: theme.radiusSm, border: "1px solid #fbd38d", marginTop: "10px" }}>
+                    <p style={{ color: "#975a16", fontSize: "12px", margin: 0, textAlign: "center", lineHeight: 1.5 }}>
+                      <strong>Free Tier Limit Reached.</strong><br/>
                       Upgrade to Premium to save up to 10 distinct airport configurations.
                     </p>
                   </div>
                 )}
-                {/* --- PREMIUM: AUDIT LOG HISTORY EXPORTER --- */}
+                
                 {user?.is_premium && (
-                  <div style={{ backgroundColor: "#e8f0fe", padding: "15px", borderRadius: "6px", border: "1px solid #cce5ff", marginTop: "20px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
-                      <label style={{ ...labelStyle, margin: 0, color: "#0b1b3d" }}>🗄️ Official Authorization Logs</label>
-                    </div>
-
-                    <p style={{ fontSize: "11px", color: "#555", margin: "0 0 10px 0" }}>
+                  <div style={{ backgroundColor: theme.lightBlue, padding: "16px", borderRadius: theme.radiusSm, border: "1px solid #cce5ff", marginTop: "16px" }}>
+                    <label style={{...labelStyle, margin: 0, color: theme.navy, marginBottom: "6px"}}>🗄️ Official Authorization Logs</label>
+                    <p style={{ fontSize: "12px", color: theme.textMuted, margin: "0 0 16px 0", lineHeight: 1.4 }}>
                       Download a complete CSV record of all official evaluation PDFs generated for your airspaces.
                     </p>
-
-                    <div style={{ display: "flex", gap: "10px", alignItems: "flex-end" }}>
+                    <div style={{ display: "flex", gap: "10px", alignItems: "flex-end", marginBottom: "16px" }}>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#333", display: "block", marginBottom: "3px" }}>Start Date</label>
-                        <input
-                          type="date"
-                          style={{ ...inputStyle, padding: "6px", fontSize: "12px" }}
-                          value={logStartDate}
-                          onChange={e => setLogStartDate(e.target.value)}
-                        />
+                        <label style={{ fontSize: "11px", fontWeight: 600, color: theme.navy, display: "block", marginBottom: "6px" }}>Start Date</label>
+                        <input type="date" style={{ ...inputStyle, padding: "10px", fontSize: "13px" }} value={logStartDate} onChange={e => setLogStartDate(e.target.value)} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#333", display: "block", marginBottom: "3px" }}>End Date</label>
-                        <input
-                          type="date"
-                          style={{ ...inputStyle, padding: "6px", fontSize: "12px" }}
-                          value={logEndDate}
-                          onChange={e => setLogEndDate(e.target.value)}
-                        />
+                        <label style={{ fontSize: "11px", fontWeight: 600, color: theme.navy, display: "block", marginBottom: "6px" }}>End Date</label>
+                        <input type="date" style={{ ...inputStyle, padding: "10px", fontSize: "13px" }} value={logEndDate} onChange={e => setLogEndDate(e.target.value)} />
                       </div>
                     </div>
-                    <button
-                      onClick={handleDownloadLogs}
-                      style={{ ...activeTabBtn, backgroundColor: "#176429", padding: "6px 12px", fontSize: "12px", height: "31px", flex: "0 1 auto" }}
-                    >
-                      📥 Download CSV
+                    <button onClick={handleDownloadLogs} style={{ width: "100%", padding: "12px", backgroundColor: "#15803d", color: "white", border: "none", borderRadius: theme.radiusSm, fontWeight: "bold", cursor: "pointer", fontSize: "13px", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.backgroundColor = "#166534"} onMouseLeave={e => e.currentTarget.style.backgroundColor = "#15803d"}>
+                      ⤓ Download CSV History
                     </button>
                   </div>
                 )}
@@ -3661,281 +3462,148 @@ export default function Home() {
 
         {/* --- EXAGGERATION WIDGET --- */}
         <div style={{
-          position: "absolute",
-          bottom: "30px",
-          right: "30px",
-          backgroundColor: "rgba(255, 255, 255, 0.9)",
-          padding: "10px 15px",
-          borderRadius: "8px",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-          zIndex: 10,
-          display: "flex",
-          flexDirection: "column",
-          gap: "5px",
-          width: "200px"
+          position: "absolute", bottom: "30px", right: "30px", backgroundColor: "rgba(255, 255, 255, 0.96)", backdropFilter: "blur(10px)",
+          padding: "14px 18px", borderRadius: theme.radius, boxShadow: theme.shadowHover, border: `1px solid ${theme.border}`, zIndex: 10, display: "flex", flexDirection: "column", gap: "10px", width: "240px"
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <label style={{ fontSize: "12px", fontWeight: "bold", color: "#333", margin: 0 }}>
-              3D Exaggeration
-            </label>
-            <span style={{ fontSize: "12px", color: "#0b1b3d", fontWeight: "bold" }}>
-              {exaggeration}x
-            </span>
+            <label style={{ fontSize: "12px", fontWeight: 700, color: theme.navy, margin: 0, textTransform: "uppercase", letterSpacing: "0.5px" }}>3D Exaggeration</label>
+            <span style={{ fontSize: "15px", color: theme.blue, fontWeight: 800 }}>{exaggeration}x</span>
           </div>
-          <input
-            type="range"
-            min="1"
-            max="10"
-            step="0.5"
-            defaultValue={1} // Use defaultValue for uncontrolled input behavior
+          <input type="range" min="1" max="10" step="0.5" defaultValue={1} 
             onChange={(e) => {
-              const val = parseFloat(e.target.value);
-              setExaggeration(val);
-              // 1. Instantly update Terrain (Cheap)
-              if (viewerRef.current) {
-                viewerRef.current.scene.verticalExaggeration = val;
-              }
+                const val = parseFloat(e.target.value); setExaggeration(val);
+                if (viewerRef.current) viewerRef.current.scene.verticalExaggeration = val;
             }}
-            onMouseUp={() => {
-              // Only Redraw Surfaces when user RELEASES the mouse
-              if (drawnSurfacesRef.current.length > 0) {
-                // Explicitly pass the current state offset
-                handleDrawSurface(drawnSurfacesRef.current, geoidOffset);
-              }
-            }}
-            style={{ width: "100%", cursor: "pointer" }}
+            onMouseUp={() => { if (drawnSurfacesRef.current.length > 0) handleDrawSurface(drawnSurfacesRef.current, geoidOffset); }}
+            style={{ width: "100%", cursor: "pointer", accentColor: theme.blue }}
           />
         </div>
 
         {/* --- ACCOUNT / LOGIN PANEL (Floating Box) --- */}
-        {/* --- ACCOUNT / LOGIN PANEL (Floating Box) --- */}
         <div style={{
-          position: "absolute",
-          bottom: "100px",
-          right: "20px",
-          zIndex: 10,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-end", // Aligns the toggle button to the right
-          gap: "10px"
+          position: "absolute", bottom: "115px", right: "30px", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "12px"
         }}>
-
-          {/* 1. TOGGLE BUTTON (Visible Always) */}
+          {/* TOGGLE BUTTON */}
           <button
             onClick={() => setShowAccountPanel(!showAccountPanel)}
             style={{
-              width: "40px", height: "40px", borderRadius: "50%",
-              backgroundColor: "white", border: "none", boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
-              cursor: "pointer", fontSize: "18px", display: "flex", alignItems: "center", justifyContent: "center",
-              color: "#0b1b3d"
+              width: "50px", height: "50px", borderRadius: "50%", backgroundColor: theme.navy, color: "white", border: "none", boxShadow: theme.shadowHover,
+              cursor: "pointer", fontSize: "20px", display: "flex", alignItems: "center", justifyContent: "center", transition: "transform 0.2s, background 0.2s"
             }}
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = theme.blue}
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = theme.navy}
             title={showAccountPanel ? "Minimize Panel" : "Show Account Panel"}
           >
             {showAccountPanel ? "✕" : (user ? "👤" : "🔑")}
           </button>
 
-          {/* 2. THE PANEL CONTENT (Visible only when Toggled ON) */}
+          {/* PANEL CONTENT */}
           {showAccountPanel && (
             <div style={{
-              width: "300px",
-              backgroundColor: "rgba(255, 255, 255, 0.95)",
-              padding: "15px",
-              borderRadius: "8px",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-              border: "1px solid #ddd"
+              width: "340px", backgroundColor: "rgba(255, 255, 255, 0.98)", backdropFilter: "blur(10px)",
+              padding: "24px", borderRadius: theme.radius, boxShadow: theme.shadowHover, border: `1px solid ${theme.border}`
             }}>
               {!user ? (
                 isResending ? (
-                  // --- RESEND VERIFICATION PANEL ---
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <strong style={{ fontSize: "14px", color: "#333" }}>Resend Verification</strong>
-                    <p style={{ fontSize: "11px", color: "#666", margin: 0 }}>Enter your email to receive a new activation link.</p>
-
-                    <input
-                      style={{ ...inputStyle, padding: "6px" }}
-                      type="email"
-                      value={resendEmailInput}
-                      onChange={e => setResendEmailInput(e.target.value)}
-                      placeholder="Registered Email Address"
-                    />
-
-                    <button
-                      style={{ ...activeTabBtn, padding: "8px", backgroundColor: "#17a2b8" }}
+                  // RESEND VERIFICATION
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    <strong style={{ fontSize: "18px", color: theme.navy, fontWeight: 800 }}>Resend Verification</strong>
+                    <p style={{ fontSize: "13px", color: theme.textMuted, margin: 0, lineHeight: 1.5 }}>Enter your email to receive a new activation link.</p>
+                    <input style={inputStyle} type="email" value={resendEmailInput} onChange={e => setResendEmailInput(e.target.value)} placeholder="Registered Email Address" />
+                    <button style={{ width: "100%", padding: "12px", backgroundColor: "#0891b2", color: "white", border: "none", borderRadius: theme.radiusSm, fontWeight: "bold", cursor: "pointer", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.backgroundColor = "#0e7490"} onMouseLeave={e => e.currentTarget.style.backgroundColor = "#0891b2"}
                       onClick={async () => {
                         if (!resendEmailInput) return alert("Please enter your email");
-
-                        const res = await fetch(`${API_BASE}/resend-verification`, {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ email: resendEmailInput })
-                        });
-
-                        const data = await res.json();
-                        alert(data.message);
-                        setIsResending(false);
-                      }}
-                    >
-                      Send New Link
-                    </button>
-
-                    <button
-                      style={{ backgroundColor: "transparent", border: "none", color: "#666", fontSize: "11px", cursor: "pointer", marginTop: "5px" }}
-                      onClick={() => setIsResending(false)}
-                    >
-                      Back to Login
-                    </button>
+                        const res = await fetch(`${API_BASE}/resend-verification`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: resendEmailInput }) });
+                        const data = await res.json(); alert(data.message); setIsResending(false);
+                      }}> Send New Link </button>
+                    <button style={{ background: "none", border: "none", color: theme.textMuted, fontSize: "12px", cursor: "pointer", marginTop: "4px", fontWeight: 600, textDecoration: "underline" }} onClick={() => setIsResending(false)}> Back to Login </button>
                   </div>
                 ) : isForgotPassword ? (
-                  // --- FORGOT PASSWORD PANEL ---
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <strong style={{ fontSize: "14px", color: "#333" }}>Reset Password</strong>
-                    <p style={{ fontSize: "11px", color: "#666", margin: 0 }}>Enter your account email to receive a reset link.</p>
-
-                    <input style={{ ...inputStyle, padding: "6px" }} type="email" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} placeholder="Registered Email Address" />
-
-                    <button
-                      style={{ ...activeTabBtn, padding: "8px", backgroundColor: "#007bff" }}
+                  // FORGOT PASSWORD
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    <strong style={{ fontSize: "18px", color: theme.navy, fontWeight: 800 }}>Reset Password</strong>
+                    <p style={{ fontSize: "13px", color: theme.textMuted, margin: 0, lineHeight: 1.5 }}>Enter your account email to receive a reset link.</p>
+                    <input style={inputStyle} type="email" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} placeholder="Registered Email Address" />
+                    <button style={{ width: "100%", padding: "12px", backgroundColor: theme.blue, color: "white", border: "none", borderRadius: theme.radiusSm, fontWeight: "bold", cursor: "pointer", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.backgroundColor = theme.blueHover} onMouseLeave={e => e.currentTarget.style.backgroundColor = theme.blue}
                       onClick={async () => {
                         if (!forgotEmail) return alert("Please enter your email");
-                        await fetch(`${API_BASE}/forgot-password`, {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ email: forgotEmail })
-                        });
-                        alert("If that email exists in our system, a reset link has been sent.");
-                        setIsForgotPassword(false);
-                      }}
-                    >
-                      Send Reset Link
-                    </button>
-
-                    <button style={{ backgroundColor: "transparent", border: "none", color: "#666", fontSize: "11px", cursor: "pointer", marginTop: "5px" }} onClick={() => setIsForgotPassword(false)}>
-                      Back to Login
-                    </button>
+                        await fetch(`${API_BASE}/forgot-password`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: forgotEmail }) });
+                        alert("If that email exists in our system, a reset link has been sent."); setIsForgotPassword(false);
+                      }}> Send Reset Link </button>
+                    <button style={{ background: "none", border: "none", color: theme.textMuted, fontSize: "12px", cursor: "pointer", marginTop: "4px", fontWeight: 600, textDecoration: "underline" }} onClick={() => setIsForgotPassword(false)}> Back to Login </button>
                   </div>
                 ) : (
-                  // --- EXISTING LOGIN/REGISTER PANEL ---
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  // LOGIN/REGISTER
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <strong style={{ fontSize: "14px", color: "#333" }}>{isRegistering ? "Register Account" : "Guest Mode"}</strong>
-                      {!isRegistering && <span style={{ fontSize: "10px", backgroundColor: "#e2e3e5", padding: "2px 6px", borderRadius: "4px" }}>Free</span>}
+                      <strong style={{ fontSize: "18px", color: theme.navy, fontWeight: 800 }}>{isRegistering ? "Register Account" : "Guest Mode"}</strong>
+                      {!isRegistering && <span style={{ fontSize: "11px", backgroundColor: theme.border, padding: "4px 10px", borderRadius: "12px", fontWeight: 700, color: theme.textMuted }}>Free Tier</span>}
                     </div>
-
-                    {!isRegistering && <p style={{ fontSize: "11px", color: "#666", margin: 0 }}>Create 1 surface as a guest, or log in.</p>}
-                    <hr style={{ margin: "5px 0", borderTop: "1px solid #ddd" }} />
-
-                    {/* --- Email Field (Only shows when registering) --- */}
-                    {isRegistering && (
-                      <input
-                        style={{ ...inputStyle, padding: "6px" }}
-                        type="email"
-                        value={registerEmail}
-                        onChange={e => setRegisterEmail(e.target.value)}
-                        placeholder="Email Address"
-                      />
-                    )}
-
-                    <input style={{ ...inputStyle, padding: "6px" }} value={loginInput} onChange={e => setLoginInput(e.target.value)} placeholder="Username" />
-                    <input type="password" style={{ ...inputStyle, padding: "6px" }} value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="Password" />
-
-                    <button
-                      disabled={isLoggingIn}
-                      style={{
-                        ...activeTabBtn,
-                        padding: "8px",
-                        backgroundColor: isRegistering ? "#28a745" : "#007bff",
-                        opacity: isLoggingIn ? 0.6 : 1,
-                        cursor: isLoggingIn ? "wait" : "pointer"
-                      }}
+                    {!isRegistering && <p style={{ fontSize: "13px", color: theme.textMuted, margin: 0, lineHeight: 1.5 }}>Create 1 surface temporarily as a guest, or log in for premium features.</p>}
+                    <hr style={{ margin: "4px 0", borderTop: `1px solid ${theme.border}` }} />
+                    {isRegistering && <input style={inputStyle} type="email" value={registerEmail} onChange={e => setRegisterEmail(e.target.value)} placeholder="Email Address" />}
+                    <input style={inputStyle} value={loginInput} onChange={e => setLoginInput(e.target.value)} placeholder="Username" />
+                    <input type="password" style={inputStyle} value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="Password" />
+                    <button disabled={isLoggingIn}
+                      style={{ width: "100%", padding: "14px", backgroundColor: isRegistering ? "#15803d" : theme.blue, color: "white", border: "none", borderRadius: theme.radiusSm, fontWeight: "bold", cursor: isLoggingIn ? "wait" : "pointer", opacity: isLoggingIn ? 0.7 : 1, marginTop: "6px", fontSize: "14px", transition: "background 0.2s" }} 
                       onClick={handleAuth}
-                    >
-                      {isLoggingIn ? "⏳ Processing..." : (isRegistering ? "Sign Up" : "Log In")}
-                    </button>
-
-                    <button style={{ backgroundColor: "transparent", border: "none", color: "#007bff", fontSize: "11px", cursor: "pointer", marginTop: "5px" }} onClick={() => setIsRegistering(!isRegistering)}>
+                      onMouseEnter={e => {if (!isLoggingIn) e.currentTarget.style.backgroundColor = isRegistering ? "#166534" : theme.blueHover}}
+                      onMouseLeave={e => {if (!isLoggingIn) e.currentTarget.style.backgroundColor = isRegistering ? "#15803d" : theme.blue}}
+                    > {isLoggingIn ? "⏳ Processing..." : (isRegistering ? "Sign Up" : "Log In")} </button>
+                    <button style={{ background: "none", border: "none", color: theme.blue, fontSize: "13px", cursor: "pointer", marginTop: "6px", fontWeight: 600, transition: "color 0.2s" }} onMouseEnter={e => e.currentTarget.style.color = theme.navy} onMouseLeave={e => e.currentTarget.style.color = theme.blue} onClick={() => setIsRegistering(!isRegistering)}>
                       {isRegistering ? "Already have an account? Log in." : "Create a FREE PREMIUM account"}
                     </button>
-
-                    {/* --- FORGOT PASSWORD / RESEND --- */}
                     {!isRegistering && (
-                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: "5px" }}>
-                        <button
-                          style={{ backgroundColor: "transparent", border: "none", color: "#888", fontSize: "10px", cursor: "pointer", textDecoration: "underline" }}
-                          onClick={() => setIsForgotPassword(true)}
-                        >
-                          Forgot Password?
-                        </button>
-
-                        <button
-                          style={{ backgroundColor: "transparent", border: "none", color: "#888", fontSize: "10px", cursor: "pointer", textDecoration: "underline" }}
-                          onClick={() => setIsResending(true)}
-                        >
-                          Resend Verification
-                        </button>
-                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: "12px", borderTop: `1px solid ${theme.border}`, paddingTop: "16px" }}>
+                      <button style={{ background: "none", border: "none", color: theme.textMuted, fontSize: "12px", cursor: "pointer", textDecoration: "underline", fontWeight: 500 }} onClick={() => setIsForgotPassword(true)}> Forgot Password? </button>
+                      <button style={{ background: "none", border: "none", color: theme.textMuted, fontSize: "12px", cursor: "pointer", textDecoration: "underline", fontWeight: 500 }} onClick={() => setIsResending(true)}> Resend Verification </button>
+                    </div>
                     )}
                   </div>
                 )
               ) : (
-                // --- LOGGED IN VIEW ---
+                // LOGGED IN VIEW
                 <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "14px" }}>
-                      👤 {user.username} {user.is_premium && <span style={{ color: "gold", textShadow: "0 0 2px rgba(0,0,0,0.2)" }}>★ Premium</span>}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${theme.border}`, paddingBottom: "16px", marginBottom: "16px" }}>
+                    <span style={{ fontSize: "18px", fontWeight: 800, color: theme.navy }}>
+                      👤 {user.username} {user.is_premium && <span style={{ color: "#d97706", fontSize: "14px", marginLeft: "6px" }}>★ Premium</span>}
                     </span>
-                    <button onClick={handleLogout} style={{ fontSize: "12px", padding: "4px 8px", cursor: "pointer", backgroundColor: "#f8f9fa", border: "1px solid #ddd", borderRadius: "4px" }}>Logout</button>
+                    <button onClick={handleLogout} style={{ fontSize: "12px", padding: "8px 12px", cursor: "pointer", backgroundColor: theme.bgOff, border: `1px solid ${theme.border}`, borderRadius: theme.radiusSm, fontWeight: 700, color: theme.textMuted, transition: "all 0.2s" }} onMouseEnter={e => {e.currentTarget.style.backgroundColor = "#e2e8f0"; e.currentTarget.style.color = theme.text}} onMouseLeave={e => {e.currentTarget.style.backgroundColor = theme.bgOff; e.currentTarget.style.color = theme.textMuted}}>Logout</button>
                   </div>
 
-                  {/* --- PROFILE SETTINGS --- */}
-                  <div style={{ backgroundColor: "#f8f9fa", padding: "15px", borderRadius: "6px", border: "1px solid #ddd", marginTop: "20px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                      <label style={{ ...labelStyle, margin: 0, color: "#333" }}>⚙️ Account Settings</label>
-                      <button
-                        onClick={() => setIsEditingProfile(!isEditingProfile)}
-                        style={{ fontSize: "11px", padding: "4px 8px", cursor: "pointer", backgroundColor: "#fff", border: "1px solid #ccc", borderRadius: "4px" }}
-                      >
-                        {isEditingProfile ? "Cancel" : "Edit Profile"}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                    <label style={{...labelStyle, margin: 0, fontSize: "14px"}}>⚙️ Account Settings</label>
+                    <button onClick={() => setIsEditingProfile(!isEditingProfile)} style={{ fontSize: "12px", padding: "6px 10px", cursor: "pointer", backgroundColor: theme.bg, border: `1px solid ${theme.border}`, borderRadius: "4px", fontWeight: 600, color: theme.blue }}>
+                      {isEditingProfile ? "Cancel" : "Edit Profile"}
+                    </button>
+                  </div>
+
+                  {isEditingProfile ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                      <input style={inputStyle} value={editUsername} onChange={e => setEditUsername(e.target.value)} placeholder="New Username" />
+                      <input style={inputStyle} type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} placeholder="Email Address" />
+                      <input style={inputStyle} type="password" value={editPassword} onChange={e => setEditPassword(e.target.value)} placeholder="New Password" />
+                      
+                      <div style={{ marginTop: "8px", paddingTop: "16px", borderTop: "1px dashed #ccc" }}>
+                        <label style={{ fontSize: "12px", fontWeight: "bold", color: theme.textMuted, display: "block", marginBottom: "6px" }}>Custom 3D Tiles Token (Optional)</label>
+                        <input style={{...inputStyle, fontFamily: "monospace", backgroundColor: theme.bgOff}} value={editIonToken} onChange={e => setEditIonToken(e.target.value)} placeholder="Contact us for custom environments" />
+                      </div>
+                      <button onClick={handleUpdateProfile} style={{ width: "100%", padding: "12px", backgroundColor: theme.navy, color: "white", border: "none", borderRadius: theme.radiusSm, fontWeight: "bold", cursor: "pointer", marginTop: "8px", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.backgroundColor = theme.blue} onMouseLeave={e => e.currentTarget.style.backgroundColor = theme.navy}>
+                        Save Changes
                       </button>
                     </div>
-
-                    {isEditingProfile ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                        <input style={{ ...inputStyle, padding: "6px", fontSize: "12px" }} value={editUsername} onChange={e => setEditUsername(e.target.value)} placeholder="New Username" />
-                        <input style={{ ...inputStyle, padding: "6px", fontSize: "12px" }} type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} placeholder="Email Address" />
-                        <input style={{ ...inputStyle, padding: "6px", fontSize: "12px" }} type="password" value={editPassword} onChange={e => setEditPassword(e.target.value)} placeholder="New Password" />
-
-                        <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px dashed #ccc" }}>
-                          <label style={{ fontSize: "10px", fontWeight: "bold", color: "#666" }}>Custom Buildings data code (Optional)</label>
-                          <input
-                            style={{ ...inputStyle, padding: "6px", fontSize: "12px", fontFamily: "monospace", backgroundColor: "#f0f0f0" }}
-                            value={editIonToken}
-                            onChange={e => setEditIonToken(e.target.value)}
-                            placeholder="Contact us to receive one"
-                          />
-                          <p style={{ fontSize: "10px", color: "#888", margin: "2px 0 0 0" }}>
-                            If provided, users viewing your surfaces will use this data for 3D assets.
-                          </p>
-                        </div>
-                        <button
-                          onClick={handleUpdateProfile}
-                          style={{ ...activeTabBtn, backgroundColor: "#0b1b3d", padding: "8px", fontSize: "12px", marginTop: "5px" }}
-                        >
-                          Save Changes
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: "12px", color: "#555" }}>
-                        <p style={{ margin: "0 0 5px 0" }}><strong>Username:</strong> {user.username}</p>
-                        <p style={{ margin: "0 0 5px 0" }}><strong>Email:</strong> {user.email || <span style={{ color: "#999" }}>Not provided</span>}</p>
-                        <p style={{ margin: "0" }}><strong>Account Type:</strong> {user.is_premium ? "Premium Authority" : "Free User"}</p>
+                  ) : (
+                    <div style={{ fontSize: "14px", color: theme.text, lineHeight: 1.8, backgroundColor: theme.bgOff, padding: "16px", borderRadius: theme.radiusSm, border: `1px solid ${theme.border}` }}>
+                      <p style={{ margin: "0 0 8px 0" }}><strong style={{color: theme.textMuted}}>Username:</strong> {user.username}</p>
+                      <p style={{ margin: "0 0 8px 0" }}><strong style={{color: theme.textMuted}}>Email:</strong> {user.email || <span style={{color: "#999"}}>Not provided</span>}</p>
+                      <p style={{ margin: "0" }}><strong style={{color: theme.textMuted}}>Account Type:</strong> {user.is_premium ? "Premium Authority" : "Free User"}</p>
                       </div>
                     )}
                   </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
-        </div>
       </div>{/* end inner scaled canvas */}
     </main>
   );
