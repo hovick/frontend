@@ -3584,12 +3584,8 @@ export default function Home() {
                       {isEditingProfile ? "Cancel" : "Edit Profile"}
                     </button>
                   </div>
-3. Remove the 3D Tiles Token Input
-Immediately following the code chunk above, you will see the isEditingProfile block (around line 2445).
-We will remove the Custom 3D Tiles Token section. Replace your isEditingProfile ? ( block with this cleaned up version:
-code
-Tsx
-{isEditingProfile ? (
+
+                  {isEditingProfile ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                       <input style={inputStyle} value={editUsername} onChange={e => setEditUsername(e.target.value)} placeholder="New Username" />
                       <input style={inputStyle} type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} placeholder="Email Address" />
