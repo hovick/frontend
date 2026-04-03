@@ -3483,7 +3483,7 @@ export default function Home() {
         <div style={{
           // THE FIX: Increased zIndex to 99 so it floats above Quick Tools, 
           // and positioned it relative to the bottom right corner
-          position: "absolute", bottom: "30px", right: "260px", zIndex: 99, 
+          position: "absolute", bottom: "130px", right: "20px", zIndex: 99, 
           display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "12px"
         }}>
           {/* TOGGLE BUTTON */}
