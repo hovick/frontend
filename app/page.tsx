@@ -3462,7 +3462,7 @@ export default function Home() {
 
         {/* --- EXAGGERATION WIDGET --- */}
         <div style={{
-          position: "absolute", bottom: "30px", right: "30px", backgroundColor: "rgba(255, 255, 255, 0.96)", backdropFilter: "blur(10px)",
+          position: "absolute", bottom: "10px", right: "30px", backgroundColor: "rgba(255, 255, 255, 0.96)", backdropFilter: "blur(10px)",
           padding: "14px 18px", borderRadius: theme.radius, boxShadow: theme.shadowHover, border: `1px solid ${theme.border}`, zIndex: 10, display: "flex", flexDirection: "column", gap: "10px", width: "240px"
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -3483,7 +3483,7 @@ export default function Home() {
         <div style={{
           // THE FIX: Increased zIndex to 99 so it floats above Quick Tools, 
           // and positioned it relative to the bottom right corner
-          position: "absolute", bottom: "130px", right: "20px", zIndex: 99, 
+          position: "absolute", bottom: "100px", right: "20px", zIndex: 99, 
           display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "12px"
         }}>
           {/* TOGGLE BUTTON */}
