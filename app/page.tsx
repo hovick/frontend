@@ -3254,7 +3254,7 @@ export default function Home() {
                 <div style={{ backgroundColor: theme.bgOff, padding: "16px", borderRadius: theme.radiusSm, border: `1px solid ${theme.border}`, opacity: user?.is_premium ? 1 : 0.6 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
                       <label style={{...labelStyle, color: "#d4af37", margin: 0}}>★ Batch Obstacle Upload</label>
-                      <input type="file" accept=".csv,.txt,.geojson,.json,.aixm,.xml,.kml" onChange={handleBatchFileUpload} disabled={!user?.is_premium} style={{ fontSize: "11px", maxWidth: "160px" }} />
+                      <input type="file" accept=".csv,.txt,.geojson,.json,.aixm,.xml,.kml" onChange={handleBatchFileUpload} disabled={!user?.is_premium} style={{ fontSize: "11px", maxWidth: "120px" }} />
                   </div>
                   <p style={{fontSize: "11px", color: theme.textMuted, margin: "0 0 10px 0", lineHeight: 1.4}}>Upload GeoJSON, AIXM, KML or CSV to analyse multiple targets instantly.</p>
                   
