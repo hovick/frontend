@@ -29,7 +29,7 @@ export default function Home() {
     position: "absolute", top: "20px", left: "20px", width: "360px", padding: "24px", 
     backgroundColor: "rgba(255,255,255,0.96)", backdropFilter: "blur(10px)",
     borderRadius: theme.radius, boxShadow: theme.shadow, border: `1px solid ${theme.border}`,
-    display: "flex", flexDirection: "column", maxHeight: "calc(100vh - 40px)", overflowY: "auto", zIndex: 10 
+    display: "flex", flexDirection: "column", maxHeight: "calc(100vh - 85px)", overflowY: "auto", zIndex: 10 
   };
   const rowStyle: React.CSSProperties = { display: "flex", gap: "8px" };
   const numInputStyle: React.CSSProperties = { 
@@ -3481,17 +3481,24 @@ export default function Home() {
 
         {/* --- ACCOUNT / LOGIN PANEL (Floating Box) --- */}
         <div style={{
-          position: "absolute", bottom: "115px", right: "30px", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "12px"
+          // THE FIX: Increased zIndex to 99 so it floats above Quick Tools, 
+          // and positioned it relative to the bottom right corner
+          position: "absolute", bottom: "30px", right: "260px", zIndex: 99, 
+          display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "12px"
         }}>
           {/* TOGGLE BUTTON */}
           <button
             onClick={() => setShowAccountPanel(!showAccountPanel)}
             style={{
-              width: "50px", height: "50px", borderRadius: "50%", backgroundColor: theme.navy, color: "white", border: "none", boxShadow: theme.shadowHover,
-              cursor: "pointer", fontSize: "20px", display: "flex", alignItems: "center", justifyContent: "center", transition: "transform 0.2s, background 0.2s"
+              width: "50px", height: "50px", borderRadius: "50%", 
+              // THE FIX: Pure white background with Navy border/icon so it is highly visible
+              backgroundColor: "white", color: theme.navy, 
+              border: `2px solid ${theme.navy}`, boxShadow: theme.shadowHover,
+              cursor: "pointer", fontSize: "20px", display: "flex", alignItems: "center", justifyContent: "center", 
+              transition: "all 0.2s"
             }}
-            onMouseEnter={e => e.currentTarget.style.backgroundColor = theme.blue}
-            onMouseLeave={e => e.currentTarget.style.backgroundColor = theme.navy}
+            onMouseEnter={e => { e.currentTarget.style.backgroundColor = theme.lightBlue; }}
+            onMouseLeave={e => { e.currentTarget.style.backgroundColor = "white"; }}
             title={showAccountPanel ? "Minimize Panel" : "Show Account Panel"}
           >
             {showAccountPanel ? "✕" : (user ? "👤" : "🔑")}
@@ -3577,17 +3584,17 @@ export default function Home() {
                       {isEditingProfile ? "Cancel" : "Edit Profile"}
                     </button>
                   </div>
-
-                  {isEditingProfile ? (
+3. Remove the 3D Tiles Token Input
+Immediately following the code chunk above, you will see the isEditingProfile block (around line 2445).
+We will remove the Custom 3D Tiles Token section. Replace your isEditingProfile ? ( block with this cleaned up version:
+code
+Tsx
+{isEditingProfile ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                       <input style={inputStyle} value={editUsername} onChange={e => setEditUsername(e.target.value)} placeholder="New Username" />
                       <input style={inputStyle} type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} placeholder="Email Address" />
                       <input style={inputStyle} type="password" value={editPassword} onChange={e => setEditPassword(e.target.value)} placeholder="New Password" />
                       
-                      <div style={{ marginTop: "8px", paddingTop: "16px", borderTop: "1px dashed #ccc" }}>
-                        <label style={{ fontSize: "12px", fontWeight: "bold", color: theme.textMuted, display: "block", marginBottom: "6px" }}>Custom 3D Tiles Token (Optional)</label>
-                        <input style={{...inputStyle, fontFamily: "monospace", backgroundColor: theme.bgOff}} value={editIonToken} onChange={e => setEditIonToken(e.target.value)} placeholder="Contact us for custom environments" />
-                      </div>
                       <button onClick={handleUpdateProfile} style={{ width: "100%", padding: "12px", backgroundColor: theme.navy, color: "white", border: "none", borderRadius: theme.radiusSm, fontWeight: "bold", cursor: "pointer", marginTop: "8px", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.backgroundColor = theme.blue} onMouseLeave={e => e.currentTarget.style.backgroundColor = theme.navy}>
                         Save Changes
                       </button>
