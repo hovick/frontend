@@ -5,68 +5,31 @@ import "cesium/Build/Cesium/Widgets/widgets.css";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-// --- BRAND THEME ---
-const theme = {
-  navy: "#073763",
-  navyHover: "#052a4e",
-  blue: "#1a6bcc",
-  blueHover: "#1558aa",
-  lightBlue: "#e8f0fb",
-  text: "#1a2332",
-  textMuted: "#4a5568",
-  border: "#e2e8f0",
-  bg: "#ffffff",
-  bgOff: "#f9f9f9",
-  shadow: "0 4px 16px rgba(0,0,0,0.08)",
-  shadowHover: "0 8px 24px rgba(0,0,0,0.12)",
-  radius: "12px",
-  radiusSm: "6px"
-};
+
 export default function Home() {
   // --- STYLES ---
-  // --- STYLES ---
-  const sidebarStyle: React.CSSProperties = { 
-    position: "absolute", top: "20px", left: "20px", width: "360px", padding: "24px", 
-    backgroundColor: "rgba(255,255,255,0.96)", backdropFilter: "blur(10px)",
-    borderRadius: theme.radius, boxShadow: theme.shadow, border: `1px solid ${theme.border}`,
-    display: "flex", flexDirection: "column", maxHeight: "calc(100vh - 40px)", overflowY: "auto", zIndex: 10 
-  };
+  const sidebarStyle: React.CSSProperties = { position: "absolute", top: "20px", left: "20px", width: "350px", padding: "20px", backgroundColor: "rgba(255,255,255,0.95)", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", display: "flex", flexDirection: "column", maxHeight: "90vh", overflowY: "auto", zIndex: 10 };
   const rowStyle: React.CSSProperties = { display: "flex", gap: "8px" };
-  const numInputStyle: React.CSSProperties = { 
-    flex: 1, minWidth: 0, padding: "10px", 
-    border: "1px solid #cbd5e1", // Crisper darker border
-    borderRadius: theme.radiusSm, 
-    fontSize: "16px", 
-    backgroundColor: "#ffffff", // Pure white to contrast with the sidebar
-    color: theme.text, 
-    WebkitTextFillColor: theme.text, 
-    opacity: 1,
-    boxShadow: "inset 0 1px 2px rgba(0,0,0,0.03)" // Adds depth
+  const numInputStyle: React.CSSProperties = {
+    flex: 1, minWidth: 0, padding: "8px", border: "1px solid #ccc", borderRadius: "4px",
+    fontSize: "16px", // <-- Changed to 16px (Explanation below)
+    backgroundColor: "#ffffff",
+    color: "#000000",
+    WebkitTextFillColor: "#000000",
+    opacity: 1
   };
-  
-  const inputStyle: React.CSSProperties = { 
-      padding: "10px", 
-      border: "1px solid #cbd5e1", // Crisper darker border
-      borderRadius: theme.radiusSm, width: "100%", 
-      fontSize: "16px", 
-      backgroundColor: "#ffffff", // Pure white
-      color: theme.text, 
-      WebkitTextFillColor: theme.text, 
-      opacity: 1,
-      boxShadow: "inset 0 1px 2px rgba(0,0,0,0.03)" // Adds depth
+  const inputStyle: React.CSSProperties = {
+    padding: "8px", border: "1px solid #ccc", borderRadius: "4px", width: "100%",
+    fontSize: "16px", // <-- Changed to 16px
+    backgroundColor: "#ffffff",
+    color: "#000000",
+    WebkitTextFillColor: "#000000",
+    opacity: 1
   };
-  const labelStyle: React.CSSProperties = { 
-      fontSize: "11px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", 
-      color: theme.navy, marginTop: "12px", marginBottom: "6px", display: "block" 
-  };
-  
-  const createBtnStyle: React.CSSProperties = { 
-      marginTop: "20px", padding: "14px", backgroundColor: theme.blue, color: "white", 
-      border: "none", borderRadius: theme.radiusSm, cursor: "pointer", fontWeight: 600, fontSize: "14px",
-      boxShadow: "0 2px 8px rgba(26,107,204,0.3)", transition: "all 0.2s ease" 
-  };
+  const labelStyle: React.CSSProperties = { fontSize: "12px", fontWeight: "bold", color: "#444", marginTop: "5px" };
   const activeTabBtn: React.CSSProperties = { flex: 1, padding: "10px", backgroundColor: "#0b1b3d", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" };
   const inactiveTabBtn: React.CSSProperties = { flex: 1, padding: "10px", backgroundColor: "#ddd", color: "#555", border: "none", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" };
+  const createBtnStyle: React.CSSProperties = { marginTop: "15px", padding: "12px", backgroundColor: "#0b1b3d", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontWeight: "bold", fontSize: "15px" };
   const [registerEmail, setRegisterEmail] = useState(""); // --- NEW ---
   const [user, setUser] = useState<{ id: number, username: string, email?: string, is_premium: boolean, max_airports: number, ion_token: string } | null>(null);
   // ── Mobile "view as desktop" scaling ──────────────────────────────────────
@@ -267,25 +230,17 @@ export default function Home() {
 
     const handler = new Cesium.ScreenSpaceEventHandler(viewerRef.current.scene.canvas);
     handler.setInputAction((click: any) => {
-      // 1. Try to pick the actual 3D terrain/building height first!
-      let cartesian = viewerRef.current?.scene.pickPosition(click.position);
-      
-      // 2. If we clicked the sky or missed the terrain, fallback to the base ellipsoid
-      if (!cartesian && viewerRef.current) {
-        const ray = viewerRef.current.camera.getPickRay(click.position);
-        if (ray) {
-          cartesian = viewerRef.current.scene.globe.pick(ray, viewerRef.current.scene);
-        }
-      }
+      const ray = viewerRef.current?.camera.getPickRay(click.position);
+      if (!ray) return;
 
+      const cartesian = viewerRef.current?.scene.globe.pick(ray, viewerRef.current.scene);
       if (cartesian) {
         const carto = Cesium.Cartographic.fromCartesian(cartesian);
         const lat = parseFloat(Cesium.Math.toDegrees(carto.latitude).toFixed(6));
         const lon = parseFloat(Cesium.Math.toDegrees(carto.longitude).toFixed(6));
-        // Get true terrain height (fallback to 0 if sea depth is weirdly negative)
-        const alt = parseFloat((carto.height > -500 ? carto.height : 0).toFixed(2));
 
-        setter({ ...currentVal, lat, lon, alt });
+        // Use geoid offset if available, otherwise just use 0 or current altitude
+        setter({ ...currentVal, lat, lon });
 
         // Clean up and reset cursor
         viewerRef.current!.canvas.style.cursor = "default";
@@ -1890,41 +1845,6 @@ export default function Home() {
 
   return (
     <main style={{ width: "100vw", height: "100vh", overflow: "hidden", position: "relative" }}>
-      {/* GLOBAL MODERN STYLES */}
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        input::placeholder, textarea::placeholder { color: #666666 !important; opacity: 1; font-weight: normal; }
-        
-        /* Modern Scrollbars for Sidebar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
-        /* Segmented Control Tabs */
-        .segmented-control { 
-          display: flex; 
-          background: #e2e8f0; /* Distinct grey track */
-          padding: 5px; 
-          border-radius: 8px; 
-          gap: 4px; 
-          margin-bottom: 20px; 
-          box-shadow: inset 0 1px 3px rgba(0,0,0,0.06); /* Inner shadow for depth */
-        }
-        .segmented-btn { 
-          flex: 1; padding: 8px; font-size: 13px; font-weight: 600; color: #475569; 
-          background: transparent; border: none; border-radius: 6px; cursor: pointer; transition: all 0.2s; 
-        }
-        .segmented-btn:hover { 
-          color: #073763; 
-          background: rgba(255,255,255,0.4); 
-        }
-        .segmented-btn.active { 
-          background: #073763; color: #ffffff; 
-          box-shadow: 0 2px 6px rgba(0,0,0,0.2); 
-        }
-      `}</style>
       {/* Inner canvas: fixed DESIGN_W wide, scaled to fit mobile screens.
             transform-origin "top left" means the top-left corner stays pinned
             and the content shrinks towards it, just like "desktop mode" in Safari/Chrome. */}
@@ -2104,22 +2024,26 @@ export default function Home() {
           left: isSidebarOpen ? "20px" : "-400px",
           transition: "left 0.3s ease-in-out"
         }}>
-          
           {/* VISUALIZATION TOGGLES */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "20px" }}>
-            <label style={{ fontSize: "12px", display: "flex", gap: "6px", alignItems: "center", color: theme.text, cursor: "pointer" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "5px", marginBottom: "15px" }}>
+            <label style={{ fontSize: "12px", display: "flex", gap: "5px", alignItems: "center", color: "#000" }}>
               <input type="checkbox" checked={isXRayMode} onChange={e => setIsXRayMode(e.target.checked)} />
               X-Ray Mode (See surfaces through terrain)
             </label>
-            <label style={{ fontSize: "12px", display: "flex", gap: "6px", alignItems: "center", color: theme.text, cursor: "pointer" }}>
+            <label style={{ fontSize: "12px", display: "flex", gap: "5px", alignItems: "center", color: "#000" }}>
               <input type="checkbox" checked={isGenericMode} onChange={e => setIsGenericMode(e.target.checked)} />
               Generic Color Surfaces
             </label>
-            {/* --- 3D Buildings Checkbox --- */}
+            {/* --- NEW: 3D Buildings Checkbox --- */}
             <label
               style={{
-                fontSize: "12px", display: "flex", alignItems: "center", gap: "6px",
-                color: user?.is_premium ? theme.text : theme.textMuted,
+                fontSize: "12px",
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+                // Grey out text if not premium
+                color: user?.is_premium ? "#333" : "#999",
+                // Show "not-allowed" circle cursor for free users
                 cursor: user?.is_premium ? "pointer" : "not-allowed"
               }}
               title={!user?.is_premium ? "Upgrade to Premium to view 3D buildings" : ""}
@@ -2128,30 +2052,37 @@ export default function Home() {
                 type="checkbox"
                 checked={showBuildings}
                 onChange={e => setShowBuildings(e.target.checked)}
+                // Physically disable the box for free users
                 disabled={!user?.is_premium}
               />
               3D Buildings {!user?.is_premium && <span style={{ color: "gold" }}>★</span>}
             </label>
           </div>
 
-          {/* TAB NAVIGATION (Modern Segmented Control) */}
-          <div className="segmented-control">
-            <button className={`segmented-btn ${activeTab === "define" ? "active" : ""}`} onClick={() => setActiveTab("define")}>DEFINE</button>
-            <button className={`segmented-btn ${activeTab === "analyze" ? "active" : ""}`} onClick={() => setActiveTab("analyze")}>ANALYZE</button>
-            <button className={`segmented-btn ${activeTab === "dashboard" ? "active" : ""}`} onClick={() => setActiveTab("dashboard")}>DASHBOARD</button>
+          {/* TAB NAVIGATION */}
+          <div style={{ display: "flex", marginBottom: "15px", gap: "5px" }}>
+            <button
+              style={activeTab === "define" ? activeTabBtn : inactiveTabBtn}
+              onClick={() => setActiveTab("define")}>DEFINE</button>
+            <button
+              style={activeTab === "analyze" ? activeTabBtn : inactiveTabBtn}
+              onClick={() => setActiveTab("analyze")}>ANALYZE</button>
+            <button
+              style={activeTab === "dashboard" ? activeTabBtn : inactiveTabBtn}
+              onClick={() => setActiveTab("dashboard")}>DASHBOARD</button>
           </div>
 
           {/* --- DEFINE TAB --- */}
           {activeTab === "define" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               {/* --- OPEN SOURCE SEARCH --- */}
-              <div style={{ backgroundColor: theme.lightBlue, padding: "12px", borderRadius: theme.radiusSm, border: "1px solid #cce5ff", position: "relative" }}>
+              <div style={{ backgroundColor: "#e8f0fe", padding: "10px", borderRadius: "4px", border: "1px solid #cce5ff", position: "relative" }}>{/* --- , opacity: user?.is_premium ? 1 : 0.6, --- */}
+
                 <input
                   style={inputStyle}
                   value={searchQuery}
                   onChange={e => handleSearch(e.target.value)}
-                  placeholder={family === "NAVAID" ? "🔍 Search Navaid (e.g. JFK)" : "🔍 Search Airport (e.g. EGLL)"}
+                  placeholder={family === "NAVAID" ? "Search Navaid (e.g. JFK or Kennedy)" : "Search Airport ICAO or Name (e.g. EGLL or Heathrow)"}
                   onBlur={() => setTimeout(() => {
                     setSearchResults([]);
                     setSearchQuery("");
@@ -2160,27 +2091,40 @@ export default function Home() {
 
                 {/* SEARCH RESULTS DROPDOWN */}
                 <div style={{
-                  position: "absolute", top: "100%", left: 0, right: 0, backgroundColor: theme.bg,
-                  border: `1px solid ${theme.border}`, zIndex: 9999, maxHeight: "300px", overflowY: "auto",
-                  boxShadow: theme.shadowHover, borderRadius: theme.radiusSm, marginTop: "4px"
+                  position: "absolute",
+                  top: "100%",
+                  left: 0,
+                  right: 0,
+                  backgroundColor: "#ffffff",
+                  opacity: 1,
+                  isolation: "isolate",
+                  border: "1px solid #ccc",
+                  zIndex: 9999,
+                  maxHeight: "300px",
+                  overflowY: "auto",
+                  boxShadow: "0 8px 16px rgba(0,0,0,0.3)"
                 }}>
                   {family === "NAVAID" ? (
+                    // NAVAID RESULTS
                     searchResults.map((nav, idx) => (
-                      <div key={idx} onClick={() => handleSelectNavaid(nav)} style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, cursor: "pointer", fontSize: "13px" }}>
-                        <strong style={{ color: theme.navy }}>{nav.ident}</strong> - <span style={{ color: theme.text }}>{nav.name}</span> <span style={{ color: theme.textMuted }}>({nav.type})</span>
+                      <div key={idx} onClick={() => handleSelectNavaid(nav)} style={{ padding: "8px", borderBottom: "1px solid #eee", cursor: "pointer", fontSize: "12px" }}>
+                        <strong>{nav.ident}</strong> - {nav.name} <span style={{ color: "gray" }}>({nav.type})</span>
                       </div>
                     ))
                   ) : (
+                    // AIRPORT & HELIPORT RESULTS
                     searchResults.map((apt, idx) => (
-                      <div key={idx} style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, fontSize: "13px" }}>
-                        <strong style={{ color: theme.navy }}>{apt.ident}</strong> - <span style={{ color: theme.text }}>{apt.name}</span>
-                        <div style={{ marginTop: "6px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                      <div key={idx} style={{ padding: "8px", borderBottom: "1px solid #eee", fontSize: "12px" }}>
+                        <strong>{apt.ident}</strong> - {apt.name}
+                        <div style={{ marginTop: "4px", display: "flex", flexWrap: "wrap", gap: "4px" }}>
+
+                          {/* --- THE FIX: Conditional rendering for Heliports vs Airports --- */}
                           {apt.runways && apt.runways.length > 0 ? (
                             apt.runways.map((rwy: any, rIdx: number) => (
                               <button
                                 key={rIdx}
                                 onClick={() => handleSelectRunway(apt, rwy)}
-                                style={{ padding: "4px 8px", fontSize: "11px", backgroundColor: theme.navy, color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }}
+                                style={{ padding: "2px 6px", fontSize: "10px", backgroundColor: "#0b1b3d", color: "white", border: "none", borderRadius: "3px", cursor: "pointer" }}
                               >
                                 RWY {rwy.le_ident}/{rwy.he_ident}
                               </button>
@@ -2188,11 +2132,12 @@ export default function Home() {
                           ) : (
                             <button
                               onClick={() => handleSelectRunway(apt)}
-                              style={{ padding: "4px 8px", fontSize: "11px", backgroundColor: "#15803d", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }}
+                              style={{ padding: "4px 8px", fontSize: "10px", backgroundColor: "#27ae60", color: "white", border: "none", borderRadius: "3px", cursor: "pointer" }}
                             >
                               Select Heliport Base
                             </button>
                           )}
+
                         </div>
                       </div>
                     ))
@@ -2201,113 +2146,86 @@ export default function Home() {
               </div>
               {/* --------------------------------- */}
 
-              <div>
-                <label style={labelStyle}>Airport / Group Name</label>
-                <input style={inputStyle} value={airportName} onChange={e => setAirportName(e.target.value)} placeholder="e.g. Heathrow (EGLL)" />
-              </div>
+              <label style={labelStyle}>Airport / Group Name</label>
+              <input style={inputStyle} value={airportName} onChange={e => setAirportName(e.target.value)} placeholder="e.g. Heathrow (EGLL)" />
 
-              <div>
-                <label style={labelStyle}>Surface Name</label>
-                <input style={inputStyle} value={surfName} onChange={e => setSurfName(e.target.value)} placeholder="e.g., RWY 09/27" />
-              </div>
+              <label style={labelStyle}>Surface Name</label>
+              <input style={inputStyle} value={surfName} onChange={e => setSurfName(e.target.value)} placeholder="Name (e.g., RWY 09/27)" />
 
-              <div>
-                <label style={labelStyle}>Surface Family</label>
-                <select style={inputStyle} value={family} onChange={e => setFamily(e.target.value)}>
-                  <option value="OLS">OLS (Annex 14)</option>
-                  <option value="RNAV">RNAV / RNP APCH (Straight MA only)</option>
-                  <option value="VSS">VSS</option>
-                  <option value="OAS">OAS (ILS)</option>
-                  <option value="APV_BARO">OAS (APV Baro-VNAV)</option>
-                  <option value="OFZ">OFZ / OES</option>
-                  <option value="NAVAID">Navaid BRA</option>
-                  <option value="CUSTOM">Import custom Surfaces</option>
-                  <option value="HELIPORT">Heliport OLS</option>
-                </select>
-              </div>
+              <label style={labelStyle}>Surface Family</label>
+              <select style={inputStyle} value={family} onChange={e => setFamily(e.target.value)}>
+                <option value="OLS">OLS (Annex 14)</option>
+                <option value="RNAV">RNAV / RNP APCH (Straight MA only)</option>
+                <option value="VSS">VSS</option>
+                <option value="OAS">OAS (ILS)</option>
+                <option value="APV_BARO">OAS (APV Baro-VNAV)</option>
+                <option value="OFZ">OFZ / OES</option>
+                <option value="NAVAID">Navaid BRA</option>
+                <option value="CUSTOM">Import custom Surfaces</option>
+                <option value="HELIPORT">Heliport OLS</option>
+              </select>
 
               {/* --- ONLY SHOW T1, T2, and ARP for Aeroplane OLS, OFZ, VSS, and OAS --- */}
               {(family === "OLS" || family === "OFZ" || family === "VSS" || family === "OAS" || family === "APV_BARO") && (
-                <div style={{ backgroundColor: theme.bgOff, padding: "12px", borderRadius: theme.radiusSm, border: `1px solid ${theme.border}`, display: "flex", flexDirection: "column", gap: "10px" }}>
-                  
+                <>
                   {family === "OAS" && (
-                    <div style={{ fontSize: "11px", color: theme.navy, backgroundColor: theme.lightBlue, padding: "8px", borderRadius: "4px", border: "1px solid #b3d9f7", lineHeight: "1.5" }}>
-                      <strong>T1</strong> = ILS Approach Threshold (origin).<br/><strong>T2</strong> = Runway Stop-End.<br/>Coordinate system derives approach bearing and length from T1→T2.
+                    <div style={{ fontSize: "11px", color: "#555", backgroundColor: "#e8f4fd", padding: "6px 8px", borderRadius: "4px", border: "1px solid #b3d9f7", marginBottom: "6px" }}>
+                      <strong>T1</strong> = ILS Approach Threshold (origin). <strong>T2</strong> = Runway Stop-End. The OAS coordinate system derives approach bearing and runway length from T1→T2.
                     </div>
                   )}
-
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <label style={{...labelStyle, marginTop: 0}}>Threshold 1 (Lat / Lon / Alt)</label>
-                      <button 
-                        style={{ backgroundColor: theme.navy, color: "white", border: "none", borderRadius: "4px", padding: "4px 8px", fontSize: "10px", fontWeight: "bold", cursor: "pointer", transition: "background 0.2s" }} 
-                        onMouseEnter={e => e.currentTarget.style.backgroundColor = theme.blue}
-                        onMouseLeave={e => e.currentTarget.style.backgroundColor = theme.navy}
-                        onClick={() => getCenterFromMap(setT1, t1)}>
-                        📍 Map
-                      </button>
-                    </div>
-                    <div style={rowStyle}>
-                      <input style={numInputStyle} type="number" value={t1.lat} onChange={e => setT1({ ...t1, lat: +e.target.value })} placeholder="Lat" />
-                      <input style={numInputStyle} type="number" value={t1.lon} onChange={e => setT1({ ...t1, lon: +e.target.value })} placeholder="Lon" />
-                      <input style={numInputStyle} type="number" value={t1.alt} onChange={e => setT1({ ...t1, alt: +e.target.value })} placeholder="Alt (m)" />
-                    </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <label style={labelStyle}>Threshold 1 (Lat / Lon / Alt)</label>
+                    <button style={{ ...activeTabBtn, padding: "2px 6px", fontSize: "10px" }} onClick={() => getCenterFromMap(setT1, t1)}>📍 Map</button>
+                  </div>
+                  <div style={rowStyle}>
+                    <input style={numInputStyle} type="number" value={t1.lat} onChange={e => setT1({ ...t1, lat: +e.target.value })} />
+                    <input style={numInputStyle} type="number" value={t1.lon} onChange={e => setT1({ ...t1, lon: +e.target.value })} />
+                    <input style={numInputStyle} type="number" value={t1.alt} onChange={e => setT1({ ...t1, alt: +e.target.value })} />
                   </div>
 
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "10px" }}>
-                      <label style={{...labelStyle, marginTop: 0}}>Threshold 2 (Lat / Lon / Alt)</label>
-                      <button 
-                        style={{ backgroundColor: theme.navy, color: "white", border: "none", borderRadius: "4px", padding: "4px 8px", fontSize: "10px", fontWeight: "bold", cursor: "pointer", transition: "background 0.2s" }} 
-                        onMouseEnter={e => e.currentTarget.style.backgroundColor = theme.blue}
-                        onMouseLeave={e => e.currentTarget.style.backgroundColor = theme.navy}
-                        onClick={() => getCenterFromMap(setT2, t2)}>
-                        📍 Map
-                      </button>
-                    </div>
-                    <div style={rowStyle}>
-                      <input style={numInputStyle} type="number" value={t2.lat} onChange={e => setT2({ ...t2, lat: +e.target.value })} placeholder="Lat" />
-                      <input style={numInputStyle} type="number" value={t2.lon} onChange={e => setT2({ ...t2, lon: +e.target.value })} placeholder="Lon" />
-                      <input style={numInputStyle} type="number" value={t2.alt} onChange={e => setT2({ ...t2, alt: +e.target.value })} placeholder="Alt (m)" />
-                    </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "10px" }}>
+                    <label style={labelStyle}>Threshold 2 (Lat / Lon / Alt)</label>
+                    <button style={{ ...activeTabBtn, padding: "2px 6px", fontSize: "10px" }} onClick={() => getCenterFromMap(setT2, t2)}>📍 Map</button>
+                  </div>
+                  <div style={rowStyle}>
+                    <input style={numInputStyle} type="number" value={t2.lat} onChange={e => setT2({ ...t2, lat: +e.target.value })} />
+                    <input style={numInputStyle} type="number" value={t2.lon} onChange={e => setT2({ ...t2, lon: +e.target.value })} />
+                    <input style={numInputStyle} type="number" value={t2.alt} onChange={e => setT2({ ...t2, alt: +e.target.value })} />
                   </div>
 
-                  <div>
-                    <label style={{...labelStyle, marginTop: 0}}>ARP Altitude (m)</label>
-                    <input style={inputStyle} type="number" value={arpAlt} onChange={e => setArpAlt(+e.target.value)} />
-                  </div>
-                </div>
+                  <label style={{ ...labelStyle, marginTop: "10px" }}>ARP Altitude (m)</label>
+                  <input style={inputStyle} type="number" value={arpAlt} onChange={e => setArpAlt(+e.target.value)} />
+                </>
               )}
 
-              {/* NEW RUNWAY TYPE DROPDOWN (Only show for OFZ) */}
+              {/* NEW RUNWAY TYPE DROPDOWN (Only show for OLS) */}
               {(family === "OFZ") && (
-                <div>
+                <>
                   <label style={labelStyle}>Runway Type</label>
                   <select style={inputStyle} value={runwayType} onChange={e => setRunwayType(e.target.value)}>
                     <option value="non_instrument">Non-Instrument</option>
                     <option value="non_precision">Non-Precision Approach</option>
                     <option value="precision">Precision Approach</option>
                   </select>
-                </div>
+                </>
               )}
-
               {/* --- STANDARD OLS SETTINGS --- */}
               {family === "OLS" && (
-                <div style={{ backgroundColor: theme.bgOff, padding: "12px", borderRadius: theme.radiusSm, border: `1px solid ${theme.border}` }}>
-                  <div style={{ display: "flex", gap: "10px" }}>
+                <>
+                  <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
                     <div style={{ flex: 1 }}>
-                      <label style={{...labelStyle, marginTop: 0}}>Runway Type</label>
+                      <label style={labelStyle}>Runway Type</label>
                       <select style={inputStyle} value={runwayType} onChange={e => setRunwayType(e.target.value)}>
                         <option value="non_instrument">Non-Instrument</option>
-                        <option value="non_precision">Non-Precision</option>
-                        <option value="precision">Precision</option>
-                        <option value="custom">⚙️ Custom</option>
+                        <option value="non_precision">Non-Precision Approach</option>
+                        <option value="precision">Precision Approach</option>
+                        <option value="custom">⚙️ Custom Parameters</option>
                       </select>
                     </div>
                     <div style={{ flex: 1 }}>
-                      <label style={{...labelStyle, marginTop: 0}}>ARC Override</label>
+                      <label style={labelStyle}>ARC Override</label>
                       <select style={inputStyle} value={arcCode} onChange={e => setArcCode(e.target.value)}>
-                        <option value="Auto">Auto</option>
+                        <option value="Auto">Auto (By Dist.)</option>
                         <option value="1">Code 1</option>
                         <option value="2">Code 2</option>
                         <option value="3">Code 3</option>
@@ -2318,30 +2236,30 @@ export default function Home() {
 
                   {/* --- NEW: CUSTOM OLS CONFIGURATOR --- */}
                   {runwayType === "custom" && (
-                    <div style={{ backgroundColor: "#e2e8f0", padding: "10px", borderRadius: "6px", display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px" }}>
-                      <p style={{ fontSize: "12px", color: theme.navy, margin: "0 0 4px 0", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                        Custom Parameters
-                      </p>
+                    <div style={{ backgroundColor: "#e9ecef", padding: "12px", borderRadius: "6px", display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px", border: "1px solid #ccc" }}>
+                      <p style={{ fontSize: "13px", color: "#0b1b3d", margin: "0 0 5px 0", fontWeight: "bold" }}>Custom Parameters (Meters & Percentages)</p>
 
                       {/* Helper functions to keep UI code incredibly clean and perfectly sized */}
                       {(() => {
+                        // Standardized tiny input box with a clear label above it
                         const ParamInput = ({ label, value, onChange }: any) => (
                           <div style={{ display: "flex", flexDirection: "column", width: "65px" }}>
-                            <span style={{ fontSize: "10px", color: theme.textMuted, marginBottom: "2px", fontWeight: "bold", whiteSpace: "nowrap" }}>{label}</span>
+                            <span style={{ fontSize: "10px", color: "#555", marginBottom: "2px", fontWeight: "bold", whiteSpace: "nowrap" }}>{label}</span>
                             <input
                               type="number"
-                              style={{ padding: "6px", fontSize: "12px", borderRadius: "4px", border: `1px solid ${theme.border}`, width: "100%", boxSizing: "border-box", backgroundColor: "#fff", color: theme.text }}
+                              style={{ padding: "4px", fontSize: "12px", borderRadius: "4px", border: "1px solid #ccc", width: "100%", boxSizing: "border-box" }}
                               value={value}
                               onChange={onChange}
                             />
                           </div>
                         );
 
+                        // Standardized Row: Checkbox on top, inputs wrapped below
                         const CustomRow = ({ label, toggle, inputs }: any) => (
-                          <div style={{ display: "flex", flexDirection: "column", padding: "10px", backgroundColor: cOls[toggle as keyof typeof cOls] ? "#ffffff" : theme.bgOff, borderRadius: "4px", border: `1px solid ${theme.border}`, transition: "all 0.2s" }}>
+                          <div style={{ display: "flex", flexDirection: "column", padding: "8px", backgroundColor: cOls[toggle as keyof typeof cOls] ? "#ffffff" : "#f5f5f5", borderRadius: "4px", border: "1px solid #ddd", transition: "all 0.2s" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: cOls[toggle as keyof typeof cOls] ? "8px" : "0" }}>
-                              <input type="checkbox" checked={cOls[toggle as keyof typeof cOls] as boolean} onChange={(e) => setCOls({ ...cOls, [toggle]: e.target.checked })} style={{ cursor: "pointer" }} />
-                              <strong style={{ fontSize: "12px", color: cOls[toggle as keyof typeof cOls] ? theme.navy : theme.textMuted }}>{label}</strong>
+                              <input type="checkbox" checked={cOls[toggle as keyof typeof cOls] as boolean} onChange={(e) => setCOls({ ...cOls, [toggle]: e.target.checked })} />
+                              <strong style={{ fontSize: "12px", color: cOls[toggle as keyof typeof cOls] ? "#0b1b3d" : "#999" }}>{label}</strong>
                             </div>
                             {cOls[toggle as keyof typeof cOls] && (
                               <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginLeft: "22px" }}>
@@ -2359,21 +2277,22 @@ export default function Home() {
                                 <ParamInput label="Width (m)" value={cOls.strip_width} onChange={(e: any) => setCOls({ ...cOls, strip_width: +e.target.value })} />
                               </>
                             } />
-                            {/* ... (The rest of your custom inputs are fine as they are, just inheriting the modern style) ... */}
+
                             <CustomRow label="Approach Surface" toggle="draw_app" inputs={
                               <>
                                 <ParamInput label="Div. (%)" value={cOls.app_div} onChange={(e: any) => setCOls({ ...cOls, app_div: +e.target.value })} />
-                                <div style={{ width: "1px", backgroundColor: "#ddd", margin: "0 4px" }}></div>
+                                <div style={{ width: "1px", backgroundColor: "#eee", margin: "0 4px" }}></div>
                                 <ParamInput label="Sec 1 Len" value={cOls.app_s1_len} onChange={(e: any) => setCOls({ ...cOls, app_s1_len: +e.target.value })} />
                                 <ParamInput label="Sec 1 Slope" value={cOls.app_s1_slope} onChange={(e: any) => setCOls({ ...cOls, app_s1_slope: +e.target.value })} />
-                                <div style={{ width: "1px", backgroundColor: "#ddd", margin: "0 4px" }}></div>
+                                <div style={{ width: "1px", backgroundColor: "#eee", margin: "0 4px" }}></div>
                                 <ParamInput label="Sec 2 Len" value={cOls.app_s2_len} onChange={(e: any) => setCOls({ ...cOls, app_s2_len: +e.target.value })} />
                                 <ParamInput label="Sec 2 Slope" value={cOls.app_s2_slope} onChange={(e: any) => setCOls({ ...cOls, app_s2_slope: +e.target.value })} />
-                                <div style={{ width: "1px", backgroundColor: "#ddd", margin: "0 4px" }}></div>
+                                <div style={{ width: "1px", backgroundColor: "#eee", margin: "0 4px" }}></div>
                                 <ParamInput label="Sec 3 Len" value={cOls.app_s3_len} onChange={(e: any) => setCOls({ ...cOls, app_s3_len: +e.target.value })} />
                                 <ParamInput label="Sec 3 Slope" value={cOls.app_s3_slope} onChange={(e: any) => setCOls({ ...cOls, app_s3_slope: +e.target.value })} />
                               </>
                             } />
+
                             <CustomRow label="Take-off Climb Surface" toggle="draw_dep" inputs={
                               <>
                                 <ParamInput label="Start Offset" value={cOls.dep_start} onChange={(e: any) => setCOls({ ...cOls, dep_start: +e.target.value })} />
@@ -2384,18 +2303,22 @@ export default function Home() {
                                 <ParamInput label="Slope (%)" value={cOls.dep_slope} onChange={(e: any) => setCOls({ ...cOls, dep_slope: +e.target.value })} />
                               </>
                             } />
+
                             <CustomRow label="Transitional Surface" toggle="draw_trans" inputs={
                               <ParamInput label="Slope (%)" value={cOls.trans_slope} onChange={(e: any) => setCOls({ ...cOls, trans_slope: +e.target.value })} />
                             } />
-                            <CustomRow label="Inner Horizontal Surface" toggle="draw_ihs" inputs={
+
+                            <CustomRow label="Inner Horizontal Surface (IHS)" toggle="draw_ihs" inputs={
                               <ParamInput label="Radius (m)" value={cOls.ihs_radius} onChange={(e: any) => setCOls({ ...cOls, ihs_radius: +e.target.value })} />
                             } />
+
                             <CustomRow label="Conical Surface" toggle="draw_conical" inputs={
                               <>
                                 <ParamInput label="Height (m)" value={cOls.conical_height} onChange={(e: any) => setCOls({ ...cOls, conical_height: +e.target.value })} />
                                 <ParamInput label="Slope (%)" value={cOls.conical_slope} onChange={(e: any) => setCOls({ ...cOls, conical_slope: +e.target.value })} />
                               </>
                             } />
+
                             <CustomRow label="Balked Landing Surface" toggle="draw_balked" inputs={
                               <>
                                 <ParamInput label="Start Offset" value={cOls.balked_start} onChange={(e: any) => setCOls({ ...cOls, balked_start: +e.target.value })} />
@@ -2403,6 +2326,7 @@ export default function Home() {
                                 <ParamInput label="Slope (%)" value={cOls.balked_slope} onChange={(e: any) => setCOls({ ...cOls, balked_slope: +e.target.value })} />
                               </>
                             } />
+
                             <CustomRow label="Inner Approach Surface" toggle="draw_in_app" inputs={
                               <>
                                 <ParamInput label="Offset" value={cOls.in_app_offset} onChange={(e: any) => setCOls({ ...cOls, in_app_offset: +e.target.value })} />
@@ -2411,63 +2335,59 @@ export default function Home() {
                                 <ParamInput label="Slope (%)" value={cOls.in_app_slope} onChange={(e: any) => setCOls({ ...cOls, in_app_slope: +e.target.value })} />
                               </>
                             } />
-                            <CustomRow label="Inner Transitional" toggle="draw_in_trans" inputs={<span style={{ fontSize: "11px", color: theme.textMuted, marginTop: "4px" }}>Derived from Inner Approach & Strip settings.</span>} />
+
+                            <CustomRow label="Inner Transitional" toggle="draw_in_trans" inputs={<span style={{ fontSize: "11px", color: "#666", marginTop: "4px" }}>Derived from Inner Approach & Strip settings.</span>} />
                           </>
                         );
                       })()}
                     </div>
                   )}
-                </div>
+                </>
               )}
               {/* DYNAMIC HELIPORT FIELDS */}
               {family === "HELIPORT" && (
-                <div style={{ backgroundColor: theme.bgOff, padding: "16px", borderRadius: theme.radiusSm, display: "flex", flexDirection: "column", gap: "12px", border: `1px solid ${theme.border}` }}>
+                <div style={{ backgroundColor: "#e9ecef", padding: "10px", borderRadius: "4px", display: "flex", flexDirection: "column", gap: "8px" }}>
 
-                  {/* TYPE & PRESET */}
-                  <div style={{ display: "flex", gap: "10px", paddingBottom: "12px", borderBottom: `1px solid ${theme.border}` }}>
+                  {/* --- TYPE & PRESET --- */}
+                  <div style={{ display: "flex", gap: "10px", marginBottom: "5px", borderBottom: "1px solid #ccc", paddingBottom: "10px" }}>
                     <div style={{ flex: 1 }}>
-                      <label style={{ ...labelStyle, marginTop: 0 }}>FATO Type</label>
+                      <label style={{ ...labelStyle, color: "#d35400" }}>FATO Type</label>
                       <select style={inputStyle} value={heliParams.fatoType} onChange={e => { setHeliParams({ ...heliParams, fatoType: e.target.value }); setHeliPreset("custom"); }}>
                         <option value="non_instrument">Non-Instrument</option>
                         <option value="non_precision">Non-Precision Approach</option>
                         <option value="precision">Precision Approach</option>
                       </select>
                     </div>
+                    {/* Bug F: PinS VSS gate — transitional surfaces required for visual FATO only when PinS+VSS present */}
                     {heliParams.fatoType === "non_instrument" && (
                       <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "6px", marginTop: "18px" }}>
-                        <input type="checkbox" id="hasPinsVss" checked={heliParams.hasPinsVss} onChange={e => setHeliParams({ ...heliParams, hasPinsVss: e.target.checked })} style={{ cursor: "pointer" }} />
-                        <label htmlFor="hasPinsVss" style={{ fontSize: "11px", fontWeight: "bold", color: theme.textMuted, cursor: "pointer", lineHeight: 1.2 }}>PinS + VSS<br/>(transitionals)</label>
+                        <input type="checkbox" id="hasPinsVss" checked={heliParams.hasPinsVss}
+                          onChange={e => setHeliParams({ ...heliParams, hasPinsVss: e.target.checked })} />
+                        <label htmlFor="hasPinsVss" style={{ ...labelStyle, marginTop: 0, cursor: "pointer" }}>
+                          PinS + VSS (enables transitionals)
+                        </label>
                       </div>
                     )}
                     <div style={{ flex: 1 }}>
-                      <label style={{ ...labelStyle, marginTop: 0 }}>Annex 14 Presets</label>
+                      <label style={{ ...labelStyle, color: "#d35400" }}>Annex 14 Presets</label>
                       <select style={inputStyle} value={heliPreset} onChange={handleHeliPresetChange}>
                         <option value="custom">Custom Parameters</option>
-                        <option value="cat_a">Slope Cat A (PC1)</option>
-                        <option value="cat_b">Slope Cat B (PC3)</option>
-                        <option value="cat_c">Slope Cat C (PC2)</option>
-                        <option value="non_precision">Inst. Non-Precision</option>
-                        <option value="precision">Inst. Precision</option>
+                        <option value="cat_a">Slope Category A (PC1)</option>
+                        <option value="cat_b">Slope Category B (PC3)</option>
+                        <option value="cat_c">Slope Category C (PC2)</option>
+                        <option value="non_precision">Instrument Non-Precision</option>
+                        <option value="precision">Instrument Precision</option>
                       </select>
                     </div>
                   </div>
 
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                      <label style={{ ...labelStyle, marginTop: 0 }}>Heliport FATO Center (Lat / Lon / Alt)</label>
-                      <button 
-                        style={{ backgroundColor: theme.navy, color: "white", border: "none", borderRadius: "4px", padding: "4px 8px", fontSize: "10px", fontWeight: "bold", cursor: "pointer", transition: "background 0.2s" }} 
-                        onMouseEnter={e => e.currentTarget.style.backgroundColor = theme.blue}
-                        onMouseLeave={e => e.currentTarget.style.backgroundColor = theme.navy}
-                        onClick={() => getCenterFromMap(setHeliParams, heliParams)}>
-                        📍 Map
-                      </button>
-                    </div>
-                    <div style={rowStyle}>
-                      <input style={numInputStyle} type="number" value={heliParams.lat} onChange={e => setHeliParams({ ...heliParams, lat: +e.target.value })} placeholder="Lat" />
-                      <input style={numInputStyle} type="number" value={heliParams.lon} onChange={e => setHeliParams({ ...heliParams, lon: +e.target.value })} placeholder="Lon" />
-                      <input style={numInputStyle} type="number" value={heliParams.alt} onChange={e => setHeliParams({ ...heliParams, alt: +e.target.value })} placeholder="Alt (m)" />
-                    </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <label style={{ ...labelStyle, color: "#008b8b" }}>Heliport FATO Center (Lat / Lon / Alt)</label>
+                  </div>
+                  <div style={rowStyle}>
+                    <input style={numInputStyle} type="number" value={heliParams.lat} onChange={e => setHeliParams({ ...heliParams, lat: +e.target.value })} placeholder="Lat" />
+                    <input style={numInputStyle} type="number" value={heliParams.lon} onChange={e => setHeliParams({ ...heliParams, lon: +e.target.value })} placeholder="Lon" />
+                    <input style={numInputStyle} type="number" value={heliParams.alt} onChange={e => setHeliParams({ ...heliParams, alt: +e.target.value })} placeholder="Alt" />
                   </div>
 
                   <div style={rowStyle}>
@@ -2476,7 +2396,7 @@ export default function Home() {
                       <input style={inputStyle} type="number" value={heliParams.bearing} onChange={e => setHeliParams({ ...heliParams, bearing: +e.target.value })} />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <label style={labelStyle}>Safety Area W. (m)</label>
+                      <label style={labelStyle}>Safety Area Width (m)</label>
                       <input style={inputStyle} type="number" value={heliParams.innerWidth} onChange={e => setHeliParams({ ...heliParams, innerWidth: +e.target.value })} />
                     </div>
                     <div style={{ flex: 1 }}>
@@ -2485,60 +2405,71 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* MULTI-SECTION BUILDER */}
-                  <div style={{ backgroundColor: theme.bg, padding: "10px", borderRadius: theme.radiusSm, border: `1px solid ${theme.border}` }}>
-                    <label style={{ ...labelStyle, marginTop: 0, color: "#15803d" }}>Approach Surface (Inbound)</label>
-                    <div style={{ display: "flex", gap: "5px", fontSize: "10px", fontWeight: "bold", color: theme.textMuted, marginBottom: "4px" }}>
-                      <span style={{ flex: 1 }}>Section</span><span style={{ flex: 1 }}>Length (m)</span><span style={{ flex: 1 }}>Slope (%)</span><span style={{ flex: 1 }}>Div (%)</span><span style={{ flex: 1 }}>MaxW (m)</span>
-                    </div>
-                    {[
-                      { id: 1, lbl: "1 (Inner)", len: heliParams.appS1Len, slp: heliParams.appS1Slope, div: heliParams.appS1Div, max: heliParams.appS1MaxW, set: (v: any) => setHeliParams({ ...heliParams, ...v }) },
-                      { id: 2, lbl: "2 (Mid)", len: heliParams.appS2Len, slp: heliParams.appS2Slope, div: heliParams.appS2Div, max: heliParams.appS2MaxW, set: (v: any) => setHeliParams({ ...heliParams, ...v }) },
-                      { id: 3, lbl: "3 (Outer)", len: heliParams.appS3Len, slp: heliParams.appS3Slope, div: heliParams.appS3Div, max: heliParams.appS3MaxW, set: (v: any) => setHeliParams({ ...heliParams, ...v }) }
-                    ].map(sec => (
-                      <div key={sec.id} style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
-                        <span style={{ flex: 1, fontSize: "11px", alignSelf: "center", fontWeight: 600, color: theme.navy }}>{sec.lbl}</span>
-                        <input style={{ ...numInputStyle, padding: "6px", fontSize: "13px" }} type="number" value={sec.len} onChange={e => { sec.set({ [`appS${sec.id}Len`]: +e.target.value }); setHeliPreset("custom"); }} />
-                        <input style={{ ...numInputStyle, padding: "6px", fontSize: "13px" }} type="number" value={sec.slp} onChange={e => { sec.set({ [`appS${sec.id}Slope`]: +e.target.value }); setHeliPreset("custom"); }} />
-                        <input style={{ ...numInputStyle, padding: "6px", fontSize: "13px" }} type="number" value={sec.div} onChange={e => { sec.set({ [`appS${sec.id}Div`]: +e.target.value }); setHeliPreset("custom"); }} />
-                        <input style={{ ...numInputStyle, padding: "6px", fontSize: "13px" }} type="number" placeholder="—" value={sec.max ?? ""} onChange={e => { sec.set({ [`appS${sec.id}MaxW`]: e.target.value ? +e.target.value : null }); setHeliPreset("custom"); }} />
-                      </div>
-                    ))}
+                  {/* --- MULTI-SECTION BUILDER --- */}
+                  <label style={{ ...labelStyle, marginTop: "10px", color: "#27ae60" }}>Approach Surface (Inbound)</label>
+                  <div style={{ display: "flex", gap: "5px", fontSize: "10px", fontWeight: "bold" }}>
+                    <span style={{ flex: 1 }}>Section</span><span style={{ flex: 1 }}>Length (m)</span><span style={{ flex: 1 }}>Slope (%)</span><span style={{ flex: 1 }}>Div (%)</span><span style={{ flex: 1 }}>MaxW (m)</span>
+                  </div>
+                  <div style={{ display: "flex", gap: "5px" }}>
+                    <span style={{ flex: 1, fontSize: "11px", alignSelf: "center" }}>1 (Inner)</span>
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" value={heliParams.appS1Len} onChange={e => { setHeliParams({ ...heliParams, appS1Len: +e.target.value }); setHeliPreset("custom"); }} />
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" value={heliParams.appS1Slope} onChange={e => { setHeliParams({ ...heliParams, appS1Slope: +e.target.value }); setHeliPreset("custom"); }} />
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" value={heliParams.appS1Div} onChange={e => { setHeliParams({ ...heliParams, appS1Div: +e.target.value }); setHeliPreset("custom"); }} />
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" placeholder="—" value={heliParams.appS1MaxW ?? ""} onChange={e => { setHeliParams({ ...heliParams, appS1MaxW: e.target.value ? +e.target.value : null }); setHeliPreset("custom"); }} />
+                  </div>
+                  <div style={{ display: "flex", gap: "5px", marginTop: "3px" }}>
+                    <span style={{ flex: 1, fontSize: "11px", alignSelf: "center" }}>2 (Mid)</span>
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" value={heliParams.appS2Len} onChange={e => { setHeliParams({ ...heliParams, appS2Len: +e.target.value }); setHeliPreset("custom"); }} />
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" value={heliParams.appS2Slope} onChange={e => { setHeliParams({ ...heliParams, appS2Slope: +e.target.value }); setHeliPreset("custom"); }} />
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" value={heliParams.appS2Div} onChange={e => { setHeliParams({ ...heliParams, appS2Div: +e.target.value }); setHeliPreset("custom"); }} />
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" placeholder="—" value={heliParams.appS2MaxW ?? ""} onChange={e => { setHeliParams({ ...heliParams, appS2MaxW: e.target.value ? +e.target.value : null }); setHeliPreset("custom"); }} />
+                  </div>
+                  <div style={{ display: "flex", gap: "5px", marginTop: "3px" }}>
+                    <span style={{ flex: 1, fontSize: "11px", alignSelf: "center" }}>3 (Outer)</span>
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" value={heliParams.appS3Len} onChange={e => { setHeliParams({ ...heliParams, appS3Len: +e.target.value }); setHeliPreset("custom"); }} />
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" value={heliParams.appS3Slope} onChange={e => { setHeliParams({ ...heliParams, appS3Slope: +e.target.value }); setHeliPreset("custom"); }} />
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" value={heliParams.appS3Div} onChange={e => { setHeliParams({ ...heliParams, appS3Div: +e.target.value }); setHeliPreset("custom"); }} />
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" placeholder="—" value={heliParams.appS3MaxW ?? ""} onChange={e => { setHeliParams({ ...heliParams, appS3MaxW: e.target.value ? +e.target.value : null }); setHeliPreset("custom"); }} />
                   </div>
 
-                  <div style={{ backgroundColor: theme.bg, padding: "10px", borderRadius: theme.radiusSm, border: `1px solid ${theme.border}` }}>
-                    <label style={{ ...labelStyle, marginTop: 0, color: "#b91c1c" }}>Take-off Climb Surface (Outbound)</label>
-                    <div style={{ display: "flex", gap: "5px", fontSize: "10px", fontWeight: "bold", color: theme.textMuted, marginBottom: "4px" }}>
-                      <span style={{ flex: 1 }}>Section</span><span style={{ flex: 1 }}>Length (m)</span><span style={{ flex: 1 }}>Slope (%)</span><span style={{ flex: 1 }}>Div (%)</span><span style={{ flex: 1 }}>MaxW (m)</span>
-                    </div>
-                    {[
-                      { id: 1, lbl: "1 (Inner)", len: heliParams.tkofS1Len, slp: heliParams.tkofS1Slope, div: heliParams.tkofS1Div, max: heliParams.tkofS1MaxW, set: (v: any) => setHeliParams({ ...heliParams, ...v }) },
-                      { id: 2, lbl: "2 (Mid)", len: heliParams.tkofS2Len, slp: heliParams.tkofS2Slope, div: heliParams.tkofS2Div, max: heliParams.tkofS2MaxW, set: (v: any) => setHeliParams({ ...heliParams, ...v }) },
-                      { id: 3, lbl: "3 (Outer)", len: heliParams.tkofS3Len, slp: heliParams.tkofS3Slope, div: heliParams.tkofS3Div, max: heliParams.tkofS3MaxW, set: (v: any) => setHeliParams({ ...heliParams, ...v }) }
-                    ].map(sec => (
-                      <div key={sec.id} style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
-                        <span style={{ flex: 1, fontSize: "11px", alignSelf: "center", fontWeight: 600, color: theme.navy }}>{sec.lbl}</span>
-                        <input style={{ ...numInputStyle, padding: "6px", fontSize: "13px" }} type="number" value={sec.len} onChange={e => { sec.set({ [`tkofS${sec.id}Len`]: +e.target.value }); setHeliPreset("custom"); }} />
-                        <input style={{ ...numInputStyle, padding: "6px", fontSize: "13px" }} type="number" value={sec.slp} onChange={e => { sec.set({ [`tkofS${sec.id}Slope`]: +e.target.value }); setHeliPreset("custom"); }} />
-                        <input style={{ ...numInputStyle, padding: "6px", fontSize: "13px" }} type="number" value={sec.div} onChange={e => { sec.set({ [`tkofS${sec.id}Div`]: +e.target.value }); setHeliPreset("custom"); }} />
-                        <input style={{ ...numInputStyle, padding: "6px", fontSize: "13px" }} type="number" placeholder="—" value={sec.max ?? ""} onChange={e => { sec.set({ [`tkofS${sec.id}MaxW`]: e.target.value ? +e.target.value : null }); setHeliPreset("custom"); }} />
-                      </div>
-                    ))}
+                  <label style={{ ...labelStyle, marginTop: "10px", color: "#c0392b" }}>Take-off Climb Surface (Outbound)</label>
+                  <div style={{ display: "flex", gap: "5px", marginTop: "5px" }}>
+                    <span style={{ flex: 1, fontSize: "11px", alignSelf: "center" }}>1 (Inner)</span>
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" value={heliParams.tkofS1Len} onChange={e => { setHeliParams({ ...heliParams, tkofS1Len: +e.target.value }); setHeliPreset("custom"); }} />
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" value={heliParams.tkofS1Slope} onChange={e => { setHeliParams({ ...heliParams, tkofS1Slope: +e.target.value }); setHeliPreset("custom"); }} />
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" value={heliParams.tkofS1Div} onChange={e => { setHeliParams({ ...heliParams, tkofS1Div: +e.target.value }); setHeliPreset("custom"); }} />
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" placeholder="—" value={heliParams.tkofS1MaxW ?? ""} onChange={e => { setHeliParams({ ...heliParams, tkofS1MaxW: e.target.value ? +e.target.value : null }); setHeliPreset("custom"); }} />
                   </div>
+                  <div style={{ display: "flex", gap: "5px", marginTop: "3px" }}>
+                    <span style={{ flex: 1, fontSize: "11px", alignSelf: "center" }}>2 (Mid)</span>
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" value={heliParams.tkofS2Len} onChange={e => { setHeliParams({ ...heliParams, tkofS2Len: +e.target.value }); setHeliPreset("custom"); }} />
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" value={heliParams.tkofS2Slope} onChange={e => { setHeliParams({ ...heliParams, tkofS2Slope: +e.target.value }); setHeliPreset("custom"); }} />
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" value={heliParams.tkofS2Div} onChange={e => { setHeliParams({ ...heliParams, tkofS2Div: +e.target.value }); setHeliPreset("custom"); }} />
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" placeholder="—" value={heliParams.tkofS2MaxW ?? ""} onChange={e => { setHeliParams({ ...heliParams, tkofS2MaxW: e.target.value ? +e.target.value : null }); setHeliPreset("custom"); }} />
+                  </div>
+                  <div style={{ display: "flex", gap: "5px", marginTop: "3px" }}>
+                    <span style={{ flex: 1, fontSize: "11px", alignSelf: "center" }}>3 (Outer)</span>
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" value={heliParams.tkofS3Len} onChange={e => { setHeliParams({ ...heliParams, tkofS3Len: +e.target.value }); setHeliPreset("custom"); }} />
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" value={heliParams.tkofS3Slope} onChange={e => { setHeliParams({ ...heliParams, tkofS3Slope: +e.target.value }); setHeliPreset("custom"); }} />
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" value={heliParams.tkofS3Div} onChange={e => { setHeliParams({ ...heliParams, tkofS3Div: +e.target.value }); setHeliPreset("custom"); }} />
+                    <input style={{ ...numInputStyle, padding: "4px" }} type="number" placeholder="—" value={heliParams.tkofS3MaxW ?? ""} onChange={e => { setHeliParams({ ...heliParams, tkofS3MaxW: e.target.value ? +e.target.value : null }); setHeliPreset("custom"); }} />
+                  </div>
+
                 </div>
               )}
 
               {/* --- OAS ICAO CONFIGURATOR --- */}
               {family === "OAS" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "10px", padding: "14px", backgroundColor: theme.bgOff, borderRadius: theme.radiusSm, border: `1px solid ${theme.border}` }}>
-                  
-                  {/* NAVAID DATA */}
-                  <div style={{ padding: "12px", backgroundColor: theme.bg, borderRadius: theme.radiusSm, border: `1px solid ${theme.border}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                    <strong style={{ fontSize: "11px", color: theme.navy, display: "block", marginBottom: "10px", borderBottom: `1px solid ${theme.border}`, paddingBottom: "6px", letterSpacing: "0.5px", textTransform: "uppercase" }}>Navigation Aid Data</strong>
-                    <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "10px", padding: "12px", backgroundColor: "#e9ecef", borderRadius: "6px", border: "1px solid #ccc" }}>
+
+                  {/* 1. NAVIGATION AID DATA */}
+                  <div style={{ padding: "10px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
+                    <strong style={{ fontSize: "12px", color: "#0b1b3d", display: "block", marginBottom: "8px", borderBottom: "1px solid #eee", paddingBottom: "4px" }}>NAVIGATION AID DATA</strong>
+
+                    <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
                       <div style={{ flex: 1.5 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Approach Cat</label>
-                        <select style={{ ...inputStyle, padding: "8px" }} value={oasParams.appCat} onChange={e => setOasParams({ ...oasParams, appCat: e.target.value })}>
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Approach Cat</label>
+                        <select style={inputStyle} value={oasParams.appCat} onChange={e => setOasParams({ ...oasParams, appCat: e.target.value })}>
                           <option value="ILS CAT I">ILS CAT I</option>
                           <option value="ILS CAT II">ILS CAT II</option>
                           <option value="ILS CAT II (Autopilot)">ILS CAT II (Autopilot)</option>
@@ -2547,37 +2478,39 @@ export default function Home() {
                         </select>
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>GP/VPA (°)</label>
-                        <input type="number" step="0.1" style={{ ...inputStyle, padding: "8px" }} value={oasParams.glidePath} onChange={e => setOasParams({ ...oasParams, glidePath: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>GP/VPA (°)</label>
+                        <input type="number" step="0.1" style={inputStyle} value={oasParams.glidePath} onChange={e => setOasParams({ ...oasParams, glidePath: +e.target.value })} />
                       </div>
                     </div>
+
                     <div style={{ display: "flex", gap: "8px" }}>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>RDH (m)</label>
-                        <input type="number" style={{ ...inputStyle, padding: "8px" }} value={oasParams.rdh} onChange={e => setOasParams({ ...oasParams, rdh: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>RDH (m)</label>
+                        <input type="number" style={inputStyle} value={oasParams.rdh} onChange={e => setOasParams({ ...oasParams, rdh: +e.target.value })} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>LOC-THR (m)</label>
-                        <input type="number" style={{ ...inputStyle, padding: "8px" }} value={oasParams.locThrDist} onChange={e => setOasParams({ ...oasParams, locThrDist: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>LOC-THR (m)</label>
+                        <input type="number" style={inputStyle} value={oasParams.locThrDist} onChange={e => setOasParams({ ...oasParams, locThrDist: +e.target.value })} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Course W. (m)</label>
-                        <input type="number" style={{ ...inputStyle, padding: "8px" }} value={oasParams.courseWidth} onChange={e => setOasParams({ ...oasParams, courseWidth: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Course W. (m)</label>
+                        <input type="number" style={inputStyle} value={oasParams.courseWidth} onChange={e => setOasParams({ ...oasParams, courseWidth: +e.target.value })} />
                       </div>
                     </div>
                   </div>
 
-                  {/* AIRCRAFT DATA */}
-                  <div style={{ padding: "12px", backgroundColor: theme.bg, borderRadius: theme.radiusSm, border: `1px solid ${theme.border}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                    <strong style={{ fontSize: "11px", color: theme.navy, display: "block", marginBottom: "10px", borderBottom: `1px solid ${theme.border}`, paddingBottom: "6px", letterSpacing: "0.5px", textTransform: "uppercase" }}>Aircraft Data</strong>
-                    <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+                  {/* 2. AIRCRAFT DATA */}
+                  <div style={{ padding: "10px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
+                    <strong style={{ fontSize: "12px", color: "#0b1b3d", display: "block", marginBottom: "8px", borderBottom: "1px solid #eee", paddingBottom: "4px" }}>AIRCRAFT DATA</strong>
+
+                    <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>M/App CG (%)</label>
-                        <input type="number" step="0.1" style={{ ...inputStyle, padding: "8px" }} value={oasParams.missedAppCG} onChange={e => setOasParams({ ...oasParams, missedAppCG: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>M/App CG (%)</label>
+                        <input type="number" step="0.1" style={inputStyle} value={oasParams.missedAppCG} onChange={e => setOasParams({ ...oasParams, missedAppCG: +e.target.value })} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Aircraft CAT</label>
-                        <select style={{ ...inputStyle, padding: "8px" }} value={oasParams.acCategory} onChange={e => setOasParams({ ...oasParams, acCategory: e.target.value })}>
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Aircraft CAT</label>
+                        <select style={inputStyle} value={oasParams.acCategory} onChange={e => setOasParams({ ...oasParams, acCategory: e.target.value })}>
                           <option value="A">CAT A</option>
                           <option value="B">CAT B</option>
                           <option value="C">CAT C</option>
@@ -2586,63 +2519,67 @@ export default function Home() {
                         </select>
                       </div>
                     </div>
+
                     <div style={{ display: "flex", gap: "8px", alignItems: "flex-end" }}>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Wing Semi Span (m)</label>
-                        <input type="number" style={{ ...inputStyle, padding: "8px", backgroundColor: oasParams.isStandard ? theme.bgOff : theme.bg }} value={oasParams.wingSemiSpan} onChange={e => setOasParams({ ...oasParams, wingSemiSpan: +e.target.value })} disabled={oasParams.isStandard} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Wing Semi Span (m)</label>
+                        <input type="number" style={inputStyle} value={oasParams.wingSemiSpan} onChange={e => setOasParams({ ...oasParams, wingSemiSpan: +e.target.value })} disabled={oasParams.isStandard} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>GP Wheel/Ant (m)</label>
-                        <input type="number" step="0.1" style={{ ...inputStyle, padding: "8px", backgroundColor: oasParams.isStandard ? theme.bgOff : theme.bg }} value={oasParams.antennaHeight} onChange={e => setOasParams({ ...oasParams, antennaHeight: +e.target.value })} disabled={oasParams.isStandard} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>GP Wheel/Ant (m)</label>
+                        <input type="number" step="0.1" style={inputStyle} value={oasParams.antennaHeight} onChange={e => setOasParams({ ...oasParams, antennaHeight: +e.target.value })} disabled={oasParams.isStandard} />
                       </div>
-                      <label style={{ flex: 0.8, fontSize: "11px", display: "flex", alignItems: "center", gap: "4px", fontWeight: "bold", paddingBottom: "8px", cursor: "pointer", color: theme.navy }}>
-                        <input type="checkbox" checked={oasParams.isStandard} onChange={e => setOasParams({ ...oasParams, isStandard: e.target.checked })} style={{ cursor: "pointer" }} /> STD
+                      <label style={{ flex: 0.8, fontSize: "11px", display: "flex", alignItems: "center", gap: "4px", fontWeight: "bold", paddingBottom: "8px" }}>
+                        <input type="checkbox" checked={oasParams.isStandard} onChange={e => setOasParams({ ...oasParams, isStandard: e.target.checked })} /> STD
                       </label>
                     </div>
                   </div>
+
                 </div>
               )}
 
+              {/* ── APV BARO-VNAV OAS FIELDS (Doc 8168 Part III §3.4) ── */}
               {/* --- APV BARO-VNAV CONFIGURATOR --- */}
               {family === "APV_BARO" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "10px", padding: "14px", backgroundColor: theme.bgOff, borderRadius: theme.radiusSm, border: `1px solid ${theme.border}` }}>
-                  <div style={{ padding: "12px", backgroundColor: theme.bg, borderRadius: theme.radiusSm, border: `1px solid ${theme.border}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                    <strong style={{ fontSize: "11px", color: theme.navy, display: "block", marginBottom: "10px", borderBottom: `1px solid ${theme.border}`, paddingBottom: "6px", letterSpacing: "0.5px", textTransform: "uppercase" }}>APV Baro-VNAV Data</strong>
-                    
-                    <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "10px", padding: "12px", backgroundColor: "#e9ecef", borderRadius: "6px", border: "1px solid #ccc" }}>
+
+                  <div style={{ padding: "10px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
+                    <strong style={{ fontSize: "12px", color: "#0b1b3d", display: "block", marginBottom: "8px", borderBottom: "1px solid #eee", paddingBottom: "4px" }}>APV BARO-VNAV DATA</strong>
+
+                    <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>VPA (°)</label>
-                        <input type="number" step="0.1" style={{ ...inputStyle, padding: "8px" }} value={apvBaroParams.vpaDeg} onChange={e => setApvBaroParams({ ...apvBaroParams, vpaDeg: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>VPA (°)</label>
+                        <input type="number" step="0.1" style={inputStyle} value={apvBaroParams.vpaDeg} onChange={e => setApvBaroParams({ ...apvBaroParams, vpaDeg: +e.target.value })} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>RDH (m)</label>
-                        <input type="number" step="0.1" style={{ ...inputStyle, padding: "8px" }} value={apvBaroParams.rdh} onChange={e => setApvBaroParams({ ...apvBaroParams, rdh: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>RDH (m)</label>
+                        <input type="number" step="0.1" style={inputStyle} value={apvBaroParams.rdh} onChange={e => setApvBaroParams({ ...apvBaroParams, rdh: +e.target.value })} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>MACG (%)</label>
-                        <input type="number" step="0.1" style={{ ...inputStyle, padding: "8px" }} value={apvBaroParams.maGradientPct} onChange={e => setApvBaroParams({ ...apvBaroParams, maGradientPct: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>MACG (%)</label>
+                        <input type="number" step="0.1" style={inputStyle} value={apvBaroParams.maGradientPct} onChange={e => setApvBaroParams({ ...apvBaroParams, maGradientPct: +e.target.value })} />
                       </div>
                     </div>
 
-                    <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+                    <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>FAP Height (m)</label>
-                        <input type="number" style={{ ...inputStyle, padding: "8px" }} value={apvBaroParams.heightFap} onChange={e => setApvBaroParams({ ...apvBaroParams, heightFap: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>FAP Height (m)</label>
+                        <input type="number" style={inputStyle} value={apvBaroParams.heightFap} onChange={e => setApvBaroParams({ ...apvBaroParams, heightFap: +e.target.value })} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Delta H (m)</label>
-                        <input type="number" style={{ ...inputStyle, padding: "8px" }} value={apvBaroParams.deltaH} onChange={e => setApvBaroParams({ ...apvBaroParams, deltaH: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Delta H (m)</label>
+                        <input type="number" style={inputStyle} value={apvBaroParams.deltaH} onChange={e => setApvBaroParams({ ...apvBaroParams, deltaH: +e.target.value })} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Aero Elev (ft)</label>
-                        <input type="number" style={{ ...inputStyle, padding: "8px" }} value={apvBaroParams.aerodromeElevFt} onChange={e => setApvBaroParams({ ...apvBaroParams, aerodromeElevFt: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Aero Elev (ft)</label>
+                        <input type="number" style={inputStyle} value={apvBaroParams.aerodromeElevFt} onChange={e => setApvBaroParams({ ...apvBaroParams, aerodromeElevFt: +e.target.value })} />
                       </div>
                     </div>
 
                     <div style={{ display: "flex", gap: "8px" }}>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Acft Cat</label>
-                        <select style={{ ...inputStyle, padding: "8px" }} value={apvBaroParams.acftCategory} onChange={e => setApvBaroParams({ ...apvBaroParams, acftCategory: e.target.value })}>
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Acft Cat</label>
+                        <select style={inputStyle} value={apvBaroParams.acftCategory} onChange={e => setApvBaroParams({ ...apvBaroParams, acftCategory: e.target.value })}>
                           <option value="A">CAT A</option>
                           <option value="B">CAT B</option>
                           <option value="C">CAT C</option>
@@ -2650,12 +2587,22 @@ export default function Home() {
                         </select>
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>FAF Dist (m)</label>
-                        <input type="number" style={{ ...inputStyle, padding: "8px" }} value={apvBaroParams.fafDist} onChange={e => setApvBaroParams({ ...apvBaroParams, fafDist: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>FAF Dist (m)</label>
+                        <input type="number" style={inputStyle} value={apvBaroParams.fafDist} onChange={e => setApvBaroParams({ ...apvBaroParams, fafDist: +e.target.value })} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>MAPt Dist (m)</label>
-                        <input type="number" style={{ ...inputStyle, padding: "8px" }} value={apvBaroParams.maptDist} onChange={e => setApvBaroParams({ ...apvBaroParams, maptDist: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>MAPt Dist (m)</label>
+                        <input type="number" style={inputStyle} value={apvBaroParams.maptDist} onChange={e => setApvBaroParams({ ...apvBaroParams, maptDist: +e.target.value })} />
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Height at FAP (m)</label>
+                        <input type="number" step="0.1" style={inputStyle} value={apvParams.heightFap} onChange={e => setApvParams({ ...apvParams, heightFap: +e.target.value })} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Delta H (m)</label>
+                        <input type="number" step="0.1" style={inputStyle} value={apvParams.deltaH} onChange={e => setApvParams({ ...apvParams, deltaH: +e.target.value })} />
                       </div>
                     </div>
                   </div>
@@ -2664,24 +2611,25 @@ export default function Home() {
 
               {/* --- DYNAMIC RNAV FIELDS --- */}
               {family === "RNAV" && (
-                <div style={{ backgroundColor: theme.bgOff, padding: "14px", borderRadius: theme.radiusSm, display: "flex", flexDirection: "column", gap: "10px", border: `1px solid ${theme.border}`, marginTop: "10px" }}>
+                <div style={{ backgroundColor: "#e9ecef", padding: "10px", borderRadius: "4px", display: "flex", flexDirection: "column", gap: "8px" }}>
+
                   <div style={rowStyle}>
                     <div style={{ flex: 1 }}>
-                      <label style={{...labelStyle, marginTop: 0}}>Mode</label>
+                      <label style={labelStyle}>Mode</label>
                       <select style={inputStyle} value={rnavMode} onChange={e => setRnavMode(e.target.value)}>
                         <option value="RNP APCH">RNP APCH</option>
                         <option value="Advanced RNP">Advanced RNP</option>
                       </select>
                     </div>
                     <div style={{ flex: 0.5 }}>
-                      <label style={{...labelStyle, marginTop: 0}}>Alt Unit</label>
+                      <label style={labelStyle}>Alt Unit</label>
                       <select style={inputStyle} value={altUnit} onChange={e => setAltUnit(e.target.value)}>
                         <option value="m">Meters</option>
                         <option value="ft">Feet</option>
                       </select>
                     </div>
                     <div style={{ flex: 0.5 }}>
-                      <label style={{...labelStyle, marginTop: 0}}>Acft Cat</label>
+                      <label style={labelStyle}>Acft Cat</label>
                       <select style={inputStyle} value={rnavParams.acft_cat} onChange={e => setRnavParams({ ...rnavParams, acft_cat: e.target.value })}>
                         <option value="A">CAT A</option>
                         <option value="B">CAT B</option>
@@ -2691,68 +2639,122 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "4px" }}>
-                    <p style={{ fontSize: "11px", color: theme.textMuted, margin: "0", fontStyle: "italic" }}>
-                      Tip: Uncheck points to skip drawing dependent segments.
-                    </p>
+                  {/* --- IF / FAF / MAPt Coordinates with Map Targets --- */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
 
-                    {[
-                      { key: 'if', title: 'Intermediate Fix (IF)', use: rnavParams.use_if, lat: rnavParams.if_lat, lon: rnavParams.if_lon },
-                      { key: 'faf', title: 'Final Approach Fix (FAF)', use: rnavParams.use_faf, lat: rnavParams.faf_lat, lon: rnavParams.faf_lon, alt: rnavParams.faf_alt },
-                      { key: 'mapt', title: 'Missed Approach Point (MAPt)', use: rnavParams.use_mapt, lat: rnavParams.mapt_lat, lon: rnavParams.mapt_lon, alt: rnavParams.mapt_alt },
-                      { key: 'ma_end', title: 'Missed Approach End Point', use: rnavParams.use_ma_end, lat: rnavParams.ma_end_lat, lon: rnavParams.ma_end_lon }
-                    ].map((pt) => {
-                      const isActive = pt.use;
-                      const isTargeting = selectingRnavPoint === pt.key.toUpperCase();
-                      return (
-                        <div key={pt.key} style={{ padding: "10px", backgroundColor: isActive ? theme.bg : theme.bgOff, borderRadius: theme.radiusSm, border: `1px solid ${isActive ? theme.border : 'transparent'}`, transition: "all 0.2s" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            <input type="checkbox" checked={isActive} onChange={e => setRnavParams({ ...rnavParams, [`use_${pt.key}`]: e.target.checked })} style={{ cursor: "pointer" }} />
-                            <strong style={{ fontSize: "11px", color: isActive ? theme.navy : theme.textMuted, textTransform: "uppercase", letterSpacing: "0.5px" }}>{pt.title}</strong>
-                          </div>
-                          {isActive && (
-                            <div style={{ display: "flex", gap: "6px", marginTop: "8px" }}>
-                              <input type="number" placeholder="Lat" style={{ ...inputStyle, padding: "8px" }} value={pt.lat || ""} onChange={e => setRnavParams({ ...rnavParams, [`${pt.key}_lat`]: +e.target.value })} />
-                              <input type="number" placeholder="Lon" style={{ ...inputStyle, padding: "8px" }} value={pt.lon || ""} onChange={e => setRnavParams({ ...rnavParams, [`${pt.key}_lon`]: +e.target.value })} />
-                              {pt.alt !== undefined && (
-                                <input type="number" placeholder="Alt" style={{ ...inputStyle, padding: "8px" }} value={pt.alt || ""} onChange={e => setRnavParams({ ...rnavParams, [`${pt.key}_alt`]: +e.target.value })} title={`Altitude in ${altUnit}`} />
-                              )}
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); setSelectingRnavPoint(isTargeting ? null : pt.key.toUpperCase() as any); }} 
-                                style={{ padding: "0 10px", backgroundColor: isTargeting ? "#dc3545" : theme.navy, color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "12px", transition: "background 0.2s" }} 
-                                title="Pick from 3D Map">
-                                {isTargeting ? "Cancel" : "📍"}
-                              </button>
-                            </div>
-                          )}
+                    {/* Intermediate Fix (IF) */}
+                    <div style={{ padding: "8px", backgroundColor: rnavParams.use_if ? "#ffffff" : "#f5f5f5", borderRadius: "4px", border: "1px solid #ddd" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <input type="checkbox" checked={rnavParams.use_if} onChange={e => setRnavParams({ ...rnavParams, use_if: e.target.checked })} />
+                        <strong style={{ fontSize: "11px", color: rnavParams.use_if ? "#0b1b3d" : "#999" }}>Intermediate Fix (IF)</strong>
+                      </div>
+                      {rnavParams.use_if && (
+                        <div style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
+                          <input type="number" placeholder="Lat" style={inputStyle} value={rnavParams.if_lat || ""} onChange={e => setRnavParams({ ...rnavParams, if_lat: +e.target.value })} />
+                          <input type="number" placeholder="Lon" style={inputStyle} value={rnavParams.if_lon || ""} onChange={e => setRnavParams({ ...rnavParams, if_lon: +e.target.value })} />
+                          <button onClick={(e) => { e.stopPropagation(); setSelectingRnavPoint(selectingRnavPoint === "IF" ? null : "IF"); }} style={{ padding: "0 8px", backgroundColor: selectingRnavPoint === "IF" ? "#dc3545" : "#e9ecef", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", fontSize: "14px" }} title="Select on map">
+                            {selectingRnavPoint === "IF" ? "❌" : "🎯"}
+                          </button>
                         </div>
-                      );
-                    })}
+                      )}
+                    </div>
+
+                    {/* Final Approach Fix (FAF) */}
+                    <div style={{ padding: "8px", backgroundColor: rnavParams.use_faf ? "#ffffff" : "#f5f5f5", borderRadius: "4px", border: "1px solid #ddd" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <input type="checkbox" checked={rnavParams.use_faf} onChange={e => setRnavParams({ ...rnavParams, use_faf: e.target.checked })} />
+                        <strong style={{ fontSize: "11px", color: rnavParams.use_faf ? "#0b1b3d" : "#999" }}>Final Approach Fix (FAF)</strong>
+                      </div>
+                      {rnavParams.use_faf && (
+                        <div style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
+                          <input type="number" placeholder="Lat" style={inputStyle} value={rnavParams.faf_lat || ""} onChange={e => setRnavParams({ ...rnavParams, faf_lat: +e.target.value })} />
+                          <input type="number" placeholder="Lon" style={inputStyle} value={rnavParams.faf_lon || ""} onChange={e => setRnavParams({ ...rnavParams, faf_lon: +e.target.value })} />
+                          <input type="number" placeholder="Alt" style={inputStyle} value={rnavParams.faf_alt || ""} onChange={e => setRnavParams({ ...rnavParams, faf_alt: +e.target.value })} title={`Altitude in ${rnavParams.alt_unit}`} />
+                          <button onClick={(e) => { e.stopPropagation(); setSelectingRnavPoint(selectingRnavPoint === "FAF" ? null : "FAF"); }} style={{ padding: "0 8px", backgroundColor: selectingRnavPoint === "FAF" ? "#dc3545" : "#e9ecef", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", fontSize: "14px" }} title="Select on map">
+                            {selectingRnavPoint === "FAF" ? "❌" : "🎯"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Missed Approach Point (MAPt) */}
+                    <div style={{ padding: "8px", backgroundColor: rnavParams.use_mapt ? "#ffffff" : "#f5f5f5", borderRadius: "4px", border: "1px solid #ddd" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <input type="checkbox" checked={rnavParams.use_mapt} onChange={e => setRnavParams({ ...rnavParams, use_mapt: e.target.checked })} />
+                        <strong style={{ fontSize: "11px", color: rnavParams.use_mapt ? "#0b1b3d" : "#999" }}>Missed Approach Point (MAPt)</strong>
+                      </div>
+                      {rnavParams.use_mapt && (
+                        <div style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
+                          <input type="number" placeholder="Lat" style={inputStyle} value={rnavParams.mapt_lat || ""} onChange={e => setRnavParams({ ...rnavParams, mapt_lat: +e.target.value })} />
+                          <input type="number" placeholder="Lon" style={inputStyle} value={rnavParams.mapt_lon || ""} onChange={e => setRnavParams({ ...rnavParams, mapt_lon: +e.target.value })} />
+                          <input type="number" placeholder="Alt" style={inputStyle} value={rnavParams.mapt_alt || ""} onChange={e => setRnavParams({ ...rnavParams, mapt_alt: +e.target.value })} title={`Altitude in ${rnavParams.alt_unit}`} />
+                          <button onClick={(e) => { e.stopPropagation(); setSelectingRnavPoint(selectingRnavPoint === "MAPT" ? null : "MAPT"); }} style={{ padding: "0 8px", backgroundColor: selectingRnavPoint === "MAPT" ? "#dc3545" : "#e9ecef", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", fontSize: "14px" }} title="Select on map">
+                            {selectingRnavPoint === "MAPT" ? "❌" : "🎯"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Missed Approach End Point */}
+                    <div style={{ padding: "8px", backgroundColor: rnavParams.use_ma_end ? "#ffffff" : "#f5f5f5", borderRadius: "4px", border: "1px solid #ddd" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <input type="checkbox" checked={rnavParams.use_ma_end} onChange={e => setRnavParams({ ...rnavParams, use_ma_end: e.target.checked })} />
+                        <strong style={{ fontSize: "11px", color: rnavParams.use_ma_end ? "#0b1b3d" : "#999" }}>Missed Approach End Point</strong>
+                      </div>
+                      {rnavParams.use_ma_end && (
+                        <div style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
+                          <input type="number" placeholder="Lat" style={inputStyle} value={rnavParams.ma_end_lat || ""} onChange={e => setRnavParams({ ...rnavParams, ma_end_lat: +e.target.value })} />
+                          <input type="number" placeholder="Lon" style={inputStyle} value={rnavParams.ma_end_lon || ""} onChange={e => setRnavParams({ ...rnavParams, ma_end_lon: +e.target.value })} />
+                          <button onClick={(e) => { e.stopPropagation(); setSelectingRnavPoint(selectingRnavPoint === "MA_END" ? null : "MA_END"); }} style={{ padding: "0 8px", backgroundColor: selectingRnavPoint === "MA_END" ? "#dc3545" : "#e9ecef", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer", fontSize: "14px" }} title="Select on map">
+                            {selectingRnavPoint === "MA_END" ? "❌" : "🎯"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
                   </div>
 
-                  <label style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "6px", marginTop: "10px", cursor: "pointer", color: theme.navy, fontWeight: "bold" }}>
-                    <input type="checkbox" checked={useCustomRnav} onChange={e => setUseCustomRnav(e.target.checked)} style={{ cursor: "pointer" }} />
-                    Manual Override (XTT / ATT / SW)
+                  <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: "5px", marginTop: "10px", cursor: "pointer" }}>
+                    <input type="checkbox" checked={useCustomRnav} onChange={e => setUseCustomRnav(e.target.checked)} />
+                    Manual Override (XTT / ATT / Semi-width in NM)
                   </label>
 
                   {useCustomRnav && (
-                    <div style={{ border: `1px solid ${theme.border}`, padding: "12px", borderRadius: theme.radiusSm, backgroundColor: theme.bg }}>
-                      <div style={{ display: "flex", gap: "5px", fontSize: "10px", fontWeight: "bold", marginBottom: "8px", color: theme.textMuted, textTransform: "uppercase" }}>
-                        <span style={{ flex: 1 }}>Fix</span><span style={{ flex: 1 }}>XTT (NM)</span><span style={{ flex: 1 }}>ATT (NM)</span><span style={{ flex: 1 }}>SW (NM)</span>
+                    <div style={{ border: "1px solid #ccc", padding: "5px", borderRadius: "4px", backgroundColor: "#fff" }}>
+                      <div style={{ display: "flex", gap: "5px", fontSize: "10px", fontWeight: "bold", marginBottom: "5px" }}>
+                        <span style={{ flex: 1 }}>Fix</span><span style={{ flex: 1 }}>XTT</span><span style={{ flex: 1 }}>ATT</span><span style={{ flex: 1 }}>SW</span>
                       </div>
-                      {[
-                        { key: "if", lbl: "IF" }, { key: "faf", lbl: "FAF" }, { key: "mapt", lbl: "MAPt" }
-                      ].map(row => (
-                        <div key={row.key} style={{ display: "flex", gap: "5px", marginBottom: "6px" }}>
-                          <span style={{ flex: 1, fontSize: "11px", fontWeight: 600, color: theme.navy, alignSelf: "center" }}>{row.lbl}</span>
-                          <input style={{ ...numInputStyle, padding: "6px" }} type="number" value={(rnavOverrides as any)[`${row.key}_xtt`]} onChange={e => setRnavOverrides({ ...rnavOverrides, [`${row.key}_xtt`]: +e.target.value })} />
-                          <input style={{ ...numInputStyle, padding: "6px" }} type="number" value={(rnavOverrides as any)[`${row.key}_att`]} onChange={e => setRnavOverrides({ ...rnavOverrides, [`${row.key}_att`]: +e.target.value })} />
-                          <input style={{ ...numInputStyle, padding: "6px" }} type="number" value={(rnavOverrides as any)[`${row.key}_sw`]} onChange={e => setRnavOverrides({ ...rnavOverrides, [`${row.key}_sw`]: +e.target.value })} />
-                        </div>
-                      ))}
-                      <div style={{ display: "flex", gap: "8px", marginTop: "10px", borderTop: `1px solid ${theme.border}`, paddingTop: "10px", alignItems: "center" }}>
-                        <span style={{ flex: 1, fontSize: "11px", fontWeight: 600, color: theme.navy }}>MAPt to SOC (NM)</span>
-                        <input style={{ ...numInputStyle, padding: "8px", flex: 2 }} type="number" placeholder="Auto-calc via VTAS" value={rnavOverrides.mapt_soc} onChange={e => setRnavOverrides({ ...rnavOverrides, mapt_soc: e.target.value })} />
+                      {/* IF Override */}
+                      <div style={{ display: "flex", gap: "5px", marginBottom: "3px" }}>
+                        <span style={{ flex: 1, fontSize: "11px" }}>IF</span>
+                        <input style={{ ...numInputStyle, padding: "2px" }} type="number" value={rnavOverrides.if_xtt} onChange={e => setRnavOverrides({ ...rnavOverrides, if_xtt: +e.target.value })} />
+                        <input style={{ ...numInputStyle, padding: "2px" }} type="number" value={rnavOverrides.if_att} onChange={e => setRnavOverrides({ ...rnavOverrides, if_att: +e.target.value })} />
+                        <input style={{ ...numInputStyle, padding: "2px" }} type="number" value={rnavOverrides.if_sw} onChange={e => setRnavOverrides({ ...rnavOverrides, if_sw: +e.target.value })} />
+                      </div>
+                      {/* FAF Override */}
+                      <div style={{ display: "flex", gap: "5px", marginBottom: "3px" }}>
+                        <span style={{ flex: 1, fontSize: "11px" }}>FAF</span>
+                        <input style={{ ...numInputStyle, padding: "2px" }} type="number" value={rnavOverrides.faf_xtt} onChange={e => setRnavOverrides({ ...rnavOverrides, faf_xtt: +e.target.value })} />
+                        <input style={{ ...numInputStyle, padding: "2px" }} type="number" value={rnavOverrides.faf_att} onChange={e => setRnavOverrides({ ...rnavOverrides, faf_att: +e.target.value })} />
+                        <input style={{ ...numInputStyle, padding: "2px" }} type="number" value={rnavOverrides.faf_sw} onChange={e => setRnavOverrides({ ...rnavOverrides, faf_sw: +e.target.value })} />
+                      </div>
+                      {/* MAPt Override */}
+                      <div style={{ display: "flex", gap: "5px" }}>
+                        <span style={{ flex: 1, fontSize: "11px" }}>MAPt</span>
+                        <input style={{ ...numInputStyle, padding: "2px" }} type="number" value={rnavOverrides.mapt_xtt} onChange={e => setRnavOverrides({ ...rnavOverrides, mapt_xtt: +e.target.value })} />
+                        <input style={{ ...numInputStyle, padding: "2px" }} type="number" value={rnavOverrides.mapt_att} onChange={e => setRnavOverrides({ ...rnavOverrides, mapt_att: +e.target.value })} />
+                        <input style={{ ...numInputStyle, padding: "2px" }} type="number" value={rnavOverrides.mapt_sw} onChange={e => setRnavOverrides({ ...rnavOverrides, mapt_sw: +e.target.value })} />
+                      </div>
+
+                      <div style={{ display: "flex", gap: "5px", marginTop: "5px", borderTop: "1px solid #eee", paddingTop: "5px", alignItems: "center" }}>
+                        <span style={{ flex: 1, fontSize: "11px" }}>MAPt to SOC (NM)</span>
+                        <input
+                          style={{ ...numInputStyle, padding: "4px", flex: 2 }}
+                          type="number"
+                          placeholder="Auto-calculated by VTAS"
+                          value={rnavOverrides.mapt_soc}
+                          onChange={e => setRnavOverrides({ ...rnavOverrides, mapt_soc: e.target.value })}
+                        />
                       </div>
                     </div>
                   )}
@@ -2761,20 +2763,25 @@ export default function Home() {
 
               {/* --- VSS / OCS CONFIGURATOR --- */}
               {family === "VSS" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "10px", padding: "14px", backgroundColor: theme.bgOff, borderRadius: theme.radiusSm, border: `1px solid ${theme.border}` }}>
-                  
-                  <div style={{ display: "flex", gap: "8px", backgroundColor: "#fff8eb", padding: "12px", borderRadius: theme.radiusSm, border: "1px solid #f5d6b0" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "10px", padding: "12px", backgroundColor: "#e9ecef", borderRadius: "6px", border: "1px solid #ccc" }}>
+                  <strong style={{ fontSize: "13px", color: "#0b1b3d", margin: 0 }}>VSS & OCS Generator</strong>
+
+                  {/* Auto-Calculation Row */}
+                  <div style={{ display: "flex", gap: "8px", backgroundColor: "#fff3cd", padding: "8px", borderRadius: "4px", border: "1px solid #ffeeba" }}>
                     <div style={{ flex: 1 }}>
-                      <label style={{ fontSize: "10px", fontWeight: "bold", color: "#c05621", textTransform: "uppercase" }}>VPA (°)</label>
-                      <input type="number" step="0.1" style={{ ...inputStyle, padding: "8px" }} value={vssParams.vpa} onChange={e => handleVpaOrTypeChange(+e.target.value, vssParams.appType)} />
+                      <label style={{ fontSize: "10px", fontWeight: "bold", color: "#856404" }}>VPA (°)</label>
+                      <input type="number" step="0.1" style={inputStyle} value={vssParams.vpa}
+                        onChange={e => handleVpaOrTypeChange(+e.target.value, vssParams.appType)} />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <label style={{ fontSize: "10px", fontWeight: "bold", color: "#c05621", textTransform: "uppercase" }}>RDH (m)</label>
-                      <input type="number" step="0.1" style={{ ...inputStyle, padding: "8px" }} value={vssParams.rdh} onChange={e => setVssParams({ ...vssParams, rdh: +e.target.value })} />
+                      <label style={{ fontSize: "10px", fontWeight: "bold", color: "#856404" }}>RDH (m)</label>
+                      <input type="number" step="0.1" style={inputStyle} value={vssParams.rdh}
+                        onChange={e => setVssParams({ ...vssParams, rdh: +e.target.value })} />
                     </div>
                     <div style={{ flex: 1.5 }}>
-                      <label style={{ fontSize: "10px", fontWeight: "bold", color: "#c05621", textTransform: "uppercase" }}>Approach Type</label>
-                      <select style={{ ...inputStyle, padding: "8px" }} value={vssParams.appType} onChange={e => handleVpaOrTypeChange(vssParams.vpa, e.target.value)}>
+                      <label style={{ fontSize: "10px", fontWeight: "bold", color: "#856404" }}>Approach Type</label>
+                      <select style={inputStyle} value={vssParams.appType}
+                        onChange={e => handleVpaOrTypeChange(vssParams.vpa, e.target.value)}>
                         <option value="NPA">NPA (VPA - 1°)</option>
                         <option value="APV_BARO">APV Baro (VPA - 0.5°)</option>
                         <option value="APV_GEO">APV Geo (VPA - 0.5°)</option>
@@ -2782,44 +2789,44 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div style={{ padding: "12px", backgroundColor: theme.bg, borderRadius: theme.radiusSm, border: `1px solid ${theme.border}` }}>
-                    <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
-                      <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>VSS Half-W (m)</label>
-                        <input type="number" style={{ ...inputStyle, padding: "8px" }} value={vssParams.stripWidth} onChange={e => setVssParams({ ...vssParams, stripWidth: +e.target.value })} />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>OCS Start HW (m)</label>
-                        <input type="number" style={{ ...inputStyle, padding: "8px" }} value={vssParams.ocsStartWidth} onChange={e => setVssParams({ ...vssParams, ocsStartWidth: +e.target.value })} />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>OCS End Base (m)</label>
-                        <input type="number" style={{ ...inputStyle, padding: "8px" }} value={vssParams.ocsEndWidthBase} onChange={e => setVssParams({ ...vssParams, ocsEndWidthBase: +e.target.value })} title="120m standard" />
-                      </div>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>VSS Half-W (m)</label>
+                      <input type="number" style={inputStyle} value={vssParams.stripWidth} onChange={e => setVssParams({ ...vssParams, stripWidth: +e.target.value })} />
                     </div>
-
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>VSS Angle (°)</label>
-                        <input type="number" step="0.01" style={{ ...inputStyle, padding: "8px", backgroundColor: theme.lightBlue }} value={vssParams.vssAngle} onChange={e => setVssParams({ ...vssParams, vssAngle: +e.target.value })} />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>OCS Angle (°)</label>
-                        <input type="number" step="0.01" style={{ ...inputStyle, padding: "8px", backgroundColor: theme.lightBlue }} value={vssParams.ocsAngle} onChange={e => setVssParams({ ...vssParams, ocsAngle: +e.target.value })} />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Offset Angle (°)</label>
-                        <input type="number" step="0.1" style={{ ...inputStyle, padding: "8px" }} value={vssParams.offsetAngle} onChange={e => setVssParams({ ...vssParams, offsetAngle: +e.target.value })} />
-                      </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>OCS Start Half-W (m)</label>
+                      <input type="number" style={inputStyle} value={vssParams.ocsStartWidth} onChange={e => setVssParams({ ...vssParams, ocsStartWidth: +e.target.value })} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>OCS End Base (m)</label>
+                      <input type="number" style={inputStyle} value={vssParams.ocsEndWidthBase} onChange={e => setVssParams({ ...vssParams, ocsEndWidthBase: +e.target.value })} title="120m standard" />
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", gap: "15px", backgroundColor: theme.bg, padding: "12px", borderRadius: theme.radiusSm, border: `1px solid ${theme.border}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                    <label style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "6px", color: theme.navy, fontWeight: "bold", cursor: "pointer" }}>
-                      <input type="checkbox" checked={vssParams.drawVSS} onChange={e => setVssParams({ ...vssParams, drawVSS: e.target.checked })} style={{ cursor: "pointer" }} /> Draw VSS
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>VSS Angle (°)</label>
+                      <input type="number" step="0.01" style={{ ...inputStyle, backgroundColor: "#e8f0fe" }} value={vssParams.vssAngle} onChange={e => setVssParams({ ...vssParams, vssAngle: +e.target.value })} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>OCS Angle (°)</label>
+                      <input type="number" step="0.01" style={{ ...inputStyle, backgroundColor: "#e8f0fe" }} value={vssParams.ocsAngle} onChange={e => setVssParams({ ...vssParams, ocsAngle: +e.target.value })} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Offset Angle (°)</label>
+                      <input type="number" step="0.1" style={inputStyle} value={vssParams.offsetAngle} onChange={e => setVssParams({ ...vssParams, offsetAngle: +e.target.value })} />
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: "15px", marginTop: "4px", backgroundColor: "#ffffff", padding: "8px", borderRadius: "4px", border: "1px solid #ddd" }}>
+                    <label style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "5px", color: "#0b1b3d", fontWeight: "bold" }}>
+                      <input type="checkbox" checked={vssParams.drawVSS} onChange={e => setVssParams({ ...vssParams, drawVSS: e.target.checked })} />
+                      Draw VSS
                     </label>
-                    <label style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "6px", color: theme.navy, fontWeight: "bold", cursor: "pointer" }}>
-                      <input type="checkbox" checked={vssParams.drawOCS} onChange={e => setVssParams({ ...vssParams, drawOCS: e.target.checked })} style={{ cursor: "pointer" }} /> Draw OCS
+                    <label style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "5px", color: "#0b1b3d", fontWeight: "bold" }}>
+                      <input type="checkbox" checked={vssParams.drawOCS} onChange={e => setVssParams({ ...vssParams, drawOCS: e.target.checked })} />
+                      Draw OCS
                     </label>
                   </div>
                 </div>
@@ -2827,90 +2834,62 @@ export default function Home() {
 
               {/* DYNAMIC NAVAID FIELDS */}
               {family === "NAVAID" && (
-                <div style={{ backgroundColor: theme.bgOff, padding: "16px", borderRadius: theme.radiusSm, display: "flex", flexDirection: "column", gap: "12px", border: `1px solid ${theme.border}`, marginTop: "10px" }}>
-                  <div>
-                    <label style={{...labelStyle, marginTop: 0}}>Facility Type (EUR Doc 015)</label>
-                    <select style={inputStyle} value={navType} onChange={e => setNavType(e.target.value)}>
-                      <optgroup label="Omni-directional">
-                        <option value="CVOR">CVOR (Conventional VOR)</option>
-                        <option value="DVOR">DVOR (Doppler VOR)</option>
-                        <option value="DF">DF (Direction Finder)</option>
-                        <option value="DME">DME</option>
-                        <option value="NDB">NDB</option>
-                        <option value="GBAS_GRR">GBAS GRR</option>
-                        <option value="GBAS_VDB">GBAS VDB</option>
-                        <option value="VDB_MS">VDB MS</option>
-                      </optgroup>
-                      <optgroup label="Directional">
-                        <option value="ILS_LLZ_SF">ILS LLZ (Single Frequency)</option>
-                        <option value="ILS_LLZ_DF">ILS LLZ (Dual Frequency)</option>
-                        <option value="ILS_GP">ILS Glide Path (GP)</option>
-                        <option value="MLS_AZ">MLS Azimuth</option>
-                        <option value="MLS_EL">MLS Elevation</option>
-                        <option value="DME_DIR">DME (Directional)</option>
-                      </optgroup>
-                    </select>
+                <div style={{ backgroundColor: "#e9ecef", padding: "10px", borderRadius: "4px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <label style={labelStyle}>Facility Type (EUR Doc 015)</label>
+                  <select style={inputStyle} value={navType} onChange={e => setNavType(e.target.value)}>
+                    <optgroup label="Omni-directional">
+                      <option value="CVOR">CVOR (Conventional VOR)</option>
+                      <option value="DVOR">DVOR (Doppler VOR)</option>
+                      <option value="DF">DF (Direction Finder)</option>
+                      <option value="DME">DME</option>
+                      <option value="NDB">NDB</option>
+                      <option value="GBAS_GRR">GBAS GRR</option>
+                      <option value="GBAS_VDB">GBAS VDB</option>
+                      <option value="VDB_MS">VDB MS</option>
+                    </optgroup>
+                    <optgroup label="Directional">
+                      <option value="ILS_LLZ_SF">ILS LLZ (Single Frequency)</option>
+                      <option value="ILS_LLZ_DF">ILS LLZ (Dual Frequency)</option>
+                      <option value="ILS_GP">ILS Glide Path (GP)</option>
+                      <option value="MLS_AZ">MLS Azimuth</option>
+                      <option value="MLS_EL">MLS Elevation</option>
+                      <option value="DME_DIR">DME (Directional)</option>
+                    </optgroup>
+                  </select>
+
+                  <label style={labelStyle}>Antenna Coordinates (Lat / Lon / Alt)</label>
+                  <div style={rowStyle}>
+                    <input style={numInputStyle} type="number" value={navCoord.lat} onChange={e => setNavCoord({ ...navCoord, lat: +e.target.value })} />
+                    <input style={numInputStyle} type="number" value={navCoord.lon} onChange={e => setNavCoord({ ...navCoord, lon: +e.target.value })} />
+                    <input style={numInputStyle} type="number" value={navCoord.alt} onChange={e => setNavCoord({ ...navCoord, alt: +e.target.value })} />
                   </div>
 
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                      <label style={{ ...labelStyle, marginTop: 0 }}>Antenna Coordinates (Lat/Lon/Alt)</label>
-                      <button 
-                        style={{ backgroundColor: theme.navy, color: "white", border: "none", borderRadius: "4px", padding: "4px 8px", fontSize: "10px", fontWeight: "bold", cursor: "pointer", transition: "background 0.2s" }} 
-                        onMouseEnter={e => e.currentTarget.style.backgroundColor = theme.blue}
-                        onMouseLeave={e => e.currentTarget.style.backgroundColor = theme.navy}
-                        onClick={() => getCenterFromMap(setNavCoord, navCoord)}>
-                        📍 Map
-                      </button>
-                    </div>
-                    <div style={rowStyle}>
-                      <input style={numInputStyle} type="number" value={navCoord.lat} onChange={e => setNavCoord({ ...navCoord, lat: +e.target.value })} placeholder="Lat" />
-                      <input style={numInputStyle} type="number" value={navCoord.lon} onChange={e => setNavCoord({ ...navCoord, lon: +e.target.value })} placeholder="Lon" />
-                      <input style={numInputStyle} type="number" value={navCoord.alt} onChange={e => setNavCoord({ ...navCoord, alt: +e.target.value })} placeholder="Alt (m)" />
-                    </div>
-                  </div>
-
+                  {/* SHOW BEARING & THRESHOLD ONLY FOR DIRECTIONAL FACILITIES */}
                   {isDirectional && (
-                    <div style={{ padding: "12px", backgroundColor: theme.bg, borderRadius: theme.radiusSm, border: `1px solid ${theme.border}` }}>
-                      <label style={{...labelStyle, marginTop: 0}}>Operational Bearing (°)</label>
-                      <input style={{...inputStyle, marginBottom: "10px"}} type="number" value={navBearing} onChange={e => setNavBearing(+e.target.value)} />
-                      
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                        <label style={{ ...labelStyle, marginTop: 0 }}>Reference Threshold (Lat/Lon/Alt)</label>
-                        <button 
-                          style={{ backgroundColor: theme.navy, color: "white", border: "none", borderRadius: "4px", padding: "4px 8px", fontSize: "10px", fontWeight: "bold", cursor: "pointer", transition: "background 0.2s" }} 
-                          onMouseEnter={e => e.currentTarget.style.backgroundColor = theme.blue}
-                          onMouseLeave={e => e.currentTarget.style.backgroundColor = theme.navy}
-                          onClick={() => getCenterFromMap(setNavThr, navThr)}>
-                          📍 Map
-                        </button>
-                      </div>
+                    <>
+                      <label style={labelStyle}>Operational Bearing (°)</label>
+                      <input style={inputStyle} type="number" value={navBearing} onChange={e => setNavBearing(+e.target.value)} />
+
+                      <label style={labelStyle}>Reference Threshold (Lat / Lon / Alt)</label>
                       <div style={rowStyle}>
-                        <input style={numInputStyle} type="number" value={navThr.lat} onChange={e => setNavThr({ ...navThr, lat: +e.target.value })} placeholder="Lat" />
-                        <input style={numInputStyle} type="number" value={navThr.lon} onChange={e => setNavThr({ ...navThr, lon: +e.target.value })} placeholder="Lon" />
-                        <input style={numInputStyle} type="number" value={navThr.alt} onChange={e => setNavThr({ ...navThr, alt: +e.target.value })} placeholder="Alt" />
+                        <input style={numInputStyle} type="number" value={navThr.lat} onChange={e => setNavThr({ ...navThr, lat: +e.target.value })} />
+                        <input style={numInputStyle} type="number" value={navThr.lon} onChange={e => setNavThr({ ...navThr, lon: +e.target.value })} />
+                        <input style={numInputStyle} type="number" value={navThr.alt} onChange={e => setNavThr({ ...navThr, alt: +e.target.value })} />
                       </div>
-                    </div>
+                    </>
                   )}
                 </div>
               )}
-
               {/* --- HOLDING & REVERSAL CONFIGURATOR --- */}
               {family === "HOLDING" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "10px", padding: "14px", backgroundColor: theme.bgOff, borderRadius: theme.radiusSm, border: `1px solid ${theme.border}` }}>
-                  
-                  <div style={{ padding: "12px", backgroundColor: theme.bg, borderRadius: theme.radiusSm, border: `1px solid ${theme.border}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                    <strong style={{ fontSize: "11px", color: theme.navy, display: "block", marginBottom: "10px", borderBottom: `1px solid ${theme.border}`, paddingBottom: "6px", letterSpacing: "0.5px", textTransform: "uppercase" }}>Procedure Definition</strong>
-                    
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                      <label style={{...labelStyle, marginTop: 0}}>Fix / Station (Lat / Lon / Alt)</label>
-                      <button 
-                        style={{ backgroundColor: theme.navy, color: "white", border: "none", borderRadius: "4px", padding: "4px 8px", fontSize: "10px", fontWeight: "bold", cursor: "pointer", transition: "background 0.2s" }} 
-                        onMouseEnter={e => e.currentTarget.style.backgroundColor = theme.blue}
-                        onMouseLeave={e => e.currentTarget.style.backgroundColor = theme.navy}
-                        onClick={() => getCenterFromMap(setT1, t1)}>
-                        📍 Map
-                      </button>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "10px", padding: "12px", backgroundColor: "#e9ecef", borderRadius: "6px", border: "1px solid #ccc" }}>
+
+                  <div style={{ padding: "10px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
+                    <strong style={{ fontSize: "12px", color: "#0b1b3d", display: "block", marginBottom: "8px", borderBottom: "1px solid #eee", paddingBottom: "4px" }}>PROCEDURE DEFINITION</strong>
+
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                      <label style={labelStyle}>Fix / Station (Lat / Lon / Alt)</label>
+                      <button style={{ ...activeTabBtn, padding: "2px 6px", fontSize: "10px" }} onClick={() => getCenterFromMap(setT1, t1)}>📍 Map</button>
                     </div>
                     <div style={rowStyle}>
                       <input style={numInputStyle} type="number" value={t1.lat} onChange={e => setT1({ ...t1, lat: +e.target.value })} placeholder="Lat" />
@@ -2918,10 +2897,10 @@ export default function Home() {
                       <input style={numInputStyle} type="number" value={t1.alt} onChange={e => setT1({ ...t1, alt: +e.target.value })} placeholder="Alt (m)" />
                     </div>
 
-                    <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+                    <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
                       <div style={{ flex: 1.5 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Procedure Type</label>
-                        <select style={{ ...inputStyle, padding: "8px" }} value={holdingParams.type} onChange={e => setHoldingParams({ ...holdingParams, type: e.target.value })}>
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Procedure Type</label>
+                        <select style={inputStyle} value={holdingParams.type} onChange={e => setHoldingParams({ ...holdingParams, type: e.target.value })}>
                           <option value="HOLDING">Holding Pattern</option>
                           <option value="RACETRACK">Racetrack</option>
                           <option value="BASE_TURN">Base Turn</option>
@@ -2929,12 +2908,12 @@ export default function Home() {
                         </select>
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Inbound Brg (°)</label>
-                        <input type="number" style={{ ...inputStyle, padding: "8px" }} value={holdingParams.inbound_brg} onChange={e => setHoldingParams({ ...holdingParams, inbound_brg: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Inbound Brg (°)</label>
+                        <input type="number" style={inputStyle} value={holdingParams.inbound_brg} onChange={e => setHoldingParams({ ...holdingParams, inbound_brg: +e.target.value })} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Turn Dir</label>
-                        <select style={{ ...inputStyle, padding: "8px" }} value={holdingParams.turn_dir} onChange={e => setHoldingParams({ ...holdingParams, turn_dir: e.target.value })}>
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Turn Dir</label>
+                        <select style={inputStyle} value={holdingParams.turn_dir} onChange={e => setHoldingParams({ ...holdingParams, turn_dir: e.target.value })}>
                           <option value="R">Right</option>
                           <option value="L">Left</option>
                         </select>
@@ -2942,30 +2921,32 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div style={{ padding: "12px", backgroundColor: theme.bg, borderRadius: theme.radiusSm, border: `1px solid ${theme.border}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                    <strong style={{ fontSize: "11px", color: theme.navy, display: "block", marginBottom: "10px", borderBottom: `1px solid ${theme.border}`, paddingBottom: "6px", letterSpacing: "0.5px", textTransform: "uppercase" }}>Flight Parameters</strong>
-                    <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+                  <div style={{ padding: "10px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
+                    <strong style={{ fontSize: "12px", color: "#0b1b3d", display: "block", marginBottom: "8px", borderBottom: "1px solid #eee", paddingBottom: "4px" }}>FLIGHT PARAMETERS</strong>
+
+                    <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>IAS (kt)</label>
-                        <input type="number" style={{ ...inputStyle, padding: "8px" }} value={holdingParams.ias} onChange={e => setHoldingParams({ ...holdingParams, ias: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>IAS (kt)</label>
+                        <input type="number" style={inputStyle} value={holdingParams.ias} onChange={e => setHoldingParams({ ...holdingParams, ias: +e.target.value })} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Altitude (ft)</label>
-                        <input type="number" style={{ ...inputStyle, padding: "8px" }} value={holdingParams.alt_ft} onChange={e => setHoldingParams({ ...holdingParams, alt_ft: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Altitude (ft)</label>
+                        <input type="number" style={inputStyle} value={holdingParams.alt_ft} onChange={e => setHoldingParams({ ...holdingParams, alt_ft: +e.target.value })} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Time (min)</label>
-                        <input type="number" step="0.5" style={{ ...inputStyle, padding: "8px" }} value={holdingParams.time_min} onChange={e => setHoldingParams({ ...holdingParams, time_min: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Time (min)</label>
+                        <input type="number" step="0.5" style={inputStyle} value={holdingParams.time_min} onChange={e => setHoldingParams({ ...holdingParams, time_min: +e.target.value })} />
                       </div>
                     </div>
+
                     <div style={{ display: "flex", gap: "8px" }}>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>AD Elev (ft)</label>
-                        <input type="number" style={{ ...inputStyle, padding: "8px" }} value={holdingParams.ad_elev_ft} onChange={e => setHoldingParams({ ...holdingParams, ad_elev_ft: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>AD Elev (ft)</label>
+                        <input type="number" style={inputStyle} value={holdingParams.ad_elev_ft} onChange={e => setHoldingParams({ ...holdingParams, ad_elev_ft: +e.target.value })} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Temp Ref (°C)</label>
-                        <input type="number" style={{ ...inputStyle, padding: "8px" }} value={holdingParams.temp_ref_c} onChange={e => setHoldingParams({ ...holdingParams, temp_ref_c: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Temp Ref (°C)</label>
+                        <input type="number" style={inputStyle} value={holdingParams.temp_ref_c} onChange={e => setHoldingParams({ ...holdingParams, temp_ref_c: +e.target.value })} />
                       </div>
                     </div>
                   </div>
@@ -2974,34 +2955,28 @@ export default function Home() {
 
               {/* --- PANS-OPS WIND SPIRAL CONFIGURATOR --- */}
               {family === "WIND_SPIRAL" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "10px", padding: "14px", backgroundColor: theme.bgOff, borderRadius: theme.radiusSm, border: `1px solid ${theme.border}` }}>
-                  
-                  <div style={{ padding: "12px", backgroundColor: theme.bg, borderRadius: theme.radiusSm, border: `1px solid ${theme.border}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                    <strong style={{ fontSize: "11px", color: theme.navy, display: "block", marginBottom: "10px", borderBottom: `1px solid ${theme.border}`, paddingBottom: "6px", letterSpacing: "0.5px", textTransform: "uppercase" }}>Turn Origin (Start)</strong>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                      <label style={{...labelStyle, marginTop: 0}}>Start Point (Lat / Lon / Alt)</label>
-                      <button 
-                        style={{ backgroundColor: theme.navy, color: "white", border: "none", borderRadius: "4px", padding: "4px 8px", fontSize: "10px", fontWeight: "bold", cursor: "pointer", transition: "background 0.2s" }} 
-                        onMouseEnter={e => e.currentTarget.style.backgroundColor = theme.blue}
-                        onMouseLeave={e => e.currentTarget.style.backgroundColor = theme.navy}
-                        onClick={() => getCenterFromMap(setT1, t1)}>
-                        📍 Map
-                      </button>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "10px", padding: "12px", backgroundColor: "#e9ecef", borderRadius: "6px", border: "1px solid #ccc" }}>
+
+                  <div style={{ padding: "10px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
+                    <strong style={{ fontSize: "12px", color: "#0b1b3d", display: "block", marginBottom: "8px", borderBottom: "1px solid #eee", paddingBottom: "4px" }}>TURN ORIGIN (START OF TURN)</strong>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                      <label style={labelStyle}>Start Point (Lat / Lon / Alt)</label>
+                      <button style={{ ...activeTabBtn, padding: "2px 6px", fontSize: "10px" }} onClick={() => getCenterFromMap(setT1, t1)}>📍 Map</button>
                     </div>
                     <div style={rowStyle}>
                       <input style={numInputStyle} type="number" value={t1.lat} onChange={e => setT1({ ...t1, lat: +e.target.value })} placeholder="Lat" />
                       <input style={numInputStyle} type="number" value={t1.lon} onChange={e => setT1({ ...t1, lon: +e.target.value })} placeholder="Lon" />
                       <input style={numInputStyle} type="number" value={t1.alt} onChange={e => setT1({ ...t1, alt: +e.target.value })} placeholder="Alt (m)" />
                     </div>
-                    
-                    <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+
+                    <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
                       <div style={{ flex: 1.5 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Inbound Bearing (°)</label>
-                        <input type="number" style={{ ...inputStyle, padding: "8px" }} value={wsParams.inbound_bearing} onChange={e => setWsParams({ ...wsParams, inbound_bearing: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Inbound Bearing (°)</label>
+                        <input type="number" style={inputStyle} value={wsParams.inbound_bearing} onChange={e => setWsParams({ ...wsParams, inbound_bearing: +e.target.value })} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Turn Direction</label>
-                        <select style={{ ...inputStyle, padding: "8px" }} value={wsParams.turn_direction} onChange={e => setWsParams({ ...wsParams, turn_direction: e.target.value })}>
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Turn Direction</label>
+                        <select style={inputStyle} value={wsParams.turn_direction} onChange={e => setWsParams({ ...wsParams, turn_direction: e.target.value })}>
                           <option value="R">Right (R)</option>
                           <option value="L">Left (L)</option>
                         </select>
@@ -3009,34 +2984,36 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div style={{ padding: "12px", backgroundColor: theme.bg, borderRadius: theme.radiusSm, border: `1px solid ${theme.border}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                    <strong style={{ fontSize: "11px", color: theme.navy, display: "block", marginBottom: "10px", borderBottom: `1px solid ${theme.border}`, paddingBottom: "6px", letterSpacing: "0.5px", textTransform: "uppercase" }}>Aircraft & Flight Dynamics</strong>
-                    <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+                  <div style={{ padding: "10px", backgroundColor: "#ffffff", borderRadius: "4px", border: "1px solid #ddd" }}>
+                    <strong style={{ fontSize: "12px", color: "#0b1b3d", display: "block", marginBottom: "8px", borderBottom: "1px solid #eee", paddingBottom: "4px" }}>AIRCRAFT & FLIGHT DYNAMICS</strong>
+
+                    <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>IAS (kt)</label>
-                        <input type="number" style={{ ...inputStyle, padding: "8px" }} value={wsParams.ias} onChange={e => setWsParams({ ...wsParams, ias: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>IAS (kt)</label>
+                        <input type="number" style={inputStyle} value={wsParams.ias} onChange={e => setWsParams({ ...wsParams, ias: +e.target.value })} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Altitude (ft)</label>
-                        <input type="number" style={{ ...inputStyle, padding: "8px" }} value={wsParams.altitude_ft} onChange={e => setWsParams({ ...wsParams, altitude_ft: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Altitude (ft)</label>
+                        <input type="number" style={inputStyle} value={wsParams.altitude_ft} onChange={e => setWsParams({ ...wsParams, altitude_ft: +e.target.value })} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Bank Angle (°)</label>
-                        <input type="number" step="0.1" style={{ ...inputStyle, padding: "8px" }} value={wsParams.bank_angle} onChange={e => setWsParams({ ...wsParams, bank_angle: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Bank Angle (°)</label>
+                        <input type="number" step="0.1" style={inputStyle} value={wsParams.bank_angle} onChange={e => setWsParams({ ...wsParams, bank_angle: +e.target.value })} />
                       </div>
                     </div>
+
                     <div style={{ display: "flex", gap: "8px" }}>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Wind Speed (kt)</label>
-                        <input type="number" style={{ ...inputStyle, padding: "8px" }} value={wsParams.wind_speed} onChange={e => setWsParams({ ...wsParams, wind_speed: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Wind Speed (kt)</label>
+                        <input type="number" style={inputStyle} value={wsParams.wind_speed} onChange={e => setWsParams({ ...wsParams, wind_speed: +e.target.value })} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>AD Elev (ft)</label>
-                        <input type="number" style={{ ...inputStyle, padding: "8px" }} value={wsParams.ad_elev_ft} onChange={e => setWsParams({ ...wsParams, ad_elev_ft: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>AD Elev (ft)</label>
+                        <input type="number" style={inputStyle} value={wsParams.ad_elev_ft} onChange={e => setWsParams({ ...wsParams, ad_elev_ft: +e.target.value })} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Temp Ref (°C)</label>
-                        <input type="number" style={{ ...inputStyle, padding: "8px" }} value={wsParams.temp_ref_c} onChange={e => setWsParams({ ...wsParams, temp_ref_c: +e.target.value })} />
+                        <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Temp Ref (°C)</label>
+                        <input type="number" style={inputStyle} value={wsParams.temp_ref_c} onChange={e => setWsParams({ ...wsParams, temp_ref_c: +e.target.value })} />
                       </div>
                     </div>
                   </div>
@@ -3045,8 +3022,8 @@ export default function Home() {
 
               {/* DYNAMIC OFZ FIELDS */}
               {family === "OFZ" && (
-                <div style={{ backgroundColor: theme.bgOff, padding: "16px", borderRadius: theme.radiusSm, display: "flex", flexDirection: "column", gap: "8px", border: `1px solid ${theme.border}`, marginTop: "10px" }}>
-                  <label style={{...labelStyle, marginTop: 0}}>Aeroplane Design Group (ADG)</label>
+                <div style={{ backgroundColor: "#e9ecef", padding: "10px", borderRadius: "4px", display: "flex", flexDirection: "column", gap: "5px" }}>
+                  <label style={labelStyle}>Aeroplane Design Group (ADG)</label>
                   <select style={inputStyle} value={adg} onChange={e => setAdg(e.target.value)}>
                     <option value="I">I (Wingspan &lt; 24m)</option>
                     <option value="IIA">IIA (Wingspan 24m - 36m)</option>
@@ -3060,25 +3037,25 @@ export default function Home() {
               )}
 
               {family === "CUSTOM" && (
-                <div style={{ marginTop: "15px", display: "flex", flexDirection: "column", gap: "10px", opacity: user?.is_premium ? 1 : 0.6, padding: "16px", backgroundColor: theme.bgOff, borderRadius: theme.radiusSm, border: `1px solid ${theme.border}` }}>
-                  <label style={{ ...labelStyle, color: "#d4af37", marginTop: 0 }}>★ Premium Feature: Geometry Import</label>
-                  <p style={{ fontSize: "12px", color: theme.textMuted, margin: "0 0 8px 0", lineHeight: 1.4 }}>Upload KML, DXF, GeoJSON, or AIXM files.</p>
+                <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "10px", opacity: user?.is_premium ? 1 : 0.6 }}>
+                  <label style={{ ...labelStyle, color: "#d4af37" }}>★ Premium Feature: Batch CSV Upload</label>
                   <input
                     type="file"
                     accept=".csv,.txt,.kml,.dxf,.geojson,.json,.aixm,.xml"
                     onChange={handleFileUpload}
-                    style={{ ...inputStyle, padding: "8px", fontSize: "13px" }}
+                    style={inputStyle}
                     disabled={!user?.is_premium}
                   />
-                  <label style={{ ...labelStyle, marginTop: "10px" }}>Coordinates Data</label>
+
+                  <label style={labelStyle}>Coordinates (ID, Lat, Lon, Alt)</label>
                   <textarea
-                    style={{ ...inputStyle, height: "120px", fontFamily: "monospace", fontSize: "12px", lineHeight: "1.4", resize: "vertical" }}
+                    style={{ ...inputStyle, height: "120px", fontFamily: "monospace", fontSize: "11px" }}
                     placeholder={`Format: Name, Lat1, Lon1, Alt1, Lat2, Lon2, Alt2...\nExample:\nBuilding_A, 51.47, -0.45, 100, 51.48, -0.44, 105, 51.46, -0.44, 100`}
                     value={customPoints}
                     onChange={e => setCustomPoints(e.target.value)}
                     disabled={!user?.is_premium}
                   />
-                  {!user?.is_premium && <p style={{ color: "#e74c3c", fontSize: "12px", margin: 0, fontWeight: "bold" }}>Upgrade to Premium to define Custom Surfaces.</p>}
+                  {!user?.is_premium && <p style={{ color: "red", fontSize: "12px", margin: 0 }}>Please upgrade to Premium to define Custom Surfaces.</p>}
                 </div>
               )}
 
@@ -3087,7 +3064,7 @@ export default function Home() {
                 style={{ ...createBtnStyle, opacity: isCreating ? 0.7 : 1, cursor: isCreating ? "wait" : "pointer" }}
                 disabled={isCreating}
               >
-                {isCreating ? "⏳ Processing..." : `Create ${family} Surface`}
+                {isCreating ? "⏳ Creating Surface..." : `Create ${family}`}
               </button>
             </div>
           )}
