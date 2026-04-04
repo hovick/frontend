@@ -2026,7 +2026,6 @@ export default function Home() {
                   onClick={() => {
                     clearTools();
                     setActiveTool("point");
-                    setToolTip("Click any point");
                   }}
                 >
                   📍 Point
@@ -3541,7 +3540,7 @@ export default function Home() {
                   </div>
                 ) : (
                   // LOGIN/REGISTER
-                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <strong style={{ fontSize: "18px", color: theme.navy, fontWeight: 800 }}>{isRegistering ? "Register Account" : "Guest Mode"}</strong>
                       {!isRegistering && <span style={{ fontSize: "11px", backgroundColor: theme.border, padding: "4px 10px", borderRadius: "12px", fontWeight: 700, color: theme.textMuted }}>Free Tier</span>}
