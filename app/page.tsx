@@ -1951,18 +1951,33 @@ export default function Home() {
             backgroundColor: "#0b1b3d",
             color: "#ffffff",
             padding: "10px 130px",
-            borderRadius: "4px",
-            fontWeight: "900",
-            letterSpacing: "3px",
-            fontSize: "16px",
+            borderRadius: "6px",
             zIndex: 10,
             boxShadow: "0 4px 10px rgba(0,0,0,0.5)",
-            textDecoration: "none", // Keeps it looking like a box instead of a blue link
+            textDecoration: "none",
             cursor: "pointer",
-            pointerEvents: "auto" // FIXED: Allows the user to click it!
+            pointerEvents: "auto",
+            display: "flex",
+            flexDirection: "column",
+            gap: "2px",
+            borderTop: "2px solid #4a90d9",
+            transition: "background-color 0.2s, box-shadow 0.2s",
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.backgroundColor = "#122a5e";
+            e.currentTarget.style.boxShadow = "0 6px 16px rgba(0,0,0,0.7)";
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.backgroundColor = "#0b1b3d";
+            e.currentTarget.style.boxShadow = "0 4px 10px rgba(0,0,0,0.5)";
           }}
         >
-          ALTITUDE NEXUS
+          <span style={{ fontWeight: "900", letterSpacing: "3px", fontSize: "14px" }}>
+            ALTITUDE NEXUS ↗
+          </span>
+          <span style={{ fontSize: "10px", opacity: 0.6, letterSpacing: "1px" }}>
+            Visit main site - Contact
+          </span>
         </a>
 
         {/* --- QUICK TOOLS WIDGET (TOP RIGHT) --- */}
