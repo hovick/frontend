@@ -1958,8 +1958,9 @@ export default function Home() {
             cursor: "pointer",
             pointerEvents: "auto",
             display: "flex",
-            flexDirection: "column",
-            gap: "2px",
+            flexDirection: "row",
+            alignItems: "center",
+            gap: "10px",
             borderTop: "2px solid #4a90d9",
             transition: "background-color 0.2s, box-shadow 0.2s",
           }}
@@ -1972,12 +1973,25 @@ export default function Home() {
             e.currentTarget.style.boxShadow = "0 4px 10px rgba(0,0,0,0.5)";
           }}
         >
-          <span style={{ fontWeight: "900", letterSpacing: "3px", fontSize: "14px" }}>
-            ALTITUDE NEXUS ↗
-          </span>
-          <span style={{ fontSize: "10px", opacity: 0.6, letterSpacing: "1px" }}>
-            Visit main site - Contact
-          </span>
+          <img
+            src="/LOGO.png"
+            alt="Altitude Nexus"
+            style={{
+              height: "100%",
+              width: "auto",
+              maxHeight: "36px",
+              objectFit: "contain",
+              flexShrink: 0,
+            }}
+          />
+          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+            <span style={{ fontWeight: "900", letterSpacing: "3px", fontSize: "14px" }}>
+              ALTITUDE NEXUS ↗
+            </span>
+            <span style={{ fontSize: "10px", opacity: 0.6, letterSpacing: "1px" }}>
+              Visit main site - Contact
+            </span>
+          </div>
         </a>
 
         {/* --- QUICK TOOLS WIDGET (TOP RIGHT) --- */}
