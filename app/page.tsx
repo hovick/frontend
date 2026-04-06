@@ -301,17 +301,21 @@ export default function Home() {
 
     const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
     handler.setInputAction(async (click: any) => {
-      // 1. Pick the point
-      let cartesian: Cesium.Cartesian3 | undefined = viewer.scene.pickPosition(click.position);
+      // 1. Use the highly accurate Raycaster (Same as the Point Tool)
+      const ray = viewer.camera.getPickRay(click.position);
+      if (!ray) return;
+      
+      let cartesian: Cesium.Cartesian3 | undefined = viewer.scene.globe.pick(ray, viewer.scene);
+
+      // 2. Fallback to 3D Tile picking ONLY if we clicked a building
       if (!cartesian) {
-        const ray = viewer.camera.getPickRay(click.position);
-        if (ray) cartesian = viewer.scene.globe.pick(ray, viewer.scene);
+        cartesian = viewer.scene.pickPosition(click.position);
       }
 
       if (cartesian) {
         viewer.canvas.style.cursor = "wait"; 
         
-        // 2. Extract unified MSL Altitude
+        // 3. Extract unified MSL Altitude
         const { lat, lon, alt } = await getTrueMslAltitude(cartesian);
         setter({ ...currentVal, lat, lon, alt });
 
@@ -858,10 +862,15 @@ export default function Home() {
       handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 
       handler.setInputAction(async (click: any) => {
-        let cartesian: Cesium.Cartesian3 | undefined = viewer.scene.pickPosition(click.position);
+        // 1. Use the highly accurate Raycaster (Same as the Point Tool)
+        const ray = viewer.camera.getPickRay(click.position);
+        if (!ray) return;
+
+        let cartesian: Cesium.Cartesian3 | undefined = viewer.scene.globe.pick(ray, viewer.scene);
+        
+        // 2. Fallback to 3D Tile picking ONLY if we clicked a building
         if (!cartesian) {
-          const ray = viewer.camera.getPickRay(click.position);
-          if (ray) cartesian = viewer.scene.globe.pick(ray, viewer.scene);
+            cartesian = viewer.scene.pickPosition(click.position);
         }
 
         if (cartesian) {
@@ -871,7 +880,12 @@ export default function Home() {
           const { lat, lon, alt } = await getTrueMslAltitude(cartesian);
 
           // Update the input boxes
-          setObsPos(prev => ({ ...prev, lat, lon, alt }));
+          setObsPos(prev => ({ 
+            ...prev, 
+            lat: parseFloat(lat.toFixed(6)), 
+            lon: parseFloat(lon.toFixed(6)),
+            alt: alt > -500 ? alt : 50 // Fallback to 50 only if weird negative sea depth
+          }));
 
           // Draw visual marker
           viewer.entities.removeById('obs-marker');
