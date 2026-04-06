@@ -3182,7 +3182,7 @@ export default function Home() {
                 )}
 
                 {/* 1. PUBLIC PREMIUM SURFACES SEARCH */}
-                <div style={{ backgroundColor: theme.bgOff, padding: "16px", borderRadius: theme.radiusSm, border: `1px solid ${theme.border}`, position: "relative", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+                <div style={{ backgroundColor: theme.bgOff, padding: "10px", borderRadius: theme.radiusSm, border: `1px solid ${theme.border}`, position: "relative", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
                   <label style={{...labelStyle, marginTop: 0, color: theme.navy, display: "flex", alignItems: "center", gap: "6px"}}>
                     <span style={{ fontSize: "14px" }}>🔍</span> Search Public Surfaces
                   </label>
@@ -3256,8 +3256,6 @@ export default function Home() {
                   </select>
                 </div>
                 
-                <hr style={{ borderTop: `1px solid ${theme.border}`, margin: "1px 0" }}/>
-                
                 {/* 3. SINGLE OBSTACLE ANALYSIS */}
                 <div style={{ padding: "0 4px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -3272,7 +3270,7 @@ export default function Home() {
                 </div>
 
                 <button 
-                  style={{ ...createBtnStyle, marginTop: "8px", opacity: isAnalyzing ? 0.7 : 1, cursor: isAnalyzing ? "wait" : "pointer" }}
+                  style={{ ...createBtnStyle, marginTop: "0px", opacity: isAnalyzing ? 0.7 : 1, cursor: isAnalyzing ? "wait" : "pointer" }}
                   disabled={isAnalyzing}
                   onClick={async () => {
                     if (!selectedAnalysisAirport) return alert("Please select an airport first!");
