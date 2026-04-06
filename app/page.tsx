@@ -228,20 +228,19 @@ export default function Home() {
     if (!viewerRef.current) return { lat: 0, lon: 0, alt: 0 };
     const viewer = viewerRef.current;
 
+    // 1. Get the raw coordinates of the exact 3D pixel you clicked
     const carto = Cesium.Cartographic.fromCartesian(cartesian);
     const lat = parseFloat(Cesium.Math.toDegrees(carto.latitude).toFixed(6));
     const lon = parseFloat(Cesium.Math.toDegrees(carto.longitude).toFixed(6));
 
-    const groundPosition = Cesium.Cartographic.fromDegrees(lon, lat);
-    let baseAlt = viewer.scene.globe.getHeight(groundPosition);
+    // 2. Read the CURRENT exaggeration directly from the scene (No Refs needed!)
+    const currentExag = viewer.scene.verticalExaggeration || 1.0;
 
-    // THE FIX: Always use the Ref to guarantee we have the latest slider value!
-    const currentExag = exagRef.current;
+    // 3. Un-scale the clicked height. 
+    // If you clicked a point 301m in the air, and exag is 7, this forces it back to 43m.
+    const unexaggeratedEllipsoidHeight = carto.height / currentExag;
 
-    if (baseAlt === undefined) {
-        baseAlt = carto.height / currentExag;
-    }
-
+    // 4. Fetch the EGM96 Geoid Offset to convert Ellipsoid to MSL
     let offset = 0;
     try {
         const res = await fetch(`${API_BASE}/geoid-offset?lat=${lat}&lon=${lon}`);
@@ -251,7 +250,10 @@ export default function Home() {
         console.warn("Geoid fetch failed", e);
     }
 
-    let trueMslAlt = parseFloat((baseAlt - offset).toFixed(2));
+    // 5. Calculate final MSL (43m Ellipsoid - 38m Offset = 5m MSL)
+    let trueMslAlt = parseFloat((unexaggeratedEllipsoidHeight - offset).toFixed(2));
+    
+    // Fallback to 0 if sea depth is weirdly negative
     if (trueMslAlt < -500) trueMslAlt = 0;
 
     return { lat, lon, alt: trueMslAlt };
