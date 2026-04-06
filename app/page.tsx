@@ -227,25 +227,27 @@ export default function Home() {
     if (!viewerRef.current) return { lat: 0, lon: 0, alt: 0 };
     const viewer = viewerRef.current;
 
-    // 1. Convert clicked point to Cartographic (Lat/Lon)
+    // 1. Convert clicked point to Lat/Lon
+    // This gives us the correct Lat/Lon regardless of how stretched the globe is
     const carto = Cesium.Cartographic.fromCartesian(cartesian);
     const lat = parseFloat(Cesium.Math.toDegrees(carto.latitude).toFixed(6));
     const lon = parseFloat(Cesium.Math.toDegrees(carto.longitude).toFixed(6));
 
-    // 2. ALWAYS rely on globe.getHeight() for the pure, unexaggerated terrain height.
-    // If we clicked a 3D building and globe.getHeight fails, we fallback to the clicked height 
-    // and manually strip the exaggeration multiplier out of it.
-    const currentExag = viewer.scene.verticalExaggeration || 1.0;
-    const terrainHeight = viewer.scene.globe.getHeight(carto);
-    
-    let baseAlt = 0;
-    if (terrainHeight !== undefined) {
-        baseAlt = terrainHeight;
-    } else {
+    // 2. IGNORE THE CLICKED ALTITUDE ENTIRELY!
+    // Instead, ask the globe for the true, unexaggerated elevation at this exact Lat/Lon.
+    // We create a fresh Cartographic point at Ground Level (height 0) to query the terrain.
+    const groundPosition = Cesium.Cartographic.fromDegrees(lon, lat);
+    let baseAlt = viewer.scene.globe.getHeight(groundPosition);
+
+    // 3. Fallback if the globe hasn't loaded terrain at this spot yet
+    if (baseAlt === undefined) {
+        // If we hit a 3D tile (like a building) that doesn't exist on the base globe,
+        // we must manually reverse the exaggeration of the clicked point.
+        const currentExag = viewer.scene.verticalExaggeration || 1.0;
         baseAlt = carto.height / currentExag;
     }
 
-    // 3. Fetch the EGM96 Geoid Offset to convert Ellipsoid to MSL
+    // 4. Fetch the EGM96 Geoid Offset to convert Ellipsoid to MSL
     let offset = 0;
     try {
         const res = await fetch(`${API_BASE}/geoid-offset?lat=${lat}&lon=${lon}`);
@@ -255,7 +257,7 @@ export default function Home() {
         console.warn("Geoid fetch failed", e);
     }
 
-    // 4. Calculate final MSL (Fallback to 0 if sea depth is weirdly negative)
+    // 5. Calculate final MSL (Fallback to 0 if sea depth is weirdly negative)
     let trueMslAlt = parseFloat((baseAlt - offset).toFixed(2));
     if (trueMslAlt < -500) trueMslAlt = 0;
 
