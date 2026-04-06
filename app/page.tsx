@@ -223,31 +223,25 @@ export default function Home() {
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   // Map Controls State
   const [exaggeration, setExaggeration] = useState(1);
+    const exagRef = useRef(1); // <-- ADD THIS
   const getTrueMslAltitude = async (cartesian: Cesium.Cartesian3): Promise<{lat: number, lon: number, alt: number}> => {
     if (!viewerRef.current) return { lat: 0, lon: 0, alt: 0 };
     const viewer = viewerRef.current;
 
-    // 1. Convert clicked point to Lat/Lon
-    // This gives us the correct Lat/Lon regardless of how stretched the globe is
     const carto = Cesium.Cartographic.fromCartesian(cartesian);
     const lat = parseFloat(Cesium.Math.toDegrees(carto.latitude).toFixed(6));
     const lon = parseFloat(Cesium.Math.toDegrees(carto.longitude).toFixed(6));
 
-    // 2. IGNORE THE CLICKED ALTITUDE ENTIRELY!
-    // Instead, ask the globe for the true, unexaggerated elevation at this exact Lat/Lon.
-    // We create a fresh Cartographic point at Ground Level (height 0) to query the terrain.
     const groundPosition = Cesium.Cartographic.fromDegrees(lon, lat);
     let baseAlt = viewer.scene.globe.getHeight(groundPosition);
 
-    // 3. Fallback if the globe hasn't loaded terrain at this spot yet
+    // THE FIX: Always use the Ref to guarantee we have the latest slider value!
+    const currentExag = exagRef.current;
+
     if (baseAlt === undefined) {
-        // If we hit a 3D tile (like a building) that doesn't exist on the base globe,
-        // we must manually reverse the exaggeration of the clicked point.
-        const currentExag = viewer.scene.verticalExaggeration || 1.0;
         baseAlt = carto.height / currentExag;
     }
 
-    // 4. Fetch the EGM96 Geoid Offset to convert Ellipsoid to MSL
     let offset = 0;
     try {
         const res = await fetch(`${API_BASE}/geoid-offset?lat=${lat}&lon=${lon}`);
@@ -257,7 +251,6 @@ export default function Home() {
         console.warn("Geoid fetch failed", e);
     }
 
-    // 5. Calculate final MSL (Fallback to 0 if sea depth is weirdly negative)
     let trueMslAlt = parseFloat((baseAlt - offset).toFixed(2));
     if (trueMslAlt < -500) trueMslAlt = 0;
 
@@ -3527,7 +3520,10 @@ export default function Home() {
           </div>
           <input type="range" min="1" max="10" step="0.5" defaultValue={1} 
             onChange={(e) => {
-                const val = parseFloat(e.target.value); setExaggeration(val);
+                const val = parseFloat(e.target.value); 
+                setExaggeration(val);
+                exagRef.current = val;
+                
                 if (viewerRef.current) viewerRef.current.scene.verticalExaggeration = val;
             }}
             onMouseUp={() => { if (drawnSurfacesRef.current.length > 0) handleDrawSurface(drawnSurfacesRef.current, geoidOffset); }}
