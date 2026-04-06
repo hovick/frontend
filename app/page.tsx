@@ -261,34 +261,65 @@ export default function Home() {
   // --- HELPER: Pick Coordinates from Map ---
   const getCenterFromMap = (setter: React.Dispatch<React.SetStateAction<any>>, currentVal: any) => {
     if (!viewerRef.current) return;
+    const viewer = viewerRef.current;
+    viewer.canvas.style.cursor = "crosshair";
 
-    // Temporarily change cursor to crosshair
-    viewerRef.current.canvas.style.cursor = "crosshair";
-
-    const handler = new Cesium.ScreenSpaceEventHandler(viewerRef.current.scene.canvas);
-    handler.setInputAction((click: any) => {
+    const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+    handler.setInputAction(async (click: any) => {
       // 1. Try to pick the actual 3D terrain/building height first!
-      let cartesian = viewerRef.current?.scene.pickPosition(click.position);
+      // Must define cartesian as 'Cartesian3 | undefined' to satisfy TypeScript
+      let cartesian: Cesium.Cartesian3 | undefined = viewer.scene.pickPosition(click.position);
+      let is3DTile = true;
       
-      // 2. If we clicked the sky or missed the terrain, fallback to the base ellipsoid
-      if (!cartesian && viewerRef.current) {
-        const ray = viewerRef.current.camera.getPickRay(click.position);
+      // 2. Fallback to globe picking if we clicked bare terrain
+      if (!cartesian) {
+        const ray = viewer.camera.getPickRay(click.position);
         if (ray) {
-          cartesian = viewerRef.current.scene.globe.pick(ray, viewerRef.current.scene);
+            cartesian = viewer.scene.globe.pick(ray, viewer.scene);
         }
+        is3DTile = false;
       }
 
       if (cartesian) {
+        viewer.canvas.style.cursor = "wait"; // Show loading while fetching Geoid
+        
         const carto = Cesium.Cartographic.fromCartesian(cartesian);
         const lat = parseFloat(Cesium.Math.toDegrees(carto.latitude).toFixed(6));
         const lon = parseFloat(Cesium.Math.toDegrees(carto.longitude).toFixed(6));
-        // Get true terrain height (fallback to 0 if sea depth is weirdly negative)
-        const alt = parseFloat((carto.height > -500 ? carto.height : 0).toFixed(2));
+        let cesiumAlt = carto.height;
 
-        setter({ ...currentVal, lat, lon, alt });
+        // 3. Remove Vertical Exaggeration
+        const currentExag = viewer.scene.verticalExaggeration || 1.0;
+        if (!is3DTile) {
+            const globeHeight = viewer.scene.globe.getHeight(carto);
+            if (globeHeight !== undefined) {
+                cesiumAlt = globeHeight;
+            } else {
+                cesiumAlt = cesiumAlt / currentExag;
+            }
+        } else {
+            cesiumAlt = cesiumAlt / currentExag;
+        }
 
-        // Clean up and reset cursor
-        viewerRef.current!.canvas.style.cursor = "default";
+        // 4. Fetch the specific Geoid Offset for this Lat/Lon and subtract it!
+        let offset = 0;
+        try {
+            const res = await fetch(`${API_BASE}/geoid-offset?lat=${lat}&lon=${lon}`);
+            const data = await res.json();
+            if (data.offset !== undefined) offset = data.offset;
+        } catch (e) {
+            console.warn("Geoid fetch failed", e);
+        }
+
+        const trueMslAlt = parseFloat((cesiumAlt - offset).toFixed(2));
+
+        setter({ ...currentVal, lat, lon, alt: trueMslAlt });
+
+        // Clean up
+        viewer.canvas.style.cursor = "default";
+        handler.destroy();
+      } else {
+        viewer.canvas.style.cursor = "default";
         handler.destroy();
       }
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
@@ -821,42 +852,73 @@ export default function Home() {
   // Map Click Listener for Analyze Tab
   useEffect(() => {
     if (!viewerRef.current || !mounted) return;
-
+    const viewer = viewerRef.current;
     let handler: Cesium.ScreenSpaceEventHandler | null = null;
 
     if (activeTab === "analyze") {
-      handler = new Cesium.ScreenSpaceEventHandler(viewerRef.current.scene.canvas);
+      handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 
-      handler.setInputAction((click: any) => {
-        // 1. Try to pick the actual 3D terrain/building height first!
-        let cartesian = viewerRef.current?.scene.pickPosition(click.position);
+      handler.setInputAction(async (click: any) => {
+        let cartesian: Cesium.Cartesian3 | undefined = viewer.scene.pickPosition(click.position);
+        let is3DTile = true;
         
-        // 2. If we clicked the sky or missed the terrain, fallback to the base ellipsoid
-        if (!cartesian && viewerRef.current) {
-          cartesian = viewerRef.current.camera.pickEllipsoid(click.position);
+        if (!cartesian) {
+          const ray = viewer.camera.getPickRay(click.position);
+          if (ray) {
+              cartesian = viewer.scene.globe.pick(ray, viewer.scene);
+          }
+          is3DTile = false;
         }
 
         if (cartesian) {
-          const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
-          const lat = Cesium.Math.toDegrees(cartographic.latitude);
-          const lon = Cesium.Math.toDegrees(cartographic.longitude);
-          const alt = cartographic.height; // Now we get the ACTUAL terrain height
+          viewer.canvas.style.cursor = "wait";
 
-          // Update the input boxes, setting altitude to the clicked terrain altitude + a small base offset if desired, but exactly terrain is best!
+          // FIXED: Changed typo 'cartographic' to 'carto'
+          const carto = Cesium.Cartographic.fromCartesian(cartesian);
+          const lat = Cesium.Math.toDegrees(carto.latitude);
+          const lon = Cesium.Math.toDegrees(carto.longitude);
+          let cesiumAlt = carto.height;
+
+          // 1. Remove Vertical Exaggeration
+          const currentExag = viewer.scene.verticalExaggeration || 1.0;
+          if (!is3DTile) {
+              const globeHeight = viewer.scene.globe.getHeight(carto);
+              if (globeHeight !== undefined) {
+                  cesiumAlt = globeHeight;
+              } else {
+                  cesiumAlt = cesiumAlt / currentExag;
+              }
+          } else {
+              cesiumAlt = cesiumAlt / currentExag;
+          }
+
+          // 2. Fetch Geoid Offset
+          let offset = 0;
+          try {
+              const res = await fetch(`${API_BASE}/geoid-offset?lat=${lat}&lon=${lon}`);
+              const data = await res.json();
+              if (data.offset !== undefined) offset = data.offset;
+          } catch (e) {}
+
+          const trueMslAlt = parseFloat((cesiumAlt - offset).toFixed(2));
+
+          // Update the input boxes
           setObsPos(prev => ({ 
             ...prev, 
             lat: parseFloat(lat.toFixed(6)), 
             lon: parseFloat(lon.toFixed(6)),
-            alt: parseFloat((alt > -500 ? alt : 50).toFixed(2)) // Fallback to 50 only if weird negative sea depth
+            alt: trueMslAlt > -500 ? trueMslAlt : 50 // Fallback to 50 only if weird negative sea depth
           }));
 
-          // Draw a visual marker for the obstacle
-          viewerRef.current?.entities.removeById('obs-marker');
-          viewerRef.current?.entities.add({
+          // Draw visual marker
+          viewer.entities.removeById('obs-marker');
+          viewer.entities.add({
             id: 'obs-marker',
             position: cartesian,
             point: { pixelSize: 12, color: Cesium.Color.RED, outlineColor: Cesium.Color.WHITE, outlineWidth: 2 }
           });
+          
+          viewer.canvas.style.cursor = "default";
         }
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
     }
@@ -1357,88 +1419,107 @@ export default function Home() {
     handler.setInputAction((click: any) => {
       if (activeTool === "none") return;
 
-      // 1. Get Earth Coordinates
-      // We try to pick the 3D Tiles/Terrain first, then fallback to Ellipsoid
-      // 1. Get Earth Coordinates
+      // 1. Get Earth Coordinates strictly typed
+      let cartesian: Cesium.Cartesian3 | undefined = viewer.camera.pickEllipsoid(click.position);
       const ray = viewer.camera.getPickRay(click.position);
-
-      // --- FIX: Guard against undefined ray ---
-      if (!ray) return;
-
-      const cartesian = viewer.scene.globe.pick(ray, viewer.scene);
+      if (ray) {
+          const globePick = viewer.scene.globe.pick(ray, viewer.scene);
+          if (globePick) cartesian = globePick;
+      }
+      
       if (!cartesian) return;
 
       // --- POINT TOOL ---
       if (activeTool === "point") {
         toolsLayer.entities.removeAll(); // Clear previous
-
+        viewer.canvas.style.cursor = "wait";
+        
         // Convert to Lat/Lon
         const carto = Cesium.Cartographic.fromCartesian(cartesian);
         const lat = parseFloat(Cesium.Math.toDegrees(carto.latitude).toFixed(5));
         const lon = parseFloat(Cesium.Math.toDegrees(carto.longitude).toFixed(5));
-        const alt = parseFloat(carto.height.toFixed(1));
+        let cesiumAlt = carto.height;
 
-        // Draw Dot
-        toolsLayer.entities.add({
-          position: cartesian,
-          point: { pixelSize: 10, color: Cesium.Color.CYAN, outlineColor: Cesium.Color.BLACK, outlineWidth: 2 },
-          label: {
-            text: `Lat: ${lat}\nLon: ${lon}\nAlt: ${alt}m`,
-            showBackground: true,
-            font: "14px monospace",
-            horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
-            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-            pixelOffset: new Cesium.Cartesian2(10, -10),
-            disableDepthTestDistance: Number.POSITIVE_INFINITY // Always on top
-          }
-        });
+        // Remove Exaggeration
+        const currentExag = viewer.scene.verticalExaggeration || 1.0;
+        const globeHeight = viewer.scene.globe.getHeight(carto);
+        if (globeHeight !== undefined) {
+            cesiumAlt = globeHeight;
+        } else {
+            cesiumAlt = cesiumAlt / currentExag;
+        }
 
-        setPointResult({ lat, lon, alt });
+        // Fetch Geoid Offset asynchronously
+        fetch(`${API_BASE}/geoid-offset?lat=${lat}&lon=${lon}`)
+          .then(res => res.json())
+          .then(data => {
+            const offset = data.offset !== undefined ? data.offset : 0;
+            const trueMslAlt = parseFloat((cesiumAlt - offset).toFixed(2));
+
+            // Draw Dot
+            toolsLayer.entities.add({
+              position: cartesian as Cesium.Cartesian3,
+              point: { pixelSize: 10, color: Cesium.Color.CYAN, outlineColor: Cesium.Color.BLACK, outlineWidth: 2 },
+              label: {
+                text: `Lat: ${lat}\nLon: ${lon}\nAlt: ${trueMslAlt}m MSL`,
+                showBackground: true,
+                font: "14px monospace",
+                horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
+                verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                pixelOffset: new Cesium.Cartesian2(10, -10),
+                disableDepthTestDistance: Number.POSITIVE_INFINITY // Always on top
+              }
+            });
+
+            setPointResult({ lat, lon, alt: trueMslAlt });
+            viewer.canvas.style.cursor = "crosshair"; // Reset back to tool cursor
+          })
+          .catch(() => { viewer.canvas.style.cursor = "crosshair"; });
       }
 
       // --- RULER TOOL ---
       if (activeTool === "ruler") {
         const newPts = [...rulerPts, cartesian];
-
+        
         // Draw the point
         toolsLayer.entities.add({
-          position: cartesian,
-          point: { pixelSize: 8, color: Cesium.Color.YELLOW, outlineColor: Cesium.Color.BLACK, outlineWidth: 2 }
+            position: cartesian,
+            point: { pixelSize: 8, color: Cesium.Color.YELLOW, outlineColor: Cesium.Color.BLACK, outlineWidth: 2 }
         });
 
         if (newPts.length === 1) {
-          setToolTip("Click End Point");
-          setRulerPts(newPts);
+            setToolTip("Click End Point");
+            setRulerPts(newPts);
         } else if (newPts.length === 2) {
-          // Draw Line
-          toolsLayer.entities.add({
-            polyline: {
-              positions: newPts,
-              width: 3,
-              material: Cesium.Color.YELLOW,
-              depthFailMaterial: Cesium.Color.YELLOW // See through terrain
-            }
-          });
+            // Draw Line
+            toolsLayer.entities.add({
+                polyline: {
+                    positions: newPts,
+                    width: 3,
+                    material: Cesium.Color.YELLOW,
+                    depthFailMaterial: Cesium.Color.YELLOW // See through terrain
+                }
+            });
 
-          // Calculate Distance
-          const distM = Cesium.Cartesian3.distance(newPts[0], newPts[1]);
-          const distNM = distM / 1852.0;
-
-          setMeasureResult({ m: parseFloat(distM.toFixed(1)), nm: parseFloat(distNM.toFixed(2)) });
-          setToolTip("Distance Measured. Click 'Reset' to start over.");
-          setRulerPts(newPts); // Lock it
-
-          // Add Label at midpoint
-          const midpoint = Cesium.Cartesian3.lerp(newPts[0], newPts[1], 0.5, new Cesium.Cartesian3());
-          toolsLayer.entities.add({
-            position: midpoint,
-            label: {
-              text: `${(distM / 1000).toFixed(2)} km\n${distNM.toFixed(2)} NM`,
-              showBackground: true,
-              font: "bold 14px sans-serif",
-              disableDepthTestDistance: Number.POSITIVE_INFINITY
-            }
-          });
+            // Calculate Distance
+            const distM = Cesium.Cartesian3.distance(newPts[0], newPts[1]);
+            const distNM = distM / 1852.0;
+            
+            setMeasureResult({ m: parseFloat(distM.toFixed(1)), nm: parseFloat(distNM.toFixed(2)) });
+            setToolTip("Distance Measured. Click 'Reset' to start over.");
+            setRulerPts(newPts); // Lock it
+            
+            // Add Label at midpoint
+            const midpoint = Cesium.Cartesian3.lerp(newPts[0], newPts[1], 0.5, new Cesium.Cartesian3());
+            toolsLayer.entities.add({
+                position: midpoint,
+                label: {
+                    text: `${(distM/1000).toFixed(2)} km\n${distNM.toFixed(2)} NM`,
+                    showBackground: true,
+                    font: "bold 14px sans-serif",
+                    disableDepthTestDistance: Number.POSITIVE_INFINITY
+                }
+            });
         }
       }
 
