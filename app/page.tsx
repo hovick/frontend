@@ -223,6 +223,44 @@ export default function Home() {
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   // Map Controls State
   const [exaggeration, setExaggeration] = useState(1);
+  const getTrueMslAltitude = async (cartesian: Cesium.Cartesian3): Promise<{lat: number, lon: number, alt: number}> => {
+    if (!viewerRef.current) return { lat: 0, lon: 0, alt: 0 };
+    const viewer = viewerRef.current;
+
+    // 1. Convert clicked point to Cartographic (Lat/Lon)
+    const carto = Cesium.Cartographic.fromCartesian(cartesian);
+    const lat = parseFloat(Cesium.Math.toDegrees(carto.latitude).toFixed(6));
+    const lon = parseFloat(Cesium.Math.toDegrees(carto.longitude).toFixed(6));
+
+    // 2. ALWAYS rely on globe.getHeight() for the pure, unexaggerated terrain height.
+    // If we clicked a 3D building and globe.getHeight fails, we fallback to the clicked height 
+    // and manually strip the exaggeration multiplier out of it.
+    const currentExag = viewer.scene.verticalExaggeration || 1.0;
+    const terrainHeight = viewer.scene.globe.getHeight(carto);
+    
+    let baseAlt = 0;
+    if (terrainHeight !== undefined) {
+        baseAlt = terrainHeight;
+    } else {
+        baseAlt = carto.height / currentExag;
+    }
+
+    // 3. Fetch the EGM96 Geoid Offset to convert Ellipsoid to MSL
+    let offset = 0;
+    try {
+        const res = await fetch(`${API_BASE}/geoid-offset?lat=${lat}&lon=${lon}`);
+        const data = await res.json();
+        if (data.offset !== undefined) offset = data.offset;
+    } catch (e) {
+        console.warn("Geoid fetch failed", e);
+    }
+
+    // 4. Calculate final MSL (Fallback to 0 if sea depth is weirdly negative)
+    let trueMslAlt = parseFloat((baseAlt - offset).toFixed(2));
+    if (trueMslAlt < -500) trueMslAlt = 0;
+
+    return { lat, lon, alt: trueMslAlt };
+  };
   const [geoidOffset, setGeoidOffset] = useState(0);
   // --- RNAV Map Cursor Selector ---
   const [selectingRnavPoint, setSelectingRnavPoint] = useState<"IF" | "FAF" | "MAPT" | "MA_END" | null>(null);
@@ -266,56 +304,20 @@ export default function Home() {
 
     const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
     handler.setInputAction(async (click: any) => {
-      // 1. Try to pick the actual 3D terrain/building height first!
-      // Must define cartesian as 'Cartesian3 | undefined' to satisfy TypeScript
+      // 1. Pick the point
       let cartesian: Cesium.Cartesian3 | undefined = viewer.scene.pickPosition(click.position);
-      let is3DTile = true;
-      
-      // 2. Fallback to globe picking if we clicked bare terrain
       if (!cartesian) {
         const ray = viewer.camera.getPickRay(click.position);
-        if (ray) {
-            cartesian = viewer.scene.globe.pick(ray, viewer.scene);
-        }
-        is3DTile = false;
+        if (ray) cartesian = viewer.scene.globe.pick(ray, viewer.scene);
       }
 
       if (cartesian) {
-        viewer.canvas.style.cursor = "wait"; // Show loading while fetching Geoid
+        viewer.canvas.style.cursor = "wait"; 
         
-        const carto = Cesium.Cartographic.fromCartesian(cartesian);
-        const lat = parseFloat(Cesium.Math.toDegrees(carto.latitude).toFixed(6));
-        const lon = parseFloat(Cesium.Math.toDegrees(carto.longitude).toFixed(6));
-        let cesiumAlt = carto.height;
+        // 2. Extract unified MSL Altitude
+        const { lat, lon, alt } = await getTrueMslAltitude(cartesian);
+        setter({ ...currentVal, lat, lon, alt });
 
-        // 3. Remove Vertical Exaggeration
-        const currentExag = viewer.scene.verticalExaggeration || 1.0;
-        if (!is3DTile) {
-            const globeHeight = viewer.scene.globe.getHeight(carto);
-            if (globeHeight !== undefined) {
-                cesiumAlt = globeHeight;
-            } else {
-                cesiumAlt = cesiumAlt / currentExag;
-            }
-        } else {
-            cesiumAlt = cesiumAlt / currentExag;
-        }
-
-        // 4. Fetch the specific Geoid Offset for this Lat/Lon and subtract it!
-        let offset = 0;
-        try {
-            const res = await fetch(`${API_BASE}/geoid-offset?lat=${lat}&lon=${lon}`);
-            const data = await res.json();
-            if (data.offset !== undefined) offset = data.offset;
-        } catch (e) {
-            console.warn("Geoid fetch failed", e);
-        }
-
-        const trueMslAlt = parseFloat((cesiumAlt - offset).toFixed(2));
-
-        setter({ ...currentVal, lat, lon, alt: trueMslAlt });
-
-        // Clean up
         viewer.canvas.style.cursor = "default";
         handler.destroy();
       } else {
@@ -860,55 +862,19 @@ export default function Home() {
 
       handler.setInputAction(async (click: any) => {
         let cartesian: Cesium.Cartesian3 | undefined = viewer.scene.pickPosition(click.position);
-        let is3DTile = true;
-        
         if (!cartesian) {
           const ray = viewer.camera.getPickRay(click.position);
-          if (ray) {
-              cartesian = viewer.scene.globe.pick(ray, viewer.scene);
-          }
-          is3DTile = false;
+          if (ray) cartesian = viewer.scene.globe.pick(ray, viewer.scene);
         }
 
         if (cartesian) {
           viewer.canvas.style.cursor = "wait";
 
-          // FIXED: Changed typo 'cartographic' to 'carto'
-          const carto = Cesium.Cartographic.fromCartesian(cartesian);
-          const lat = Cesium.Math.toDegrees(carto.latitude);
-          const lon = Cesium.Math.toDegrees(carto.longitude);
-          let cesiumAlt = carto.height;
-
-          // 1. Remove Vertical Exaggeration
-          const currentExag = viewer.scene.verticalExaggeration || 1.0;
-          if (!is3DTile) {
-              const globeHeight = viewer.scene.globe.getHeight(carto);
-              if (globeHeight !== undefined) {
-                  cesiumAlt = globeHeight;
-              } else {
-                  cesiumAlt = cesiumAlt / currentExag;
-              }
-          } else {
-              cesiumAlt = cesiumAlt / currentExag;
-          }
-
-          // 2. Fetch Geoid Offset
-          let offset = 0;
-          try {
-              const res = await fetch(`${API_BASE}/geoid-offset?lat=${lat}&lon=${lon}`);
-              const data = await res.json();
-              if (data.offset !== undefined) offset = data.offset;
-          } catch (e) {}
-
-          const trueMslAlt = parseFloat((cesiumAlt - offset).toFixed(2));
+          // Extract unified MSL Altitude
+          const { lat, lon, alt } = await getTrueMslAltitude(cartesian);
 
           // Update the input boxes
-          setObsPos(prev => ({ 
-            ...prev, 
-            lat: parseFloat(lat.toFixed(6)), 
-            lon: parseFloat(lon.toFixed(6)),
-            alt: trueMslAlt > -500 ? trueMslAlt : 50 // Fallback to 50 only if weird negative sea depth
-          }));
+          setObsPos(prev => ({ ...prev, lat, lon, alt }));
 
           // Draw visual marker
           viewer.entities.removeById('obs-marker');
@@ -1434,34 +1400,14 @@ export default function Home() {
         toolsLayer.entities.removeAll(); // Clear previous
         viewer.canvas.style.cursor = "wait";
         
-        // Convert to Lat/Lon
-        const carto = Cesium.Cartographic.fromCartesian(cartesian);
-        const lat = parseFloat(Cesium.Math.toDegrees(carto.latitude).toFixed(5));
-        const lon = parseFloat(Cesium.Math.toDegrees(carto.longitude).toFixed(5));
-        let cesiumAlt = carto.height;
-
-        // Remove Exaggeration
-        const currentExag = viewer.scene.verticalExaggeration || 1.0;
-        const globeHeight = viewer.scene.globe.getHeight(carto);
-        if (globeHeight !== undefined) {
-            cesiumAlt = globeHeight;
-        } else {
-            cesiumAlt = cesiumAlt / currentExag;
-        }
-
-        // Fetch Geoid Offset asynchronously
-        fetch(`${API_BASE}/geoid-offset?lat=${lat}&lon=${lon}`)
-          .then(res => res.json())
-          .then(data => {
-            const offset = data.offset !== undefined ? data.offset : 0;
-            const trueMslAlt = parseFloat((cesiumAlt - offset).toFixed(2));
-
+        // Extract unified MSL Altitude
+        getTrueMslAltitude(cartesian).then(({ lat, lon, alt }) => {
             // Draw Dot
             toolsLayer.entities.add({
               position: cartesian as Cesium.Cartesian3,
               point: { pixelSize: 10, color: Cesium.Color.CYAN, outlineColor: Cesium.Color.BLACK, outlineWidth: 2 },
               label: {
-                text: `Lat: ${lat}\nLon: ${lon}\nAlt: ${trueMslAlt}m MSL`,
+                text: `Lat: ${lat}\nLon: ${lon}\nAlt: ${alt}m MSL`,
                 showBackground: true,
                 font: "14px monospace",
                 horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
@@ -1471,10 +1417,9 @@ export default function Home() {
               }
             });
 
-            setPointResult({ lat, lon, alt: trueMslAlt });
+            setPointResult({ lat, lon, alt });
             viewer.canvas.style.cursor = "crosshair"; // Reset back to tool cursor
-          })
-          .catch(() => { viewer.canvas.style.cursor = "crosshair"; });
+        }).catch(() => { viewer.canvas.style.cursor = "crosshair"; });
       }
 
       // --- RULER TOOL ---
