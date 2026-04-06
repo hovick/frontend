@@ -3187,7 +3187,7 @@ export default function Home() {
                     <span style={{ fontSize: "14px" }}>🔍</span> Search Public Surfaces
                   </label>
                   <input 
-                    style={{...inputStyle, padding: "10px 12px", fontSize: "14px"}} 
+                    style={{...inputStyle, padding: "5px 12px", fontSize: "14px"}} 
                     value={pubSurfQuery}
                     onChange={e => handleSearchPublicSurfaces(e.target.value)}
                     onFocus={e => { if (pubSurfResults.length === 0) handleSearchPublicSurfaces(e.target.value); }}
@@ -3256,7 +3256,7 @@ export default function Home() {
                   </select>
                 </div>
                 
-                <hr style={{ borderTop: `1px solid ${theme.border}`, margin: "4px 0" }}/>
+                <hr style={{ borderTop: `1px solid ${theme.border}`, margin: "1px 0" }}/>
                 
                 {/* 3. SINGLE OBSTACLE ANALYSIS */}
                 <div style={{ padding: "0 4px" }}>
