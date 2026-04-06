@@ -57,7 +57,7 @@ export default function Home() {
   };
   const labelStyle: React.CSSProperties = { 
       fontSize: "11px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", 
-      color: theme.navy, marginTop: "12px", marginBottom: "6px", display: "block" 
+      color: theme.navy, marginTop: "8px", marginBottom: "6px", display: "block" 
   };
   
   const createBtnStyle: React.CSSProperties = { 
@@ -3184,11 +3184,8 @@ export default function Home() {
                 {/* 1. PUBLIC PREMIUM SURFACES SEARCH */}
                 <div style={{ backgroundColor: theme.bgOff, padding: "16px", borderRadius: theme.radiusSm, border: `1px solid ${theme.border}`, position: "relative", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
                   <label style={{...labelStyle, marginTop: 0, color: theme.navy, display: "flex", alignItems: "center", gap: "6px"}}>
-                    <span style={{ fontSize: "14px" }}>🔍</span> Search Verified Surfaces
+                    <span style={{ fontSize: "14px" }}>🔍</span> Search Public Surfaces
                   </label>
-                  <p style={{fontSize: "11px", color: theme.textMuted, marginBottom: "12px", lineHeight: 1.4}}>
-                    Search official airspaces authorized by Civil Aviation Authorities.
-                  </p>
                   <input 
                     style={{...inputStyle, padding: "10px 12px", fontSize: "14px"}} 
                     value={pubSurfQuery}
