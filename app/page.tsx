@@ -533,7 +533,7 @@ export default function Home() {
 
       if (!res.ok) {
         const data = await res.json();
-        return alert(data.detail || "Failed to delete component");
+        return showToast(data.detail || "Failed to delete component", "error");
       }
 
       // Update Local State without reloading
@@ -549,7 +549,7 @@ export default function Home() {
       }));
 
     } catch (err) {
-      alert("Network error deleting component.");
+      showToast("Network error deleting component.", "error");
     }
   };
 
@@ -576,7 +576,7 @@ export default function Home() {
   };
 
   const handleAuth = async () => {
-    if (!loginInput || !passwordInput) return alert("Enter username and password");
+    if (!loginInput || !passwordInput) return showToast("Enter username and password", "error");
 
     // --- THE LOCK: Prevent double-clicks! ---
     if (isLoggingIn) return;
@@ -597,13 +597,13 @@ export default function Home() {
 
         const data = await res.json();
         if (!res.ok) {
-          alert(`Registration Error: ${data.detail || "Server failed"}`);
+          showToast(`Registration Error: ${data.detail || "Server failed"}`, "error");
         } else {
           setIsRegistering(false);
-          alert("Registration successful! Please log in.");
+          showToast("Registration successful! Please log in.", "success");
         }
       } catch (err) {
-        alert("Network error: Could not reach the server.");
+        showToast("Network error: Could not reach the server.", "error");
       } finally {
         setIsLoggingIn(false); // Unlock the button
       }
@@ -622,7 +622,7 @@ export default function Home() {
 
         if (data.detail || !data.access_token) {
           setIsLoggingIn(false); // Unlock if bad password
-          return alert(`Login Error: ${data.detail || "Invalid credentials"}`);
+          return showToast(`Login Error: ${data.detail || "Invalid credentials"}`, "error");
         }
 
         localStorage.setItem("aero_token", data.access_token);
@@ -649,7 +649,7 @@ export default function Home() {
           .catch(err => console.error("Background fetch failed:", err));
 
       } catch (err) {
-        alert("Network error: Could not reach the server.");
+        showToast("Network error: Could not reach the server.", "error");
         setIsLoggingIn(false); // Unlock if server crashes
       }
     }
@@ -675,11 +675,11 @@ export default function Home() {
     });
 
     const data = await res.json();
-    if (!res.ok) return alert(`Update Error: ${data.detail}`);
+    if (!res.ok) return showToast(`Update Error: ${data.detail}`, "error");
 
     // Save the brand new token so they don't get logged out
     localStorage.setItem("aero_token", data.access_token);
-    alert("Profile updated successfully!");
+    showToast("Profile updated successfully!", "success");
     const res2 = await fetch(`${API_BASE}/users/me`, {
       headers: { "Authorization": `Bearer ${data.access_token}` }
     });
@@ -725,7 +725,7 @@ export default function Home() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token: vToken })
         }).then(res => res.json()).then(data => {
-          alert(data.message || data.detail);
+          showToast(data.message || data.detail, "info");
           window.location.href = "/"; // Strip the token from the URL
         });
       }
@@ -799,7 +799,7 @@ export default function Home() {
           (viewerRef.current.scene as any).terrain = undefined;
 
         } catch (err) {
-          alert("Could not load Google 3D Tiles.");
+          showToast("Could not load Google 3D Tiles.", "error");
           setShowGoogleTiles(false);
         }
       } else {
@@ -957,10 +957,10 @@ export default function Home() {
         if (!res.ok) throw new Error(data.detail || "Import failed");
 
         setCustomPoints(data.result); // Populate the text area!
-        alert("File imported! Please review coordinates in the text box before creating.");
+        showToast("File imported! Please review coordinates in the text box before creating.", "info");
 
       } catch (err: any) {
-        alert(`Import Error: ${err.message}`);
+        showToast(`Import Error: ${err.message}`, "error");
       } finally {
         setIsCreating(false);
       }
@@ -1004,12 +1004,12 @@ export default function Home() {
         });
 
         if (obstacleLines.length === 0 && parsedLines.length > 0) {
-          alert("File processed, but no standalone Points/Obstacles were found. Polygons cannot be used as obstacles.");
+          showToast("File processed, but no standalone Points/Obstacles were found. Polygons cannot be used as obstacles.", "info");
         } else {
           setBatchInput(obstacleLines.join('\n'));
         }
       } catch (err: any) {
-        alert(`Batch Import Error: ${err.message}`);
+        showToast(`Batch Import Error: ${err.message}`, "error");
       } finally {
         setIsAnalyzingBatch(false);
       }
@@ -1018,7 +1018,7 @@ export default function Home() {
 
   // --- BATCH ANALYSIS LOGIC ---
   const handleBatchAnalyze = async () => {
-    if (!selectedAnalysisAirport) return alert("Please select a target airport first!");
+    if (!selectedAnalysisAirport) return showToast("Please select a target airport first!", "error");
 
     // Parse the input text
     const lines = batchInput.split("\n");
@@ -1030,7 +1030,7 @@ export default function Home() {
       return null;
     }).filter(o => o !== null);
 
-    if (obsList.length === 0) return alert("No valid obstacles found. Use ID, Lat, Lon, Alt format.");
+    if (obsList.length === 0) return showToast("No valid obstacles found. Use ID, Lat, Lon, Alt format.", "error");
 
     setIsAnalyzingBatch(true); // --- START LOADING ---
     try {
@@ -1046,7 +1046,7 @@ export default function Home() {
       });
 
       const data = await res.json();
-      if (data.error) return alert(data.error);
+      if (data.error) return showToast(data.error, "error");
 
       setBatchResults(data.results);
 
@@ -1083,7 +1083,7 @@ export default function Home() {
         });
       }
     } catch (err) {
-      alert("Network error processing batch.");
+      showToast("Network error processing batch.", "error");
     } finally {
       setIsAnalyzingBatch(false); // --- STOP LOADING ---
     }
@@ -1291,7 +1291,7 @@ export default function Home() {
     });
 
     const data = await res.json();
-    if (!res.ok || data.error) return alert(data.error || "Failed to delete from database");
+    if (!res.ok || data.error) return showToast(data.error || "Failed to delete from database", "error");
 
     // Remove from UI state
     setSavedSurfaces(prev => prev.filter(s => s.id !== surfaceId));
@@ -1514,7 +1514,7 @@ export default function Home() {
 
     if (!res.ok) {
       const err = await res.json();
-      return alert(`Export Error: ${err.detail}`);
+      return showToast(`Export Error: ${err.detail}`, "error");
     }
 
     const blob = await res.blob();
@@ -1528,8 +1528,8 @@ export default function Home() {
   };
 
   const handleDownloadLogs = async () => {
-    if (!logStartDate || !logEndDate) return alert("Please select both a start and end date.");
-    if (new Date(logStartDate) > new Date(logEndDate)) return alert("Start date cannot be after end date.");
+    if (!logStartDate || !logEndDate) return showToast("Please select both a start and end date.", "error");
+    if (new Date(logStartDate) > new Date(logEndDate)) return showToast("Start date cannot be after end date.", "error");
 
     const res = await fetch(`${API_BASE}/export/audit-logs?start_date=${logStartDate}&end_date=${logEndDate}`, {
       headers: getAuthHeaders()
@@ -1537,7 +1537,7 @@ export default function Home() {
 
     if (!res.ok) {
       const err = await res.json();
-      return alert(`Export Error: ${err.detail}`);
+      return showToast(`Export Error: ${err.detail}`, "error");
     }
 
     // Trigger the silent file download
@@ -1677,13 +1677,13 @@ export default function Home() {
     if (family === "RNAV") {
       const r = rnavParams;
       if (r.use_if && r.use_faf && r.if_lat === r.faf_lat && r.if_lon === r.faf_lon) {
-        return alert("IF and FAF cannot be the exact same location.");
+        return showToast("IF and FAF cannot be the exact same location.", "error");
       }
       if (r.use_faf && r.use_mapt && r.faf_lat === r.mapt_lat && r.faf_lon === r.mapt_lon) {
-        return alert("FAF and MAPt cannot be the exact same location.");
+        return showToast("FAF and MAPt cannot be the exact same location.", "error");
       }
       if (r.use_mapt && r.use_ma_end && r.mapt_lat === r.ma_end_lat && r.mapt_lon === r.ma_end_lon) {
-        return alert("MAPt and Missed Approach End cannot be the exact same location.");
+        return showToast("MAPt and Missed Approach End cannot be the exact same location.", "error");
       }
     }
     let bodyData: any = {
@@ -1832,106 +1832,104 @@ export default function Home() {
         });
       });
 
-      if (polygons.length === 0) return alert("Please enter valid polygon coordinates.");
+      if (polygons.length === 0) return showToast("Please enter valid polygon coordinates.", "error");
 
       bodyData = { ...bodyData, custom_coords: polygons };
     }
 
     setIsCreating(true); // START LOADING
-    try {
-      // --- STEP 1: CALCULATE AND SAVE ---
-      // This single call creates the geometry AND saves it to Supabase (if logged in)
-      const res = await fetch(`${API_BASE}/create-surface`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify(bodyData),
-      });
+      try {
+        const res = await fetch(`${API_BASE}/create-surface`, {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(bodyData),
+        });
 
-      // --- STEP 2: CHECK FOR ERRORS IMMEDIATELY ---
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`Server Status ${res.status}: ${errorText}`);
-      }
-
-      const data = await res.json();
-      if (data.error) throw new Error(data.error); // Catch DB limits
-
-      // --- STEP 3: UPDATE THE UI AND MAP ---
-      if (viewerRef.current && data.geometry) {
-        // Fetch EGM96 offset
-        let newOffset = geoidOffset;
-        const firstCoord = getFirstCoord(data.geometry);
-        if (firstCoord) {
-          newOffset = await autoFetchGeoidOffset(firstCoord[1], firstCoord[0]);
+        // 1. SAFELY PARSE FASTAPI EXCEPTIONS
+        if (!res.ok) {
+          const errorData = await res.json();
+          // Extract the clean "detail" message sent by FastAPI, or fallback to a generic error
+          throw new Error(errorData.detail || errorData.error || "Failed to create surface on the server.");
         }
 
-        // Draw it on the map
-        handleDrawSurface([data], newOffset);
+        // 2. PARSE SUCCESSFUL RESPONSE
+        const data = await res.json();
+        
+        // Catch internal soft-errors (like ghost-saves returning {error: "..."})
+        if (data.error) throw new Error(data.error);
 
-        // Update your "Saved Surfaces" list in the sidebar
-        setSavedSurfaces(prev => [...prev, data]);
-        setSelectedAnalysisAirport(data.airport_name);
-        setSelectedAnalysisOwner(0);
+        // 3. DRAW AND SAVE
+        if (viewerRef.current && data.geometry) {
+          let newOffset = geoidOffset;
+          const firstCoord = getFirstCoord(data.geometry);
+          if (firstCoord) {
+            newOffset = await autoFetchGeoidOffset(firstCoord[1], firstCoord[0]);
+          }
 
-        alert("Surface created and saved successfully!");
+          handleDrawSurface([data], newOffset);
+          setSavedSurfaces(prev => [...prev, data]);
+          setSelectedAnalysisAirport(data.airport_name);
+          setSelectedAnalysisOwner(0);
+
+          showToast(`${finalSurfName} created and saved successfully!`, "success");
+        }
+
+      } catch (err: any) {
+        console.error("Save error details:", err);
+        
+        // Check for hard 404 connection errors
+        if (err.message.includes("404")) {
+          showToast("Error 404: The system couldn't find the server route.", "error");
+        } else {
+          // This will now perfectly display ONLY the clean string:
+          // "Storage limit reached. Your account allows a maximum of 1 airport(s)."
+          showToast(err.message, "error");
+        }
+      } finally {
+        setIsCreating(false);
       }
-
-    } catch (err: any) {
-      // --- THIS IS THE ONLY CATCH YOU NEED ---
-      console.error("Save error details:", err);
-
-      if (err.message.includes("404")) {
-        alert("Error 404: The system couldn't find the 'Save' route. Ensure your API_BASE is correct.");
-      } else {
-        alert(`Could not save surface. Reason: ${err.message || "Network Error"}`);
-      }
-    } finally {
-      // --- THE FIX FOR "LONG THINKING" ---
-      // This ensures the spinner STOPS even if an error occurs
-      setIsCreating(false);
-    }
-  };
+    };
 
   if (!mounted) return <div style={{ backgroundColor: "#111", height: "100vh" }} />;
-  if (resetToken) {
-    return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", backgroundColor: "#f8f9fa", fontFamily: "sans-serif" }}>
-        <div style={{ backgroundColor: "white", padding: "30px", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", width: "350px", textAlign: "center" }}>
-          <h3 style={{ color: "#0b1b3d", marginTop: 0 }}>Reset Your Password</h3>
-          <p style={{ fontSize: "12px", color: "#666", marginBottom: "20px" }}>Enter a new secure password for your Altitude Nexus account.</p>
+    if (resetToken) {
+      return (
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", backgroundColor: "#f8f9fa", fontFamily: "sans-serif" }}>
+          <div style={{ backgroundColor: "white", padding: "30px", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", width: "350px", textAlign: "center" }}>
+            <h3 style={{ color: "#0b1b3d", marginTop: 0 }}>Reset Your Password</h3>
+            <p style={{ fontSize: "12px", color: "#666", marginBottom: "20px" }}>Enter a new secure password for your Altitude Nexus account.</p>
 
-          <input
-            type="password"
-            style={{ ...inputStyle, marginBottom: "15px" }}
-            value={newPassword}
-            onChange={e => setNewPassword(e.target.value)}
-            placeholder="New Password"
-          />
+            <input
+              type="password"
+              style={{ ...inputStyle, marginBottom: "15px" }}
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+              placeholder="New Password"
+            />
 
-          <button
-            style={{ ...activeTabBtn, width: "100%", padding: "12px", backgroundColor: "#28a745" }}
-            onClick={async () => {
-              if (!newPassword) return alert("Please enter a new password");
+            <button
+              style={{ ...activeTabBtn, width: "100%", padding: "12px", backgroundColor: "#28a745" }}
+              onClick={async () => {
+                if (!newPassword) return showToast("Please enter a new password", "error");
 
-              const res = await fetch(`${API_BASE}/reset-password`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token: resetToken, new_password: newPassword })
-              });
+                const res = await fetch(`${API_BASE}/reset-password`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ token: resetToken, new_password: newPassword })
+                });
 
-              const data = await res.json();
-              if (!res.ok) return alert(`Error: ${data.detail}`);
+                const data = await res.json();
+                if (!res.ok) return showToast(`Error: ${data.detail}`, "error");
 
-              alert("Password updated successfully! You can now log in.");
-              window.location.href = "/"; // Send them back to the main app to log in natively
-            }}
-          >
-            Save New Password
-          </button>
+                showToast("Password updated successfully! You can now log in.", "success");
+                window.location.href = "/"; // Send them back to the main app to log in natively
+              }}
+            >
+              Save New Password
+            </button>
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
   return (
     <main style={{ width: "100vw", height: "100vh", overflow: "hidden", position: "relative" }}>
@@ -3304,16 +3302,16 @@ export default function Home() {
                   style={{ ...createBtnStyle, marginTop: "0px", opacity: isAnalyzing ? 0.7 : 1, cursor: isAnalyzing ? "wait" : "pointer" }}
                   disabled={isAnalyzing}
                   onClick={async () => {
-                    if (!selectedAnalysisAirport) return alert("Please select an airport first!");
+                    if (!selectedAnalysisAirport) return showToast("Please select an airport first!", "error");
                     setIsAnalyzing(true); setAnalysisResult(null);
                     try {
                       const isGuestAirport = selectedAnalysisOwner === 0;
                       const guestPayload = isGuestAirport ? savedSurfaces.filter(s => s.airport_name === selectedAnalysisAirport).map(s => ({name: s.name, geometry: s.geometry})) : null;
                       const res = await fetch(`${API_BASE}/analyze`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lat: obsPos.lat, lon: obsPos.lon, alt: obsPos.alt, airport_name: selectedAnalysisAirport, owner_id: selectedAnalysisOwner, guest_surfaces: guestPayload }) });
                       const result = await res.json();
-                      if (result.error) return alert(result.error);
+                      if (result.error) return showToast(result.error, "error");
                       setAnalysisResult(result);
-                    } catch (err) { alert("Analysis failed."); } 
+                    } catch (err) { showToast("Analysis failed.", "error"); } 
                     finally { setIsAnalyzing(false); }
                   }}
                 >
@@ -3443,13 +3441,13 @@ export default function Home() {
                           onMouseEnter={e => e.currentTarget.style.backgroundColor = theme.navyHover}
                           onMouseLeave={e => e.currentTarget.style.backgroundColor = theme.navy}
                           onClick={async () => {
-                            if (!manageAptName) return alert("Name cannot be empty.");
+                            if (!manageAptName) return showToast("Name cannot be empty.", "error");
                             const res = await fetch(`${API_BASE}/airports/${encodeURIComponent(manageAptSelect)}`, { method: "PUT", headers: getAuthHeaders(), body: JSON.stringify({ new_name: manageAptName, is_public: manageAptPublic }) });
                             if (res.ok) {
-                              alert("Airport updated successfully!");
+                              showToast("Airport updated successfully!", "success");
                               setSavedSurfaces(prev => prev.map(s => s.airport_name === manageAptSelect ? { ...s, airport_name: manageAptName, is_public: manageAptPublic } : s ));
                               setManageAptSelect(manageAptName); 
-                            } else { const err = await res.json(); alert(`Error: ${err.detail || "Failed to update"}`); }
+                            } else { const err = await res.json(); showToast(`Error: ${err.detail || "Failed to update"}`, "error"); }
                           }}> Save Changes </button>
                       </div>
                     )}
@@ -3613,9 +3611,9 @@ export default function Home() {
                     <input style={inputStyle} type="email" value={resendEmailInput} onChange={e => setResendEmailInput(e.target.value)} placeholder="Registered Email Address" />
                     <button style={{ width: "100%", padding: "12px", backgroundColor: "#0891b2", color: "white", border: "none", borderRadius: theme.radiusSm, fontWeight: "bold", cursor: "pointer", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.backgroundColor = "#0e7490"} onMouseLeave={e => e.currentTarget.style.backgroundColor = "#0891b2"}
                       onClick={async () => {
-                        if (!resendEmailInput) return alert("Please enter your email");
+                        if (!resendEmailInput) return showToast("Please enter your email", "error");
                         const res = await fetch(`${API_BASE}/resend-verification`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: resendEmailInput }) });
-                        const data = await res.json(); alert(data.message); setIsResending(false);
+                        const data = await res.json(); showToast(data.message, "info"); setIsResending(false);
                       }}> Send New Link </button>
                     <button style={{ background: "none", border: "none", color: theme.textMuted, fontSize: "12px", cursor: "pointer", marginTop: "4px", fontWeight: 600, textDecoration: "underline" }} onClick={() => setIsResending(false)}> Back to Login </button>
                   </div>
@@ -3627,9 +3625,9 @@ export default function Home() {
                     <input style={inputStyle} type="email" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} placeholder="Registered Email Address" />
                     <button style={{ width: "100%", padding: "12px", backgroundColor: theme.blue, color: "white", border: "none", borderRadius: theme.radiusSm, fontWeight: "bold", cursor: "pointer", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.backgroundColor = theme.blueHover} onMouseLeave={e => e.currentTarget.style.backgroundColor = theme.blue}
                       onClick={async () => {
-                        if (!forgotEmail) return alert("Please enter your email");
+                        if (!forgotEmail) return showToast("Please enter your email", "error");
                         await fetch(`${API_BASE}/forgot-password`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: forgotEmail }) });
-                        alert("If that email exists in our system, a reset link has been sent."); setIsForgotPassword(false);
+                        showToast("If that email exists in our system, a reset link has been sent.", "info"); setIsForgotPassword(false);
                       }}> Send Reset Link </button>
                     <button style={{ background: "none", border: "none", color: theme.textMuted, fontSize: "12px", cursor: "pointer", marginTop: "4px", fontWeight: 600, textDecoration: "underline" }} onClick={() => setIsForgotPassword(false)}> Back to Login </button>
                   </div>
