@@ -69,7 +69,12 @@ export default function Home() {
   const inactiveTabBtn: React.CSSProperties = { flex: 1, padding: "10px", backgroundColor: "#ddd", color: "#555", border: "none", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" };
   const [registerEmail, setRegisterEmail] = useState(""); // --- NEW ---
   const [user, setUser] = useState<{ id: number, username: string, email?: string, is_premium: boolean, max_airports: number, ion_token: string } | null>(null);
-  // ── Mobile "view as desktop" scaling ──────────────────────────────────────
+  // --- NEW: AESTHETIC NOTIFICATION SYSTEM ---
+  const [toast, setToast] = useState<{message: string, type: 'error' | 'success' | 'info'} | null>(null);
+  const showToast = (message: string, type: 'error' | 'success' | 'info' = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 5000); 
+  };
   // The UI was designed for ~1200 px wide desktops. On narrower screens we
   // scale the whole inner canvas down so all panels stay visible at once,
   // exactly like "Request Desktop Site" in a mobile browser.
@@ -1663,9 +1668,12 @@ export default function Home() {
   };
 
   const handleDefine = async () => {
-    if (!airportName.trim() || !surfName.trim()) {
-      return alert("Please enter both an Airport Name and a Surface Name before creating.");
+    if (!airportName.trim()) {
+      return showToast("Please enter an Airport Name to organize your surfaces.", "error");
     }
+
+    // 2. Auto-generate the surface name if the user didn't type one
+    const finalSurfName = surfName.trim() || `${family} Surface`;
     if (family === "RNAV") {
       const r = rnavParams;
       if (r.use_if && r.use_faf && r.if_lat === r.faf_lat && r.if_lon === r.faf_lon) {
@@ -1942,12 +1950,12 @@ export default function Home() {
         /* Segmented Control Tabs */
         .segmented-control { 
           display: flex; 
-          background: #e2e8f0; /* Distinct grey track */
+          background: #e2e8f0;
           padding: 5px; 
           border-radius: 8px; 
           gap: 4px; 
           margin-bottom: 20px; 
-          box-shadow: inset 0 1px 3px rgba(0,0,0,0.06); /* Inner shadow for depth */
+          box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);
         }
         .segmented-btn { 
           flex: 1; padding: 8px; font-size: 13px; font-weight: 600; color: #475569; 
@@ -1961,7 +1969,30 @@ export default function Home() {
           background: #073763; color: #ffffff; 
           box-shadow: 0 2px 6px rgba(0,0,0,0.2); 
         }
+        @keyframes slideDown {
+          from { top: -50px; opacity: 0; }
+          to { top: 24px; opacity: 1; }
+        }
       `}</style>
+      {/* --- AESTHETIC TOAST NOTIFICATION --- */}
+      {toast && (
+        <div style={{
+          position: "fixed", top: "24px", left: "50%", transform: "translateX(-50%)",
+          backgroundColor: toast.type === 'error' ? '#fef2f2' : toast.type === 'success' ? '#f0fdf4' : '#f0f9ff',
+          color: toast.type === 'error' ? '#991b1b' : toast.type === 'success' ? '#166534' : '#075985',
+          padding: "16px 24px", borderRadius: theme.radius, boxShadow: "0 12px 36px rgba(0,0,0,0.12)",
+          border: `1px solid ${toast.type === 'error' ? '#fca5a5' : toast.type === 'success' ? '#86efac' : '#7dd3fc'}`,
+          zIndex: 9999, display: "flex", alignItems: "center", gap: "12px",
+          fontWeight: 600, fontSize: "14px", minWidth: "320px", maxWidth: "80%", justifyContent: "space-between",
+          animation: "slideDown 0.4s cubic-bezier(0.25, 1, 0.5, 1)"
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <span style={{ fontSize: "20px" }}>{toast.type === 'error' ? '⚠️' : toast.type === 'success' ? '✅' : 'ℹ️'}</span>
+            <span style={{ lineHeight: 1.4 }}>{toast.message}</span>
+          </div>
+          <button onClick={() => setToast(null)} style={{ background: "none", border: "none", fontSize: "16px", cursor: "pointer", color: "inherit", opacity: 0.6 }}>✕</button>
+        </div>
+      )}
       {/* Inner canvas: fixed DESIGN_W wide, scaled to fit mobile screens.
             transform-origin "top left" means the top-left corner stays pinned
             and the content shrinks towards it, just like "desktop mode" in Safari/Chrome. */}
@@ -2272,7 +2303,7 @@ export default function Home() {
               </div>
 
               <div>
-                <label style={labelStyle}>Surface Name</label>
+                <label style={labelStyle}>Surface Name <span style={{color: theme.textMuted, fontWeight: "normal", textTransform: "none"}}>(Optional)</span></label>
                 <input style={inputStyle} value={surfName} onChange={e => setSurfName(e.target.value)} placeholder="e.g., RWY 09/27" />
               </div>
 
