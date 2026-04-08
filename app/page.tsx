@@ -73,7 +73,9 @@ export default function Home() {
   const [toast, setToast] = useState<{message: string, type: 'error' | 'success' | 'info'} | null>(null);
   const showToast = (message: string, type: 'error' | 'success' | 'info' = 'info') => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 5000); 
+    if (type === 'success') {
+      setTimeout(() => setToast(null), 5000);
+    }
   };
   // The UI was designed for ~1200 px wide desktops. On narrower screens we
   // scale the whole inner canvas down so all panels stay visible at once,
