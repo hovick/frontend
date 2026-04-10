@@ -486,7 +486,19 @@ export default function Home() {
     draw_conical: true, conical_slope: 5, conical_height: 100,
     draw_balked: false, balked_start: 1800, balked_slope: 3.33, balked_div: 10,
     draw_in_app: false, in_app_len: 900, in_app_hw: 60, in_app_slope: 2, in_app_offset: 60,
-    draw_in_trans: false
+    draw_in_trans: false,
+    ihs_alt_override: "" as number | ""
+  });
+
+  // --- Vertiport State ---
+  const [vertiportParams, setVertiportParams] = useState({
+    lat: 10.430861, lon: -75.513378, alt: 2.13,
+    bearing: 90,
+    fato_length: 20, fato_width: 20,
+    sa_width: 30, sa_length: 30,
+    ofv_radius: 15, ofv_height: 45,
+    tkofS1Len: 500, tkofS1Slope: 12.5, tkofS1Div: 10,
+    appS1Len: 500, appS1Slope: 12.5, appS1Div: 10
   });
 
   // --- VSS / OCS State ---
@@ -1784,6 +1796,7 @@ export default function Home() {
         draw_transitional: cOls.draw_trans, draw_ihs: cOls.draw_ihs, draw_conical: cOls.draw_conical,
         draw_balked: cOls.draw_balked, draw_inner_approach: cOls.draw_in_app, draw_inner_transitional: cOls.draw_in_trans,
         strip_end: cOls.strip_end, strip_width: cOls.strip_width, ihs_radius: cOls.ihs_radius,
+        ihs_alt_override: cOls.ihs_alt_override === "" ? null : cOls.ihs_alt_override,
         app_div: cOls.app_div / 100,
         app_sections: [
           { len: cOls.app_s1_len, slope: cOls.app_s1_slope / 100 },
@@ -2319,6 +2332,7 @@ export default function Home() {
                   <option value="NAVAID">Navaid BRA</option>
                   <option value="CUSTOM">Import custom Surfaces</option>
                   <option value="HELIPORT">Heliport OLS</option>
+                  <option value="VERTIPORT">Vertiport OLS (EASA)</option>
                 </select>
               </div>
 
@@ -2484,7 +2498,10 @@ export default function Home() {
                               <ParamInput label="Slope (%)" value={cOls.trans_slope} onChange={(e: any) => setCOls({ ...cOls, trans_slope: +e.target.value })} />
                             } />
                             <CustomRow label="Inner Horizontal Surface" toggle="draw_ihs" inputs={
-                              <ParamInput label="Radius (m)" value={cOls.ihs_radius} onChange={(e: any) => setCOls({ ...cOls, ihs_radius: +e.target.value })} />
+                              <>
+                                <ParamInput label="Radius (m)" value={cOls.ihs_radius} onChange={(e: any) => setCOls({ ...cOls, ihs_radius: +e.target.value })} />
+                                <ParamInput label="Override (Alt)" value={cOls.ihs_alt_override} onChange={(e: any) => setCOls({ ...cOls, ihs_alt_override: e.target.value === "" ? "" : +e.target.value })} />
+                              </>
                             } />
                             <CustomRow label="Conical Surface" toggle="draw_conical" inputs={
                               <>
@@ -2620,6 +2637,79 @@ export default function Home() {
                         <input style={{ ...numInputStyle, padding: "6px", fontSize: "13px" }} type="number" placeholder="—" value={sec.max ?? ""} onChange={e => { sec.set({ [`tkofS${sec.id}MaxW`]: e.target.value ? +e.target.value : null }); setHeliPreset("custom"); }} />
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* DYNAMIC VERTIPORT FIELDS */}
+              {family === "VERTIPORT" && (
+                <div style={{ backgroundColor: theme.bgOff, padding: "16px", borderRadius: theme.radiusSm, display: "flex", flexDirection: "column", gap: "12px", border: `1px solid ${theme.border}` }}>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                      <label style={{ ...labelStyle, marginTop: 0 }}>Vertiport Centroid (Lat / Lon / Alt)</label>
+                      <button 
+                        style={{ backgroundColor: theme.navy, color: "white", border: "none", borderRadius: "4px", padding: "4px 8px", fontSize: "10px", fontWeight: "bold", cursor: "pointer", transition: "background 0.2s" }} 
+                        onMouseEnter={e => e.currentTarget.style.backgroundColor = theme.blue}
+                        onMouseLeave={e => e.currentTarget.style.backgroundColor = theme.navy}
+                        onClick={() => getCenterFromMap(setVertiportParams, vertiportParams)}>
+                        📍 Map
+                      </button>
+                    </div>
+                    <div style={rowStyle}>
+                      <input style={numInputStyle} type="number" value={vertiportParams.lat} onChange={e => setVertiportParams({ ...vertiportParams, lat: +e.target.value })} placeholder="Lat" />
+                      <input style={numInputStyle} type="number" value={vertiportParams.lon} onChange={e => setVertiportParams({ ...vertiportParams, lon: +e.target.value })} placeholder="Lon" />
+                      <input style={numInputStyle} type="number" value={vertiportParams.alt} onChange={e => setVertiportParams({ ...vertiportParams, alt: +e.target.value })} placeholder="Alt (m)" />
+                    </div>
+                  </div>
+
+                  <div style={rowStyle}>
+                    <div style={{ flex: 1 }}>
+                      <label style={labelStyle}>Take-off Bearing (°)</label>
+                      <input style={inputStyle} type="number" value={vertiportParams.bearing} onChange={e => setVertiportParams({ ...vertiportParams, bearing: +e.target.value })} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={labelStyle}>Safety Area W. (m)</label>
+                      <input style={inputStyle} type="number" value={vertiportParams.sa_width} onChange={e => setVertiportParams({ ...vertiportParams, sa_width: +e.target.value })} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={labelStyle}>Safety Area L. (m)</label>
+                      <input style={inputStyle} type="number" value={vertiportParams.sa_length} onChange={e => setVertiportParams({ ...vertiportParams, sa_length: +e.target.value })} />
+                    </div>
+                  </div>
+
+                  <div style={rowStyle}>
+                    <div style={{ flex: 1 }}>
+                      <label style={labelStyle}>OFV Radius (m)</label>
+                      <input style={inputStyle} type="number" value={vertiportParams.ofv_radius} onChange={e => setVertiportParams({ ...vertiportParams, ofv_radius: +e.target.value })} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={labelStyle}>OFV Height (m)</label>
+                      <input style={inputStyle} type="number" value={vertiportParams.ofv_height} onChange={e => setVertiportParams({ ...vertiportParams, ofv_height: +e.target.value })} />
+                    </div>
+                  </div>
+
+                  <div style={{ backgroundColor: theme.bg, padding: "10px", borderRadius: theme.radiusSm, border: `1px solid ${theme.border}` }}>
+                    <label style={{ ...labelStyle, marginTop: 0, color: "#15803d" }}>Approach Surface (Inbound)</label>
+                    <div style={{ display: "flex", gap: "5px", fontSize: "10px", fontWeight: "bold", color: theme.textMuted, marginBottom: "4px" }}>
+                      <span style={{ flex: 1 }}>Length (m)</span><span style={{ flex: 1 }}>Slope (%)</span><span style={{ flex: 1 }}>Div (%)</span>
+                    </div>
+                    <div style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
+                      <input style={{ ...numInputStyle, padding: "6px", fontSize: "13px" }} type="number" value={vertiportParams.appS1Len} onChange={e => setVertiportParams({ ...vertiportParams, appS1Len: +e.target.value })} />
+                      <input style={{ ...numInputStyle, padding: "6px", fontSize: "13px" }} type="number" value={vertiportParams.appS1Slope} onChange={e => setVertiportParams({ ...vertiportParams, appS1Slope: +e.target.value })} />
+                      <input style={{ ...numInputStyle, padding: "6px", fontSize: "13px" }} type="number" value={vertiportParams.appS1Div} onChange={e => setVertiportParams({ ...vertiportParams, appS1Div: +e.target.value })} />
+                    </div>
+                  </div>
+
+                  <div style={{ backgroundColor: theme.bg, padding: "10px", borderRadius: theme.radiusSm, border: `1px solid ${theme.border}` }}>
+                    <label style={{ ...labelStyle, marginTop: 0, color: "#b91c1c" }}>Take-off Climb Surface (Outbound)</label>
+                    <div style={{ display: "flex", gap: "5px", fontSize: "10px", fontWeight: "bold", color: theme.textMuted, marginBottom: "4px" }}>
+                      <span style={{ flex: 1 }}>Length (m)</span><span style={{ flex: 1 }}>Slope (%)</span><span style={{ flex: 1 }}>Div (%)</span>
+                    </div>
+                    <div style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
+                      <input style={{ ...numInputStyle, padding: "6px", fontSize: "13px" }} type="number" value={vertiportParams.tkofS1Len} onChange={e => setVertiportParams({ ...vertiportParams, tkofS1Len: +e.target.value })} />
+                      <input style={{ ...numInputStyle, padding: "6px", fontSize: "13px" }} type="number" value={vertiportParams.tkofS1Slope} onChange={e => setVertiportParams({ ...vertiportParams, tkofS1Slope: +e.target.value })} />
+                      <input style={{ ...numInputStyle, padding: "6px", fontSize: "13px" }} type="number" value={vertiportParams.tkofS1Div} onChange={e => setVertiportParams({ ...vertiportParams, tkofS1Div: +e.target.value })} />
+                    </div>
                   </div>
                 </div>
               )}
