@@ -2332,7 +2332,6 @@ export default function Home() {
                   <option value="NAVAID">Navaid BRA</option>
                   <option value="CUSTOM">Import custom Surfaces</option>
                   <option value="HELIPORT">Heliport OLS</option>
-                  <option value="VERTIPORT">Vertiport OLS (EASA)</option>
                 </select>
               </div>
 
