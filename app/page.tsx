@@ -381,10 +381,10 @@ export default function Home() {
     nav_spec: "RNP APCH",       // "RNAV 1", "RNP APCH", "RNP 0.3", "Advanced RNP"
     alt_unit: "ft",             // "m" or "ft"
     legs: [
-      // Default to a standard straight-in approach
-      { id: "leg1", terminator: "IF", lat: 0, lon: 0, alt: 3000, xtt_nm: 1.0, att_nm: 1.0, semi_width_nm: 2.5, turn_dir: "", arc_center_lat: 0, arc_center_lon: 0, is_flyover: false },
-      { id: "leg2", terminator: "TF", lat: 0, lon: 0, alt: 2000, xtt_nm: 0.3, att_nm: 0.3, semi_width_nm: 1.45, turn_dir: "", arc_center_lat: 0, arc_center_lon: 0, is_flyover: false },
-      { id: "leg3", terminator: "TF", lat: 0, lon: 0, alt: 50,   xtt_nm: 0.3, att_nm: 0.3, semi_width_nm: 0.95, turn_dir: "", arc_center_lat: 0, arc_center_lon: 0, is_flyover: false } // MAPt equivalent
+      // Standard Approach (IF -> FAF -> MAPt)
+      { id: "leg1", terminator: "IF", lat: 0, lon: 0, alt: 3000, primary_hw_nm: 2.5, secondary_hw_nm: 1.0, turn_dir: "", arc_center_lat: 0, arc_center_lon: 0, is_flyover: false },
+      { id: "leg2", terminator: "TF", lat: 0, lon: 0, alt: 2000, primary_hw_nm: 1.45, secondary_hw_nm: 0.725, turn_dir: "", arc_center_lat: 0, arc_center_lon: 0, is_flyover: false },
+      { id: "leg3", terminator: "TF", lat: 0, lon: 0, alt: 50,   primary_hw_nm: 0.95, secondary_hw_nm: 0.475, turn_dir: "", arc_center_lat: 0, arc_center_lon: 0, is_flyover: false } 
     ]
   });
 
@@ -394,12 +394,12 @@ export default function Home() {
   const addPbnLeg = () => {
     setPbnParams(prev => ({
       ...prev,
-      legs: [...prev.legs, { id: `leg${Date.now()}`, terminator: "TF", lat: 0, lon: 0, alt: 0, xtt_nm: 1.0, att_nm: 1.0, semi_width_nm: 1.0, turn_dir: "", arc_center_lat: 0, arc_center_lon: 0, is_flyover: false }]
+      legs: [...prev.legs, { id: `leg${Date.now()}`, terminator: "TF", lat: 0, lon: 0, alt: 0, primary_hw_nm: 1.0, secondary_hw_nm: 0.5, turn_dir: "", arc_center_lat: 0, arc_center_lon: 0, is_flyover: false }]
     }));
   };
 
   const removePbnLeg = (idToRemove: string) => {
-    if (pbnParams.legs.length <= 2) return alert("A procedure must have at least 2 legs.");
+    if (pbnParams.legs.length <= 2) return showToast("A procedure must have at least 2 legs.", "error");
     setPbnParams(prev => ({ ...prev, legs: prev.legs.filter(l => l.id !== idToRemove) }));
   };
 
@@ -1798,29 +1798,24 @@ export default function Home() {
             turn_dir: holdingParams.turn_dir,
             ad_elev_ft: holdingParams.ad_elev_ft,
             temp_ref_c: holdingParams.temp_ref_c
-        } : null,
-        
-        // --- NEW: PBN Payload Mapper ---
-        pbn_params: family === "PBN" ? {
+      } : null,
+      pbn_params: family === "PBN" ? {
             procedure_type: pbnParams.procedure_type,
             nav_spec: pbnParams.nav_spec,
             alt_unit: pbnParams.alt_unit,
-            ma_gradient_pct: 2.5, // Default for now
-            acft_cat: "C",        // Default for now
             legs: pbnParams.legs.map(l => ({
                 terminator: l.terminator,
                 lat: l.lat,
                 lon: l.lon,
                 alt: l.alt,
-                xtt_nm: l.xtt_nm,
-                att_nm: l.att_nm,
-                semi_width_nm: l.semi_width_nm,
+                primary_hw_nm: l.primary_hw_nm,
+                secondary_hw_nm: l.secondary_hw_nm,
                 turn_dir: l.turn_dir || null,
                 arc_center_lat: l.arc_center_lat || null,
                 arc_center_lon: l.arc_center_lon || null,
                 is_flyover: l.is_flyover
             }))
-        } : null,
+      } : null,
       rnav_params: family === "RNAV" ? {
         mode: rnavMode,
         alt_unit: altUnit,
@@ -3084,23 +3079,20 @@ export default function Home() {
                         )}
                         
                         {/* Row 4: Tolerances */}
-                        <div style={{ display: "flex", gap: "6px", marginTop: "8px", borderTop: `1px solid ${theme.border}`, paddingTop: "8px" }}>
+                        <div style={{ display: "flex", gap: "10px", marginTop: "8px", borderTop: `1px solid ${theme.border}`, paddingTop: "8px" }}>
                           <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-                            <span style={{ fontSize: "9px", color: theme.textMuted, fontWeight: "bold" }}>XTT (NM)</span>
-                            <input type="number" style={{...inputStyle, padding: "4px", fontSize: "11px"}} value={leg.xtt_nm} onChange={e => updatePbnLeg(leg.id, "xtt_nm", +e.target.value)} />
+                            <span style={{ fontSize: "10px", color: theme.navy, fontWeight: "bold" }}>Primary Half-W (NM)</span>
+                            <input type="number" step="0.1" style={{...inputStyle, padding: "6px", fontSize: "12px"}} value={leg.primary_hw_nm} onChange={e => updatePbnLeg(leg.id, "primary_hw_nm", +e.target.value)} />
                           </div>
                           <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-                            <span style={{ fontSize: "9px", color: theme.textMuted, fontWeight: "bold" }}>ATT (NM)</span>
-                            <input type="number" style={{...inputStyle, padding: "4px", fontSize: "11px"}} value={leg.att_nm} onChange={e => updatePbnLeg(leg.id, "att_nm", +e.target.value)} />
+                            <span style={{ fontSize: "10px", color: theme.navy, fontWeight: "bold" }}>Secondary Half-W (NM)</span>
+                            <input type="number" step="0.1" style={{...inputStyle, padding: "6px", fontSize: "12px"}} value={leg.secondary_hw_nm} onChange={e => updatePbnLeg(leg.id, "secondary_hw_nm", +e.target.value)} />
                           </div>
-                          <div style={{ flex: 1.5, display: "flex", flexDirection: "column" }}>
-                            <span style={{ fontSize: "9px", color: theme.textMuted, fontWeight: "bold" }}>Semi-Width (NM)</span>
-                            <input type="number" style={{...inputStyle, padding: "4px", fontSize: "11px"}} value={leg.semi_width_nm} onChange={e => updatePbnLeg(leg.id, "semi_width_nm", +e.target.value)} />
-                          </div>
-                          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", paddingBottom: "2px" }}>
-                            <label style={{ fontSize: "9px", fontWeight: "bold", color: theme.textMuted, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
+                          
+                          <div style={{ flex: 0.8, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", paddingBottom: "4px" }}>
+                            <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
                               Fly-Over
-                              <input type="checkbox" checked={leg.is_flyover} onChange={e => updatePbnLeg(leg.id, "is_flyover", e.target.checked)} style={{ cursor: "pointer", accentColor: theme.navy }} />
+                              <input type="checkbox" checked={leg.is_flyover} onChange={e => updatePbnLeg(leg.id, "is_flyover", e.target.checked)} style={{ cursor: "pointer", width: "16px", height: "16px", accentColor: theme.navy }} />
                             </label>
                           </div>
                         </div>
