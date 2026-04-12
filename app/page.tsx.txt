@@ -491,15 +491,14 @@ export default function Home() {
   });
 
   // --- Vertiport State ---
-  const [vertiportParams, setVertiportParams] = useState<any>({
+  const [vertiportParams, setVertiportParams] = useState({
     lat: 10.430861, lon: -75.513378, alt: 2.13,
     bearing: 90,
     fato_length: 20, fato_width: 20,
     sa_width: 30, sa_length: 30,
-    appS1Len: 500, appS1Slope: 12.5, appS1Div: 10, appS1Curved: false, appS1CurveRad: 500, appS1CurveAng: 90, appS1CurveDir: "R",
-    appS2Len: 0, appS2Slope: 12.5, appS2Div: 10, appS2Curved: false, appS2CurveRad: 500, appS2CurveAng: 90, appS2CurveDir: "R",
-    tkofS1Len: 500, tkofS1Slope: 12.5, tkofS1Div: 10, tkofS1Curved: false, tkofS1CurveRad: 500, tkofS1CurveAng: 90, tkofS1CurveDir: "R",
-    tkofS2Len: 0, tkofS2Slope: 12.5, tkofS2Div: 10, tkofS2Curved: false, tkofS2CurveRad: 500, tkofS2CurveAng: 90, tkofS2CurveDir: "R",
+    ofv_radius: 15, ofv_height: 45,
+    tkofS1Len: 500, tkofS1Slope: 12.5, tkofS1Div: 10,
+    appS1Len: 500, appS1Slope: 12.5, appS1Div: 10
   });
 
   // --- VSS / OCS State ---
@@ -1790,20 +1789,6 @@ export default function Home() {
         height_fap: apvParams.heightFap, // <-- ADD THIS
         delta_h: apvParams.deltaH       // <-- ADD THIS
       } : null,
-      vertiport_params: family === "VERTIPORT" ? {
-        lat: vertiportParams.lat, lon: vertiportParams.lon, alt: vertiportParams.alt,
-        bearing: vertiportParams.bearing,
-        fato_length: vertiportParams.fato_length, fato_width: vertiportParams.fato_width,
-        sa_width: vertiportParams.sa_width, sa_length: vertiportParams.sa_length,
-        approach_sections:[
-          { length: vertiportParams.appS1Len, slope_pct: vertiportParams.appS1Slope, divergence_pct: vertiportParams.appS1Div, is_curved: vertiportParams.appS1Curved, curve_radius: vertiportParams.appS1CurveRad, curve_angle: vertiportParams.appS1CurveAng, curve_direction: vertiportParams.appS1CurveDir },
-          { length: vertiportParams.appS2Len, slope_pct: vertiportParams.appS2Slope, divergence_pct: vertiportParams.appS2Div, is_curved: vertiportParams.appS2Curved, curve_radius: vertiportParams.appS2CurveRad, curve_angle: vertiportParams.appS2CurveAng, curve_direction: vertiportParams.appS2CurveDir }
-        ].filter((s: any) => s.length > 0 || (s.is_curved && s.curve_angle > 0 && s.curve_radius > 0)),
-        takeoff_sections:[
-          { length: vertiportParams.tkofS1Len, slope_pct: vertiportParams.tkofS1Slope, divergence_pct: vertiportParams.tkofS1Div, is_curved: vertiportParams.tkofS1Curved, curve_radius: vertiportParams.tkofS1CurveRad, curve_angle: vertiportParams.tkofS1CurveAng, curve_direction: vertiportParams.tkofS1CurveDir },
-          { length: vertiportParams.tkofS2Len, slope_pct: vertiportParams.tkofS2Slope, divergence_pct: vertiportParams.tkofS2Div, is_curved: vertiportParams.tkofS2Curved, curve_radius: vertiportParams.tkofS2CurveRad, curve_angle: vertiportParams.tkofS2CurveAng, curve_direction: vertiportParams.tkofS2CurveDir }
-        ].filter((s: any) => s.length > 0 || (s.is_curved && s.curve_angle > 0 && s.curve_radius > 0))
-      } : null,
       custom_coords: family === "CUSTOM" ? customPoints : undefined,
       // --- NEW: Custom OLS Payload Mapper ---
       custom_ols_params: runwayType === "custom" ? {
@@ -2347,7 +2332,6 @@ export default function Home() {
                   <option value="NAVAID">Navaid BRA</option>
                   <option value="CUSTOM">Import custom Surfaces</option>
                   <option value="HELIPORT">Heliport OLS</option>
-                  <option value="VERTIPORT">Vertiport OVS (EASA PTS) In progress</option>
                 </select>
               </div>
 
@@ -2683,17 +2667,6 @@ export default function Home() {
                       <input style={inputStyle} type="number" value={vertiportParams.bearing} onChange={e => setVertiportParams({ ...vertiportParams, bearing: +e.target.value })} />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <label style={labelStyle}>FATO Width (m)</label>
-                      <input style={inputStyle} type="number" value={vertiportParams.fato_width} onChange={e => setVertiportParams({ ...vertiportParams, fato_width: +e.target.value })} />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <label style={labelStyle}>FATO Length (m)</label>
-                      <input style={inputStyle} type="number" value={vertiportParams.fato_length} onChange={e => setVertiportParams({ ...vertiportParams, fato_length: +e.target.value })} />
-                    </div>
-                  </div>
-
-                  <div style={rowStyle}>
-                    <div style={{ flex: 1 }}>
                       <label style={labelStyle}>Safety Area W. (m)</label>
                       <input style={inputStyle} type="number" value={vertiportParams.sa_width} onChange={e => setVertiportParams({ ...vertiportParams, sa_width: +e.target.value })} />
                     </div>
@@ -2703,68 +2676,39 @@ export default function Home() {
                     </div>
                   </div>
 
+                  <div style={rowStyle}>
+                    <div style={{ flex: 1 }}>
+                      <label style={labelStyle}>OFV Radius (m)</label>
+                      <input style={inputStyle} type="number" value={vertiportParams.ofv_radius} onChange={e => setVertiportParams({ ...vertiportParams, ofv_radius: +e.target.value })} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={labelStyle}>OFV Height (m)</label>
+                      <input style={inputStyle} type="number" value={vertiportParams.ofv_height} onChange={e => setVertiportParams({ ...vertiportParams, ofv_height: +e.target.value })} />
+                    </div>
+                  </div>
+
                   <div style={{ backgroundColor: theme.bg, padding: "10px", borderRadius: theme.radiusSm, border: `1px solid ${theme.border}` }}>
                     <label style={{ ...labelStyle, marginTop: 0, color: "#15803d" }}>Approach Surface (Inbound)</label>
-                    {[1, 2].map(id => {
-                      const isC = vertiportParams[`appS${id}Curved`];
-                      return (
-                        <div key={`app-${id}`} style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "4px", padding: "8px", backgroundColor: theme.bgOff, borderRadius: "4px", border: `1px solid ${theme.border}` }}>
-                          <div style={{ display: "flex", gap: "5px" }}>
-                            <span style={{ flex: 0.5, fontSize: "11px", alignSelf: "center", fontWeight: 600, color: theme.navy }}>Sec {id}</span>
-                            <input style={{ ...numInputStyle, padding: "6px", fontSize: "12px", width: "40px" }} type="number" placeholder="Len" value={vertiportParams[`appS${id}Len`]} onChange={e => setVertiportParams({ ...vertiportParams, [`appS${id}Len`]: +e.target.value })} disabled={isC} title={isC ? "Length is auto-calculated for curves" : "Length (m)"} />
-                            <input style={{ ...numInputStyle, padding: "6px", fontSize: "12px", width: "40px" }} type="number" placeholder="Slp %" value={vertiportParams[`appS${id}Slope`]} onChange={e => setVertiportParams({ ...vertiportParams,[`appS${id}Slope`]: +e.target.value })} title="Slope %" />
-                            <input style={{ ...numInputStyle, padding: "6px", fontSize: "12px", width: "40px" }} type="number" placeholder="Div %" value={vertiportParams[`appS${id}Div`]} onChange={e => setVertiportParams({ ...vertiportParams,[`appS${id}Div`]: +e.target.value })} title="Divergence %" />
-                            
-                            <label style={{ fontSize: "11px", display: "flex", alignItems: "center", gap: "4px", color: theme.navy, fontWeight: "bold" }}>
-                              <input type="checkbox" checked={isC} onChange={e => setVertiportParams({ ...vertiportParams,[`appS${id}Curved`]: e.target.checked })} /> Curve
-                            </label>
-                          </div>
-                          
-                          {isC && (
-                            <div style={{ display: "flex", gap: "5px", paddingLeft: "35px", marginTop: "4px" }}>
-                              <input style={{ ...numInputStyle, padding: "6px", fontSize: "12px", flex: 1 }} type="number" placeholder="Rad" value={vertiportParams[`appS${id}CurveRad`]} onChange={e => setVertiportParams({ ...vertiportParams, [`appS${id}CurveRad`]: +e.target.value })} title="Turn Radius (m)" />
-                              <input style={{ ...numInputStyle, padding: "6px", fontSize: "12px", flex: 1 }} type="number" placeholder="Ang" value={vertiportParams[`appS${id}CurveAng`]} onChange={e => setVertiportParams({ ...vertiportParams, [`appS${id}CurveAng`]: +e.target.value })} title="Turn Angle (°)" />
-                              <select style={{ ...numInputStyle, padding: "6px", fontSize: "12px", flex: 1 }} value={vertiportParams[`appS${id}CurveDir`]} onChange={e => setVertiportParams({ ...vertiportParams,[`appS${id}CurveDir`]: e.target.value })} title="Turn Direction">
-                                <option value="R">Right</option>
-                                <option value="L">Left</option>
-                              </select>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                    <div style={{ display: "flex", gap: "5px", fontSize: "10px", fontWeight: "bold", color: theme.textMuted, marginBottom: "4px" }}>
+                      <span style={{ flex: 1 }}>Length (m)</span><span style={{ flex: 1 }}>Slope (%)</span><span style={{ flex: 1 }}>Div (%)</span>
+                    </div>
+                    <div style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
+                      <input style={{ ...numInputStyle, padding: "6px", fontSize: "13px" }} type="number" value={vertiportParams.appS1Len} onChange={e => setVertiportParams({ ...vertiportParams, appS1Len: +e.target.value })} />
+                      <input style={{ ...numInputStyle, padding: "6px", fontSize: "13px" }} type="number" value={vertiportParams.appS1Slope} onChange={e => setVertiportParams({ ...vertiportParams, appS1Slope: +e.target.value })} />
+                      <input style={{ ...numInputStyle, padding: "6px", fontSize: "13px" }} type="number" value={vertiportParams.appS1Div} onChange={e => setVertiportParams({ ...vertiportParams, appS1Div: +e.target.value })} />
+                    </div>
                   </div>
 
                   <div style={{ backgroundColor: theme.bg, padding: "10px", borderRadius: theme.radiusSm, border: `1px solid ${theme.border}` }}>
                     <label style={{ ...labelStyle, marginTop: 0, color: "#b91c1c" }}>Take-off Climb Surface (Outbound)</label>
-                    {[1, 2].map(id => {
-                      const isC = vertiportParams[`tkofS${id}Curved`];
-                      return (
-                        <div key={`tkof-${id}`} style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "4px", padding: "8px", backgroundColor: theme.bgOff, borderRadius: "4px", border: `1px solid ${theme.border}` }}>
-                          <div style={{ display: "flex", gap: "5px" }}>
-                            <span style={{ flex: 0.5, fontSize: "11px", alignSelf: "center", fontWeight: 600, color: theme.navy }}>Sec {id}</span>
-                            <input style={{ ...numInputStyle, padding: "6px", fontSize: "12px", width: "40px" }} type="number" placeholder="Len" value={vertiportParams[`tkofS${id}Len`]} onChange={e => setVertiportParams({ ...vertiportParams,[`tkofS${id}Len`]: +e.target.value })} disabled={isC} title={isC ? "Length is auto-calculated for curves" : "Length (m)"} />
-                            <input style={{ ...numInputStyle, padding: "6px", fontSize: "12px", width: "40px" }} type="number" placeholder="Slp %" value={vertiportParams[`tkofS${id}Slope`]} onChange={e => setVertiportParams({ ...vertiportParams,[`tkofS${id}Slope`]: +e.target.value })} title="Slope %" />
-                            <input style={{ ...numInputStyle, padding: "6px", fontSize: "12px", width: "40px" }} type="number" placeholder="Div %" value={vertiportParams[`tkofS${id}Div`]} onChange={e => setVertiportParams({ ...vertiportParams,[`tkofS${id}Div`]: +e.target.value })} title="Divergence %" />
-                            
-                            <label style={{ fontSize: "11px", display: "flex", alignItems: "center", gap: "4px", color: theme.navy, fontWeight: "bold" }}>
-                              <input type="checkbox" checked={isC} onChange={e => setVertiportParams({ ...vertiportParams,[`tkofS${id}Curved`]: e.target.checked })} /> Curve
-                            </label>
-                          </div>
-                          
-                          {isC && (
-                            <div style={{ display: "flex", gap: "5px", paddingLeft: "35px", marginTop: "4px" }}>
-                              <input style={{ ...numInputStyle, padding: "6px", fontSize: "12px", flex: 1 }} type="number" placeholder="Rad" value={vertiportParams[`tkofS${id}CurveRad`]} onChange={e => setVertiportParams({ ...vertiportParams, [`tkofS${id}CurveRad`]: +e.target.value })} title="Turn Radius (m)" />
-                              <input style={{ ...numInputStyle, padding: "6px", fontSize: "12px", flex: 1 }} type="number" placeholder="Ang" value={vertiportParams[`tkofS${id}CurveAng`]} onChange={e => setVertiportParams({ ...vertiportParams, [`tkofS${id}CurveAng`]: +e.target.value })} title="Turn Angle (°)" />
-                              <select style={{ ...numInputStyle, padding: "6px", fontSize: "12px", flex: 1 }} value={vertiportParams[`tkofS${id}CurveDir`]} onChange={e => setVertiportParams({ ...vertiportParams, [`tkofS${id}CurveDir`]: e.target.value })} title="Turn Direction">
-                                <option value="R">Right</option>
-                                <option value="L">Left</option>
-                              </select>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                    <div style={{ display: "flex", gap: "5px", fontSize: "10px", fontWeight: "bold", color: theme.textMuted, marginBottom: "4px" }}>
+                      <span style={{ flex: 1 }}>Length (m)</span><span style={{ flex: 1 }}>Slope (%)</span><span style={{ flex: 1 }}>Div (%)</span>
+                    </div>
+                    <div style={{ display: "flex", gap: "5px", marginTop: "4px" }}>
+                      <input style={{ ...numInputStyle, padding: "6px", fontSize: "13px" }} type="number" value={vertiportParams.tkofS1Len} onChange={e => setVertiportParams({ ...vertiportParams, tkofS1Len: +e.target.value })} />
+                      <input style={{ ...numInputStyle, padding: "6px", fontSize: "13px" }} type="number" value={vertiportParams.tkofS1Slope} onChange={e => setVertiportParams({ ...vertiportParams, tkofS1Slope: +e.target.value })} />
+                      <input style={{ ...numInputStyle, padding: "6px", fontSize: "13px" }} type="number" value={vertiportParams.tkofS1Div} onChange={e => setVertiportParams({ ...vertiportParams, tkofS1Div: +e.target.value })} />
+                    </div>
                   </div>
                 </div>
               )}
