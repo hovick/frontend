@@ -375,6 +375,41 @@ export default function Home() {
     mapt_soc: "" // Distance in NM from MAPt to SOC
   });
 
+  // --- PBN (RNAV/RNP) Dynamic State ---
+  const [pbnParams, setPbnParams] = useState({
+    procedure_type: "Approach", // "SID", "STAR", "Approach", "Missed_approach"
+    nav_spec: "RNP APCH",       // "RNAV 1", "RNP APCH", "RNP 0.3", "Advanced RNP"
+    alt_unit: "ft",             // "m" or "ft"
+    legs: [
+      // Default to a standard straight-in approach
+      { id: "leg1", terminator: "IF", lat: 0, lon: 0, alt: 3000, xtt_nm: 1.0, att_nm: 1.0, semi_width_nm: 2.5, turn_dir: "", arc_center_lat: 0, arc_center_lon: 0, is_flyover: false },
+      { id: "leg2", terminator: "TF", lat: 0, lon: 0, alt: 2000, xtt_nm: 0.3, att_nm: 0.3, semi_width_nm: 1.45, turn_dir: "", arc_center_lat: 0, arc_center_lon: 0, is_flyover: false },
+      { id: "leg3", terminator: "TF", lat: 0, lon: 0, alt: 50,   xtt_nm: 0.3, att_nm: 0.3, semi_width_nm: 0.95, turn_dir: "", arc_center_lat: 0, arc_center_lon: 0, is_flyover: false } // MAPt equivalent
+    ]
+  });
+
+  const [selectingPbnLeg, setSelectingPbnLeg] = useState<string | null>(null);
+  const [selectingPbnArc, setSelectingPbnArc] = useState<string | null>(null);
+
+  const addPbnLeg = () => {
+    setPbnParams(prev => ({
+      ...prev,
+      legs: [...prev.legs, { id: `leg${Date.now()}`, terminator: "TF", lat: 0, lon: 0, alt: 0, xtt_nm: 1.0, att_nm: 1.0, semi_width_nm: 1.0, turn_dir: "", arc_center_lat: 0, arc_center_lon: 0, is_flyover: false }]
+    }));
+  };
+
+  const removePbnLeg = (idToRemove: string) => {
+    if (pbnParams.legs.length <= 2) return alert("A procedure must have at least 2 legs.");
+    setPbnParams(prev => ({ ...prev, legs: prev.legs.filter(l => l.id !== idToRemove) }));
+  };
+
+  const updatePbnLeg = (id: string, field: string, value: any) => {
+    setPbnParams(prev => ({
+      ...prev,
+      legs: prev.legs.map(l => l.id === id ? { ...l, [field]: value } : l)
+    }));
+  };
+
   // --- Heliport Specific State ---
   const [heliPreset, setHeliPreset] = useState("cat_a");
 
@@ -788,7 +823,40 @@ export default function Home() {
     };
   }, [mounted]);
 
-  // --- NEW: Toggle Google Photorealistic 3D Tiles ---
+  useEffect(() => {
+    if (!viewerRef.current || (!selectingPbnLeg && !selectingPbnArc)) return;
+
+    const handler = new Cesium.ScreenSpaceEventHandler(viewerRef.current.scene.canvas);
+
+    handler.setInputAction(async (click: any) => {
+      let cartesian: Cesium.Cartesian3 | undefined = viewerRef.current?.scene.pickPosition(click.position);
+      if (!cartesian && viewerRef.current) {
+        const ray = viewerRef.current.camera.getPickRay(click.position);
+        if (ray) cartesian = viewerRef.current.scene.globe.pick(ray, viewerRef.current.scene);
+      }
+
+      if (cartesian) {
+        const { lat, lon, alt } = await getTrueMslAltitude(cartesian);
+
+        if (selectingPbnLeg) {
+            updatePbnLeg(selectingPbnLeg, "lat", lat);
+            updatePbnLeg(selectingPbnLeg, "lon", lon);
+            // Optionally auto-fill altitude if it's 0
+            const currentLeg = pbnParams.legs.find(l => l.id === selectingPbnLeg);
+            if (currentLeg && currentLeg.alt === 0) updatePbnLeg(selectingPbnLeg, "alt", alt);
+            setSelectingPbnLeg(null);
+        } 
+        else if (selectingPbnArc) {
+            updatePbnLeg(selectingPbnArc, "arc_center_lat", lat);
+            updatePbnLeg(selectingPbnArc, "arc_center_lon", lon);
+            setSelectingPbnArc(null);
+        }
+      }
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+    return () => { handler.destroy(); };
+  }, [selectingPbnLeg, selectingPbnArc]);
+  
   // --- NEW: Toggle Google Photorealistic 3D Tiles ---
   useEffect(() => {
     const toggleGoogleTiles = async () => {
@@ -1722,15 +1790,37 @@ export default function Home() {
         inbound_bearing: wsParams.inbound_bearing
       } : null,
       holding_params: family === "HOLDING" ? {
-        type: holdingParams.type,
-        ias: holdingParams.ias,
-        alt_ft: holdingParams.alt_ft,
-        time_min: holdingParams.time_min,
-        inbound_brg: holdingParams.inbound_brg,
-        turn_dir: holdingParams.turn_dir,
-        ad_elev_ft: holdingParams.ad_elev_ft,
-        temp_ref_c: holdingParams.temp_ref_c
-      } : null,
+            type: holdingParams.type,
+            ias: holdingParams.ias,
+            alt_ft: holdingParams.alt_ft,
+            time_min: holdingParams.time_min,
+            inbound_brg: holdingParams.inbound_brg,
+            turn_dir: holdingParams.turn_dir,
+            ad_elev_ft: holdingParams.ad_elev_ft,
+            temp_ref_c: holdingParams.temp_ref_c
+        } : null,
+        
+        // --- NEW: PBN Payload Mapper ---
+        pbn_params: family === "PBN" ? {
+            procedure_type: pbnParams.procedure_type,
+            nav_spec: pbnParams.nav_spec,
+            alt_unit: pbnParams.alt_unit,
+            ma_gradient_pct: 2.5, // Default for now
+            acft_cat: "C",        // Default for now
+            legs: pbnParams.legs.map(l => ({
+                terminator: l.terminator,
+                lat: l.lat,
+                lon: l.lon,
+                alt: l.alt,
+                xtt_nm: l.xtt_nm,
+                att_nm: l.att_nm,
+                semi_width_nm: l.semi_width_nm,
+                turn_dir: l.turn_dir || null,
+                arc_center_lat: l.arc_center_lat || null,
+                arc_center_lon: l.arc_center_lon || null,
+                is_flyover: l.is_flyover
+            }))
+        } : null,
       rnav_params: family === "RNAV" ? {
         mode: rnavMode,
         alt_unit: altUnit,
@@ -2348,6 +2438,7 @@ export default function Home() {
                   <option value="CUSTOM">Import custom Surfaces</option>
                   <option value="HELIPORT">Heliport OLS</option>
                   <option value="VERTIPORT">Vertiport OVS (EASA PTS) In progress</option>
+                  <option value="PBN">PBN Segments - In progress</option>
                 </select>
               </div>
 
@@ -2902,7 +2993,124 @@ export default function Home() {
                   </div>
                 </div>
               )}
+              {/* --- DYNAMIC PBN (RNAV/RNP) BUILDER --- */}
+              {family === "PBN" && (
+                <div style={{ backgroundColor: theme.bgOff, padding: "14px", borderRadius: theme.radiusSm, display: "flex", flexDirection: "column", gap: "12px", border: `1px solid ${theme.border}`, marginTop: "10px" }}>
+                  
+                  {/* GLOBAL SETTINGS */}
+                  <div style={rowStyle}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{...labelStyle, marginTop: 0}}>Procedure Type</label>
+                      <select style={inputStyle} value={pbnParams.procedure_type} onChange={e => setPbnParams({...pbnParams, procedure_type: e.target.value})}>
+                        <option value="Approach">Approach</option>
+                        <option value="SID">SID (Departure)</option>
+                        <option value="STAR">STAR (Arrival)</option>
+                        <option value="Missed_approach">Missed Approach</option>
+                      </select>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{...labelStyle, marginTop: 0}}>Nav Spec</label>
+                      <select style={inputStyle} value={pbnParams.nav_spec} onChange={e => setPbnParams({...pbnParams, nav_spec: e.target.value})}>
+                        <option value="RNP APCH">RNP APCH</option>
+                        <option value="Advanced RNP">Advanced RNP</option>
+                        <option value="RNAV 1">RNAV 1</option>
+                      </select>
+                    </div>
+                    <div style={{ flex: 0.5 }}>
+                      <label style={{...labelStyle, marginTop: 0}}>Alt Unit</label>
+                      <select style={inputStyle} value={pbnParams.alt_unit} onChange={e => setPbnParams({...pbnParams, alt_unit: e.target.value})}>
+                        <option value="ft">Feet</option>
+                        <option value="m">Meters</option>
+                      </select>
+                    </div>
+                  </div>
 
+                  <hr style={{ borderTop: `1px solid ${theme.border}`, margin: "4px 0" }} />
+
+                  {/* DYNAMIC LEGS BUILDER */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <strong style={{ fontSize: "12px", color: theme.navy, textTransform: "uppercase", letterSpacing: "0.5px" }}>Path Terminators (Legs)</strong>
+                      <button onClick={addPbnLeg} style={{ padding: "4px 10px", backgroundColor: "#15803d", color: "white", border: "none", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}>+ Add Leg</button>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "300px", overflowY: "auto", paddingRight: "4px" }}>
+                    {pbnParams.legs.map((leg, idx) => {
+                      const isTargetingWpt = selectingPbnLeg === leg.id;
+                      const isTargetingArc = selectingPbnArc === leg.id;
+                      
+                      return (
+                      <div key={leg.id} style={{ padding: "10px", backgroundColor: theme.bg, borderRadius: "6px", border: `1px solid ${theme.border}`, boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
+                        
+                        {/* Row 1: Header & Terminator */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                          <span style={{ fontSize: "11px", fontWeight: "bold", color: theme.navy }}>#{idx + 1}</span>
+                          
+                          <select style={{...inputStyle, padding: "4px 8px", fontSize: "12px", width: "auto", fontWeight: "bold", color: theme.blue}} value={leg.terminator} onChange={e => updatePbnLeg(leg.id, "terminator", e.target.value)}>
+                            <option value="IF">IF (Initial Fix)</option>
+                            <option value="TF">TF (Track to Fix)</option>
+                            <option value="RF">RF (Radius to Fix)</option>
+                            <option value="CF">CF (Course to Fix)</option>
+                            <option value="HM">HM (Holding Pattern)</option>
+                          </select>
+                          
+                          <button onClick={() => removePbnLeg(leg.id)} style={{ background: "none", border: "none", color: "#dc3545", cursor: "pointer", fontSize: "14px", fontWeight: "bold", padding: 0 }} title="Remove Leg">✕</button>
+                        </div>
+
+                        {/* Row 2: Waypoint Coordinates */}
+                        <div style={{ display: "flex", gap: "6px", marginBottom: leg.terminator === "RF" ? "8px" : "0" }}>
+                          <input type="number" placeholder="Lat" style={{...inputStyle, padding: "6px", fontSize: "12px"}} value={leg.lat || ""} onChange={e => updatePbnLeg(leg.id, "lat", +e.target.value)} />
+                          <input type="number" placeholder="Lon" style={{...inputStyle, padding: "6px", fontSize: "12px"}} value={leg.lon || ""} onChange={e => updatePbnLeg(leg.id, "lon", +e.target.value)} />
+                          <input type="number" placeholder="Alt" style={{...inputStyle, padding: "6px", fontSize: "12px"}} value={leg.alt || ""} onChange={e => updatePbnLeg(leg.id, "alt", +e.target.value)} title={`Altitude in ${pbnParams.alt_unit}`} />
+                          
+                          <button onClick={(e) => { e.stopPropagation(); setSelectingPbnLeg(isTargetingWpt ? null : leg.id); }} style={{ padding: "0 8px", backgroundColor: isTargetingWpt ? "#dc3545" : theme.navy, color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "11px" }} title="Pick Waypoint on map">
+                            {isTargetingWpt ? "Cancel" : "📍 WPT"}
+                          </button>
+                        </div>
+
+                        {/* Row 3: Arc Parameters (Only if RF) */}
+                        {leg.terminator === "RF" && (
+                          <div style={{ display: "flex", gap: "6px", padding: "8px", backgroundColor: theme.lightBlue, borderRadius: "4px", border: "1px dashed #b3d9f7" }}>
+                            <select style={{...inputStyle, padding: "6px", fontSize: "12px", width: "60px"}} value={leg.turn_dir} onChange={e => updatePbnLeg(leg.id, "turn_dir", e.target.value)}>
+                              <option value="R">Right Turn</option>
+                              <option value="L">Left Turn</option>
+                            </select>
+                            <input type="number" placeholder="Center Lat" style={{...inputStyle, padding: "6px", fontSize: "12px"}} value={leg.arc_center_lat || ""} onChange={e => updatePbnLeg(leg.id, "arc_center_lat", +e.target.value)} />
+                            <input type="number" placeholder="Center Lon" style={{...inputStyle, padding: "6px", fontSize: "12px"}} value={leg.arc_center_lon || ""} onChange={e => updatePbnLeg(leg.id, "arc_center_lon", +e.target.value)} />
+                            
+                            <button onClick={(e) => { e.stopPropagation(); setSelectingPbnArc(isTargetingArc ? null : leg.id); }} style={{ padding: "0 8px", backgroundColor: isTargetingArc ? "#dc3545" : "#0284c7", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "11px" }} title="Pick Arc Center on map">
+                              {isTargetingArc ? "Cancel" : "📍 ARC"}
+                            </button>
+                          </div>
+                        )}
+                        
+                        {/* Row 4: Tolerances */}
+                        <div style={{ display: "flex", gap: "6px", marginTop: "8px", borderTop: `1px solid ${theme.border}`, paddingTop: "8px" }}>
+                          <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                            <span style={{ fontSize: "9px", color: theme.textMuted, fontWeight: "bold" }}>XTT (NM)</span>
+                            <input type="number" style={{...inputStyle, padding: "4px", fontSize: "11px"}} value={leg.xtt_nm} onChange={e => updatePbnLeg(leg.id, "xtt_nm", +e.target.value)} />
+                          </div>
+                          <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                            <span style={{ fontSize: "9px", color: theme.textMuted, fontWeight: "bold" }}>ATT (NM)</span>
+                            <input type="number" style={{...inputStyle, padding: "4px", fontSize: "11px"}} value={leg.att_nm} onChange={e => updatePbnLeg(leg.id, "att_nm", +e.target.value)} />
+                          </div>
+                          <div style={{ flex: 1.5, display: "flex", flexDirection: "column" }}>
+                            <span style={{ fontSize: "9px", color: theme.textMuted, fontWeight: "bold" }}>Semi-Width (NM)</span>
+                            <input type="number" style={{...inputStyle, padding: "4px", fontSize: "11px"}} value={leg.semi_width_nm} onChange={e => updatePbnLeg(leg.id, "semi_width_nm", +e.target.value)} />
+                          </div>
+                          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", paddingBottom: "2px" }}>
+                            <label style={{ fontSize: "9px", fontWeight: "bold", color: theme.textMuted, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
+                              Fly-Over
+                              <input type="checkbox" checked={leg.is_flyover} onChange={e => updatePbnLeg(leg.id, "is_flyover", e.target.checked)} style={{ cursor: "pointer", accentColor: theme.navy }} />
+                            </label>
+                          </div>
+                        </div>
+
+                      </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {/* --- DYNAMIC RNAV FIELDS --- */}
               {family === "RNAV" && (
                 <div style={{ backgroundColor: theme.bgOff, padding: "14px", borderRadius: theme.radiusSm, display: "flex", flexDirection: "column", gap: "10px", border: `1px solid ${theme.border}`, marginTop: "10px" }}>
