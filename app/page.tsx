@@ -2433,7 +2433,7 @@ export default function Home() {
                   <option value="CUSTOM">Import custom Surfaces</option>
                   <option value="HELIPORT">Heliport OLS</option>
                   <option value="VERTIPORT">Vertiport OVS (EASA PTS) In progress</option>
-                  {/* --- <option value="PBN">PBN Segments - In progress</option> --- */}
+                  <option value="PBN">PBN Segments - In progress</option>
                 </select>
               </div>
 
