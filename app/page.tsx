@@ -237,6 +237,42 @@ export default function Home() {
   // Map Controls State
   const [exaggeration, setExaggeration] = useState(1);
     const exagRef = useRef(1);
+  const batchResultsRef = useRef<any[]>([]);
+
+  const drawBatchObstaclesOnMap = (results: any[], exag: number) => {
+    if (!viewerRef.current || !results || results.length === 0) return;
+    const viewer = viewerRef.current;
+    // Remove existing batch obstacle entities
+    const toRemove: Cesium.Entity[] = [];
+    viewer.entities.values.forEach((e: any) => {
+      if (e.id && e.id.toString().startsWith('batch-obs-')) toRemove.push(e);
+    });
+    toRemove.forEach(e => viewer.entities.remove(e));
+    // Re-draw with altitude scaled by exaggeration
+    results.forEach((res: any) => {
+      const isPenetrating = res.penetration;
+      const color = isPenetrating ? Cesium.Color.RED : Cesium.Color.LIGHTSKYBLUE;
+      const scaledAlt = res.alt * exag;
+      viewer.entities.add({
+        id: `batch-obs-${res.id}`,
+        position: Cesium.Cartesian3.fromDegrees(res.lon, res.lat, scaledAlt),
+        point: { pixelSize: 12, color: color, outlineColor: Cesium.Color.WHITE, outlineWidth: 2 },
+        label: {
+          text: `${res.id}\n${isPenetrating ? '❌' : '✅'}`,
+          font: "10pt sans-serif",
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          outlineWidth: 2,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+          pixelOffset: new Cesium.Cartesian2(0, -10)
+        },
+        polyline: {
+          positions: Cesium.Cartesian3.fromDegreesArrayHeights([res.lon, res.lat, 0, res.lon, res.lat, scaledAlt]),
+          width: 2,
+          material: color.withAlpha(0.6)
+        }
+      });
+    });
+  };
   const getTrueMslAltitude = (cartesian: Cesium.Cartesian3): Promise<{lat: number, lon: number, alt: number}> =>
     getTrueMslAltitudeHelper(cartesian, viewerRef, API_BASE);
   const [geoidOffset, setGeoidOffset] = useState(0);
@@ -1231,39 +1267,9 @@ export default function Home() {
       if (data.error) return showToast(data.error, "error");
 
       setBatchResults(data.results);
-
-      // --- DRAW RESULTS ON MAP ---
-      if (viewerRef.current) {
-        const entitiesToRemove: Cesium.Entity[] = [];
-        viewerRef.current.entities.values.forEach(e => {
-          if (e.id && e.id.toString().startsWith('batch-obs-')) entitiesToRemove.push(e);
-        });
-        entitiesToRemove.forEach(e => viewerRef.current?.entities.remove(e));
-
-        data.results.forEach((res: any) => {
-          const isPenetrating = res.penetration;
-          const color = isPenetrating ? Cesium.Color.RED : Cesium.Color.LIGHTSKYBLUE;
-
-          viewerRef.current?.entities.add({
-            id: `batch-obs-${res.id}`,
-            position: Cesium.Cartesian3.fromDegrees(res.lon, res.lat, res.alt),
-            point: { pixelSize: 12, color: color, outlineColor: Cesium.Color.WHITE, outlineWidth: 2 },
-            label: {
-              text: `${res.id}\n${isPenetrating ? '❌' : '✅'}`,
-              font: "10pt sans-serif",
-              style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-              outlineWidth: 2,
-              verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-              pixelOffset: new Cesium.Cartesian2(0, -10)
-            },
-            polyline: {
-              positions: Cesium.Cartesian3.fromDegreesArrayHeights([res.lon, res.lat, 0, res.lon, res.lat, res.alt]),
-              width: 2,
-              material: color.withAlpha(0.6)
-            }
-          });
-        });
-      }
+      batchResultsRef.current = data.results;
+      // --- DRAW RESULTS ON MAP (exaggeration-aware) ---
+      drawBatchObstaclesOnMap(data.results, exagRef.current);
     } catch (err) {
       showToast("Network error processing batch.", "error");
     } finally {
@@ -2548,6 +2554,7 @@ export default function Home() {
                 exagRef.current = val;
                 
                 if (viewerRef.current) viewerRef.current.scene.verticalExaggeration = val;
+                if (batchResultsRef.current.length > 0) drawBatchObstaclesOnMap(batchResultsRef.current, val);
             }}
             onMouseUp={() => { if (drawnSurfacesRef.current.length > 0) handleDrawSurface(drawnSurfacesRef.current, geoidOffset); }}
             style={{ width: "100%", cursor: "pointer", accentColor: theme.blue }}
@@ -2561,3 +2568,6 @@ export default function Home() {
     </main>
   );
 }
+ 
+ 
+========================================== 
