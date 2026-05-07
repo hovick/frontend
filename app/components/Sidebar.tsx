@@ -932,6 +932,7 @@ export default function Sidebar(props: any) {
                       <label style={{...labelStyle, marginTop: 0}}>Procedure Type</label>
                       <select style={inputStyle} value={pbnParams.procedure_type} onChange={e => setPbnParams({...pbnParams, procedure_type: e.target.value})}>
                         <option value="Approach">Approach</option>
+                        <option value="Enroute">En-route</option>
                         <option value="SID">SID (Departure)</option>
                         <option value="STAR">STAR (Arrival)</option>
                         <option value="Missed_approach">Missed Approach</option>
@@ -942,6 +943,7 @@ export default function Sidebar(props: any) {
                       <select style={inputStyle} value={pbnParams.nav_spec} onChange={e => setPbnParams({...pbnParams, nav_spec: e.target.value})}>
                         <option value="RNP APCH">RNP APCH</option>
                         <option value="Advanced RNP">Advanced RNP</option>
+                        <option value="RNAV 5">RNAV 5</option>
                         <option value="RNAV 1">RNAV 1</option>
                       </select>
                     </div>
@@ -951,6 +953,31 @@ export default function Sidebar(props: any) {
                         <option value="ft">Feet</option>
                         <option value="m">Meters</option>
                       </select>
+                    </div>
+                  </div>
+
+                  {/* AIRCRAFT & DYNAMICS OVERRIDES */}
+                  <div style={{ display: "flex", gap: "6px", backgroundColor: theme.bg, padding: "10px", borderRadius: theme.radiusSm, border: `1px solid ${theme.border}` }}>
+                    <div style={{ flex: 0.8 }}>
+                      <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Acft Cat</label>
+                      <select style={{...inputStyle, padding: "6px", fontSize: "12px"}} value={pbnParams.acft_cat} onChange={e => setPbnParams({...pbnParams, acft_cat: e.target.value})}>
+                        <option value="A">CAT A</option>
+                        <option value="B">CAT B</option>
+                        <option value="C">CAT C</option>
+                        <option value="D">CAT D</option>
+                      </select>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Max IAS (kt)</label>
+                      <input type="number" style={{...inputStyle, padding: "6px", fontSize: "12px"}} value={pbnParams.ias_kt ?? ""} onChange={e => setPbnParams({...pbnParams, ias_kt: +e.target.value})} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Stab Time (s)</label>
+                      <input type="number" step="0.5" style={{...inputStyle, padding: "6px", fontSize: "12px"}} value={pbnParams.stabilization_time_s ?? ""} onChange={e => setPbnParams({...pbnParams, stabilization_time_s: +e.target.value})} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: "10px", fontWeight: "bold", color: theme.textMuted }}>Wind (kt)</label>
+                      <input type="number" style={{...inputStyle, padding: "6px", fontSize: "12px"}} value={pbnParams.wind_speed_kt ?? ""} onChange={e => setPbnParams({...pbnParams, wind_speed_kt: +e.target.value})} />
                     </div>
                   </div>
 
@@ -987,9 +1014,9 @@ export default function Sidebar(props: any) {
 
                         {/* Row 2: Waypoint Coordinates */}
                         <div style={{ display: "flex", gap: "6px", marginBottom: leg.terminator === "RF" ? "8px" : "0" }}>
-                          <input type="number" placeholder="Lat" style={{...inputStyle, padding: "6px", fontSize: "12px"}} value={leg.lat || ""} onChange={e => updatePbnLeg(leg.id, "lat", +e.target.value)} />
-                          <input type="number" placeholder="Lon" style={{...inputStyle, padding: "6px", fontSize: "12px"}} value={leg.lon || ""} onChange={e => updatePbnLeg(leg.id, "lon", +e.target.value)} />
-                          <input type="number" placeholder="Alt" style={{...inputStyle, padding: "6px", fontSize: "12px"}} value={leg.alt || ""} onChange={e => updatePbnLeg(leg.id, "alt", +e.target.value)} title={`Altitude in ${pbnParams.alt_unit}`} />
+                          <input type="number" placeholder="Lat" style={{...inputStyle, padding: "6px", fontSize: "12px"}} value={leg.lat ?? ""} onChange={e => updatePbnLeg(leg.id, "lat", +e.target.value)} />
+                          <input type="number" placeholder="Lon" style={{...inputStyle, padding: "6px", fontSize: "12px"}} value={leg.lon ?? ""} onChange={e => updatePbnLeg(leg.id, "lon", +e.target.value)} />
+                          <input type="number" placeholder="Alt" style={{...inputStyle, padding: "6px", fontSize: "12px"}} value={leg.alt ?? ""} onChange={e => updatePbnLeg(leg.id, "alt", +e.target.value)} title={`Altitude in ${pbnParams.alt_unit}`} />
                           
                           <button onClick={(e) => { e.stopPropagation(); setSelectingPbnLeg(isTargetingWpt ? null : leg.id); }} style={{ padding: "0 8px", backgroundColor: isTargetingWpt ? "#dc3545" : theme.navy, color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "11px" }} title="Pick Waypoint on map">
                             {isTargetingWpt ? "Cancel" : "📍 WPT"}
@@ -1003,8 +1030,8 @@ export default function Sidebar(props: any) {
                               <option value="R">Right Turn</option>
                               <option value="L">Left Turn</option>
                             </select>
-                            <input type="number" placeholder="Center Lat" style={{...inputStyle, padding: "6px", fontSize: "12px"}} value={leg.arc_center_lat || ""} onChange={e => updatePbnLeg(leg.id, "arc_center_lat", +e.target.value)} />
-                            <input type="number" placeholder="Center Lon" style={{...inputStyle, padding: "6px", fontSize: "12px"}} value={leg.arc_center_lon || ""} onChange={e => updatePbnLeg(leg.id, "arc_center_lon", +e.target.value)} />
+                            <input type="number" placeholder="Center Lat" style={{...inputStyle, padding: "6px", fontSize: "12px"}} value={leg.arc_center_lat ?? ""} onChange={e => updatePbnLeg(leg.id, "arc_center_lat", +e.target.value)} />
+                            <input type="number" placeholder="Center Lon" style={{...inputStyle, padding: "6px", fontSize: "12px"}} value={leg.arc_center_lon ?? ""} onChange={e => updatePbnLeg(leg.id, "arc_center_lon", +e.target.value)} />
                             
                             <button onClick={(e) => { e.stopPropagation(); setSelectingPbnArc(isTargetingArc ? null : leg.id); }} style={{ padding: "0 8px", backgroundColor: isTargetingArc ? "#dc3545" : "#0284c7", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "11px" }} title="Pick Arc Center on map">
                               {isTargetingArc ? "Cancel" : "📍 ARC"}
@@ -1035,6 +1062,61 @@ export default function Sidebar(props: any) {
                       );
                     })}
                   </div>
+                  
+                  {/* --- CALCULATIONS VERIFICATION TABLE --- */}
+                  {props.pbnCalculations && props.pbnCalculations.turns && props.pbnCalculations.segments && (
+                    <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "10px", backgroundColor: theme.bgOff, padding: "12px", borderRadius: theme.radiusSm, border: `1px solid ${theme.border}` }}>
+                      <h4 style={{ margin: 0, fontSize: "12px", color: theme.navy }}>Turn Parameters (PANS-OPS Math)</h4>
+                      <table style={{ width: "100%", fontSize: "10px", borderCollapse: "collapse", color: theme.text }}>
+                        <thead>
+                          <tr style={{ borderBottom: `1px solid ${theme.border}`, textAlign: "left" }}>
+                            <th style={{ paddingBottom: "4px" }}>Fix</th>
+                            <th style={{ paddingBottom: "4px" }}>Turn</th>
+                            <th style={{ paddingBottom: "4px" }}>Rad (R)</th>
+                            <th style={{ paddingBottom: "4px" }}>W. Rad</th>
+                            <th style={{ paddingBottom: "4px" }}>ETP (m)</th>
+                            <th style={{ paddingBottom: "4px" }}>LTP (m)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {props.pbnCalculations.turns.map((t: any, i: number) => (
+                            <tr key={i} style={{ borderBottom: `1px solid ${theme.border}` }}>
+                              <td style={{ padding: "4px 0", fontWeight: "bold" }}>{t.fix}</td>
+                              <td style={{ padding: "4px 0" }}>{t.turn_angle_deg}°</td>
+                              <td style={{ padding: "4px 0" }}>{t.radius_m}</td>
+                              <td style={{ padding: "4px 0" }}>{t.wind_radius_m}</td>
+                              <td style={{ padding: "4px 0", color: "#c53030" }}>{t.etp_m}</td>
+                              <td style={{ padding: "4px 0" }}>{t.ltp_m}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      
+                      <h4 style={{ margin: 0, fontSize: "12px", color: theme.navy, marginTop: "8px" }}>Segment Validation (MSD)</h4>
+                      <table style={{ width: "100%", fontSize: "10px", borderCollapse: "collapse", color: theme.text }}>
+                        <thead>
+                          <tr style={{ borderBottom: `1px solid ${theme.border}`, textAlign: "left" }}>
+                            <th style={{ paddingBottom: "4px" }}>Segment</th>
+                            <th style={{ paddingBottom: "4px" }}>Avail (m)</th>
+                            <th style={{ paddingBottom: "4px" }}>Req (m)</th>
+                            <th style={{ paddingBottom: "4px" }}>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {props.pbnCalculations.segments.map((s: any, i: number) => (
+                            <tr key={i} style={{ borderBottom: `1px solid ${theme.border}` }}>
+                              <td style={{ padding: "4px 0", fontWeight: "bold" }}>{s.from_fix} ➔ {s.to_fix}</td>
+                              <td style={{ padding: "4px 0" }}>{s.dist_avail_m}</td>
+                              <td style={{ padding: "4px 0" }}>{s.dist_req_m}</td>
+                              <td style={{ padding: "4px 0", color: s.msd_passed ? "#15803d" : "#c53030", fontWeight: "bold" }}>
+                                {s.msd_passed ? "PASS" : "FAIL"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
               {/* --- DYNAMIC RNAV FIELDS --- */}

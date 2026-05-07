@@ -109,6 +109,7 @@ export default function Home() {
   // YOUR Global Default Token (The one currently in useEffect)
   const DEFAULT_ION_TOKEN = process.env.NEXT_PUBLIC_CESIUM_ION_TOKEN || '';
   const [editIonToken, setEditIonToken] = useState(""); // --- NEW ---
+  const [pbnCalculations, setPbnCalculations] = useState<any>(null);
   // --- APV Baro-VNAV State ---
   const [apvBaroParams, setApvBaroParams] = useState({
     acftCategory: "A",
@@ -350,14 +351,21 @@ export default function Home() {
 
   // --- PBN (RNAV/RNP) Dynamic State ---
   const [pbnParams, setPbnParams] = useState({
-    procedure_type: "Approach", // "SID", "STAR", "Approach", "Missed_approach"
+    procedure_type: "Approach", // "SID", "STAR", "Approach", "Enroute", "Missed_approach"
     nav_spec: "RNP APCH",       // "RNAV 1", "RNP APCH", "RNP 0.3", "Advanced RNP"
     alt_unit: "ft",             // "m" or "ft"
-    legs: [
+    acft_cat: "C",
+    ias_kt: 160,                // <-- ADD THIS
+    stabilization_time_s: 3.0,  // <-- ADD THIS
+    wind_speed_kt: 0,           // <-- ADD THIS
+    bank_angle_deg: 15.0,       // <-- ADD THIS
+    aerodrome_elevation_ft: 0.0,// <-- ADD THIS
+    temperature_ref_c: 15.0,    // <-- ADD THIS
+    legs:[
       // Standard Approach (IF -> FAF -> MAPt)
       { id: "leg1", terminator: "IF", lat: 0, lon: 0, alt: 3000, primary_hw_nm: 2.5, secondary_hw_nm: 1.0, turn_dir: "", arc_center_lat: 0, arc_center_lon: 0, is_flyover: false },
-      { id: "leg2", terminator: "TF", lat: 0, lon: 0, alt: 2000, primary_hw_nm: 1.45, secondary_hw_nm: 0.725, turn_dir: "", arc_center_lat: 0, arc_center_lon: 0, is_flyover: false },
-      { id: "leg3", terminator: "TF", lat: 0, lon: 0, alt: 50,   primary_hw_nm: 0.95, secondary_hw_nm: 0.475, turn_dir: "", arc_center_lat: 0, arc_center_lon: 0, is_flyover: false } 
+      { id: "leg2", terminator: "TF", lat: 0, lon: 0, alt: 3000, primary_hw_nm: 2.5, secondary_hw_nm: 1.0, turn_dir: "", arc_center_lat: 0, arc_center_lon: 0, is_flyover: false },
+      { id: "leg3", terminator: "TF", lat: 0, lon: 0, alt: 2000,   primary_hw_nm: 2.5, secondary_hw_nm: 1.0, turn_dir: "", arc_center_lat: 0, arc_center_lon: 0, is_flyover: false } 
     ]
   });
 
@@ -727,6 +735,38 @@ export default function Home() {
     Cesium.Ion.defaultAccessToken = process.env.NEXT_PUBLIC_CESIUM_ION_TOKEN || '';
   }, []);
 
+  // Automatically update PBN parameters based on selected Type and Category
+  useEffect(() => {
+      if (family === "PBN") {
+          let ias = 185;
+          let stab = 3.0;
+          const cat = pbnParams.acft_cat;
+          const type = pbnParams.procedure_type;
+          
+          if (type === "Approach" || type === "Missed_approach") {
+              stab = 3.0; // PANS-OPS Approach Stab time
+              if (cat === "A") ias = 100;
+              if (cat === "B") ias = 130;
+              if (cat === "C") ias = 160;
+              if (cat === "D") ias = 185;
+          } else if (type === "SID") {
+              stab = 3.0; // PANS-OPS Departure Stab time
+              if (cat === "A") ias = 120;
+              if (cat === "B") ias = 165;
+              if (cat === "C") ias = 265;
+              if (cat === "D") ias = 290;
+          } else { // Enroute / STAR
+              stab = 5.0; // Longer Stab Time needed outside final approach
+              if (cat === "A") ias = 150;
+              if (cat === "B") ias = 180;
+              if (cat === "C") ias = 250;
+              if (cat === "D") ias = 300;
+          }
+          
+          setPbnParams(prev => ({...prev, ias_kt: ias, stabilization_time_s: stab}));
+      }
+  },[pbnParams.procedure_type, pbnParams.acft_cat, family]);
+
   // Dynamic X-Ray Mode
   useEffect(() => {
     if (viewerRef.current) {
@@ -1023,6 +1063,87 @@ export default function Home() {
     }
   };
 
+  // --- BATCH CSV NORMALIZATION HELPER ---
+  // Normalizes a raw CSV/TXT string to always use comma column-separators and period decimals.
+  // Handles: semicolon-delimited files (European CSVs) and comma-as-decimal (e.g. "51,47" meaning 51.47).
+  const normalizeBatchCSV = (raw: string): string => {
+    const lines = raw.split(/\r?\n/).filter(l => l.trim().length > 0);
+    if (lines.length === 0) return "";
+
+    // Auto-detect delimiter: if the first data line has semicolons, use semicolon as column separator
+    const firstLine = lines[0];
+    const semicolonCount = (firstLine.match(/;/g) || []).length;
+    const useSemicolon = semicolonCount >= 3; // At least 3 semicolons = 4 columns
+
+    const normalized = lines.map(line => {
+      let parts: string[];
+      if (useSemicolon) {
+        // Split by semicolon, then treat commas inside values as decimal separators
+        parts = line.split(";").map(s => s.trim());
+      } else {
+        // Comma-delimited: need to figure out if commas are column separators or decimal separators
+        // Strategy: split by comma. If we get exactly 4 parts, they are columns.
+        // If we get more (e.g. 7 parts for "Name, 51,47, -0,45, 120,5"), re-parse:
+        //   part[0] = name, then pairs of parts form decimal numbers
+        const rawParts = line.split(",").map(s => s.trim());
+        if (rawParts.length === 4) {
+          // Already clean: ID, Lat, Lon, Alt
+          parts = rawParts;
+        } else if (rawParts.length === 7) {
+          // Likely: Name, LatInt, LatDec, LonInt, LonDec, AltInt, AltDec
+          parts = [
+            rawParts[0],
+            rawParts[1] + "." + rawParts[2],
+            rawParts[3] + "." + rawParts[4],
+            rawParts[5] + "." + rawParts[6]
+          ];
+        } else if (rawParts.length === 6) {
+          // Could be: Name, LatInt, LatDec, LonInt, LonDec, Alt (alt is integer)
+          // Or: Name, Lat, LonInt, LonDec, AltInt, AltDec
+          // Heuristic: if part[2] looks like a decimal fragment (no minus sign, short), merge 1+2 and 3+4
+          const p2 = rawParts[2];
+          if (p2.length > 0 && !p2.startsWith("-") && !isNaN(Number(p2)) && Number(p2) < 1000) {
+            parts = [
+              rawParts[0],
+              rawParts[1] + "." + rawParts[2],
+              rawParts[3] + "." + rawParts[4],
+              rawParts[5]
+            ];
+          } else {
+            parts = rawParts; // Can't determine, pass through
+          }
+        } else if (rawParts.length === 5) {
+          // Could be: Name, LatInt, LatDec, Lon, Alt (lat has decimal comma, lon/alt are integers)
+          // Heuristic: merge parts[1]+parts[2] as lat decimal
+          const p2 = rawParts[2];
+          if (p2.length > 0 && !p2.startsWith("-") && !isNaN(Number(p2))) {
+            parts = [
+              rawParts[0],
+              rawParts[1] + "." + rawParts[2],
+              rawParts[3],
+              rawParts[4]
+            ];
+          } else {
+            parts = rawParts;
+          }
+        } else {
+          parts = rawParts; // Unknown format, pass through
+        }
+      }
+
+      // For semicolon-delimited files, replace commas in numeric values with periods
+      if (parts.length >= 4) {
+        for (let i = 1; i < parts.length; i++) {
+          parts[i] = parts[i].replace(",", ".");
+        }
+      }
+
+      return parts.join(", ");
+    });
+
+    return normalized.join("\n");
+  };
+
   // --- BATCH FILE UPLOAD HELPER ---
   const handleBatchFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1030,11 +1151,12 @@ export default function Home() {
 
     const name = file.name.toLowerCase();
 
-    // For standard CSV/TXT, parse locally in the browser
+    // For standard CSV/TXT, parse locally in the browser with normalization
     if (name.endsWith(".txt") || name.endsWith(".csv")) {
       const reader = new FileReader();
       reader.onload = (event) => {
-        setBatchInput(event.target?.result as string);
+        const raw = event.target?.result as string;
+        setBatchInput(normalizeBatchCSV(raw));
       };
       reader.readAsText(file);
     } else {
@@ -1078,10 +1200,14 @@ export default function Home() {
 
     // Parse the input text
     const lines = batchInput.split("\n");
+    // Helper: parse a number that might use comma as decimal separator
+    const parseNum = (s: string): number => parseFloat(s.replace(",", "."));
     const obsList = lines.map(line => {
-      const parts = line.split(",").map(s => s.trim());
+      // Support both comma and semicolon delimiters in the textarea
+      const delimiter = line.includes(";") ? ";" : ",";
+      const parts = line.split(delimiter).map(s => s.trim());
       if (parts.length === 4) {
-        return { id: parts[0], lat: parseFloat(parts[1]), lon: parseFloat(parts[2]), alt: parseFloat(parts[3]) };
+        return { id: parts[0], lat: parseNum(parts[1]), lon: parseNum(parts[2]), alt: parseNum(parts[3]) };
       }
       return null;
     }).filter(o => o !== null);
@@ -1707,6 +1833,13 @@ export default function Home() {
             procedure_type: pbnParams.procedure_type,
             nav_spec: pbnParams.nav_spec,
             alt_unit: pbnParams.alt_unit,
+            acft_cat: pbnParams.acft_cat,
+            ias_kt: pbnParams.ias_kt,
+            bank_angle_deg: pbnParams.bank_angle_deg,
+            wind_speed_kt: pbnParams.wind_speed_kt,
+            aerodrome_elevation_ft: pbnParams.aerodrome_elevation_ft,
+            temperature_ref_c: pbnParams.temperature_ref_c,
+            stabilization_time_s: pbnParams.stabilization_time_s,
             legs: pbnParams.legs.map(l => ({
                 terminator: l.terminator,
                 lat: l.lat,
@@ -1858,6 +1991,37 @@ export default function Home() {
 
     setIsCreating(true); // START LOADING
       try {
+        let localPbnTrajectories = null;
+        
+        // --- 1. PRE-VALIDATION CHECK FOR PBN ---
+        if (family === "PBN") {
+            const valRes = await fetch(`${API_BASE}/validate-pbn`, {
+                method: "POST",
+                headers: getAuthHeaders(),
+                body: JSON.stringify(bodyData.pbn_params)
+            });
+            const valData = await valRes.json();
+            
+            // --- NEW: Catch Backend Errors Safely ---
+            if (!valRes.ok) {
+                setIsCreating(false);
+                return showToast(`Validation Server Error: ${valData.detail || "Failed to contact backend."}`, "error");
+            }
+
+            setPbnCalculations(valData);
+            
+            // Pop the warning if it fails!
+            if (!valData.is_valid) {
+                const proceed = window.confirm("Minimum Stabilization Distance (MSD) was NOT complied with on one or more segments.\n\nDraw surfaces anyways?");
+                if (!proceed) {
+                    setIsCreating(false);
+                    return; // ABORT CREATION
+                }
+            }
+            localPbnTrajectories = valData.segments;
+        }
+
+        // --- 2. CREATE SURFACE AS USUAL ---
         const res = await fetch(`${API_BASE}/create-surface`, {
           method: "POST",
           headers: getAuthHeaders(),
@@ -1878,7 +2042,7 @@ export default function Home() {
         if (data.error) throw new Error(data.error);
 
         // 3. DRAW AND SAVE
-        if (viewerRef.current && data.geometry) {
+         if (viewerRef.current && data.geometry) {
           let newOffset = geoidOffset;
           const firstCoord = getFirstCoord(data.geometry);
           if (firstCoord) {
@@ -1889,6 +2053,21 @@ export default function Home() {
           setSavedSurfaces(prev => [...prev, data]);
           setSelectedAnalysisAirport(data.airport_name);
           setSelectedAnalysisOwner(0);
+          
+          // --- NEW: DRAW PBN NOMINAL TRAJECTORY (WHITE / RED) ---
+          if (family === "PBN" && localPbnTrajectories) {
+              localPbnTrajectories.forEach((seg: any) => {
+                  const pathColor = seg.msd_passed ? Cesium.Color.WHITE : Cesium.Color.RED;
+                  viewerRef.current?.entities.add({
+                      polyline: {
+                          positions: Cesium.Cartesian3.fromDegreesArrayHeights(seg.nominal_path),
+                          width: 3,
+                          material: pathColor,
+                          clampToGround: false
+                      }
+                  });
+              });
+          }
 
           showToast(`${finalSurfName} created and saved successfully!`, "success");
         }
@@ -2008,6 +2187,7 @@ export default function Home() {
     oasParams,
     obsPos,
     passwordInput,
+    pbnCalculations,
     pbnParams,
     pointResult,
     pubSurfQuery,
@@ -2086,6 +2266,7 @@ export default function Home() {
     setOasParams,
     setObsPos,
     setPasswordInput,
+    setPbnCalculations,
     setPbnParams,
     setPointResult,
     setPubSurfQuery,
